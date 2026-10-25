@@ -1,0 +1,61 @@
+/* Diekstrak dari templates/maintenance/config_update.html */
+@import url('https://fonts.googleapis.com/css2?family=Nunito:wght@300;400;600;700;800;900&family=JetBrains+Mono:wght@400;500;700&display=swap');
+  :root {
+  --mono: 'JetBrains Mono',monospace;
+  --sans: 'Nunito',sans-serif;
+  --r: 14px;
+}
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+  body{font-family:var(--sans);background:var(--bg);color:var(--text);}
+  .wrap{padding:36px 40px;max-width:760px;margin:0 auto;}
+  .page-eyebrow{font-size:11px;color:var(--muted);font-family:var(--mono);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;}
+  .page-title{font-size:22px;font-weight:900;margin-bottom:24px;}
+  .page-title em{font-style:normal;color:var(--warning);}
+
+  .info-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);
+    padding:18px 22px;margin-bottom:20px;box-shadow:var(--shadow-sm);display:flex;gap:16px;align-items:center;}
+  .info-card-icon{font-size:28px;flex-shrink:0;}
+  .info-card-name{font-size:15px;font-weight:800;}
+  .info-card-sub{font-size:11px;color:var(--text-soft);margin-top:2px;}
+
+  /* Current config banner */
+  .current-config{background:#ecfdf5;border:1.5px solid #a7f3d0;border-radius:12px;
+    padding:14px 18px;margin-bottom:20px;display:flex;align-items:center;gap:14px;}
+  .current-config-icon{font-size:20px;}
+  .current-config-text{font-size:13px;color:#065f46;}
+  .current-config-text strong{font-weight:800;}
+
+  .form-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);box-shadow:var(--shadow-sm);overflow:hidden;}
+  .form-card-header{padding:16px 22px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;}
+  .form-card-title{font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.6px;color:var(--text-soft);}
+  .form-body{padding:24px 22px;display:flex;flex-direction:column;gap:20px;}
+  .form-group{display:flex;flex-direction:column;gap:6px;}
+  label{font-size:12px;font-weight:700;color:var(--text-soft);text-transform:uppercase;letter-spacing:.4px;}
+  label span{color:var(--danger);}
+  input,textarea{padding:10px 14px;border:1.5px solid var(--border);border-radius:9px;
+    font-size:13px;font-family:var(--sans);color:var(--text);outline:none;width:100%;
+    transition:border-color .15s,box-shadow .15s;}
+  input:focus,textarea:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(26,86,219,.08);}
+  textarea{resize:vertical;min-height:80px;}
+
+  .interval-preview{background:var(--surface2);border:1px solid var(--border);
+    border-radius:10px;padding:14px 16px;display:flex;align-items:center;gap:12px;}
+  .interval-preview-val{font-size:28px;font-weight:900;font-family:var(--mono);color:var(--accent);}
+  .interval-preview-label{font-size:12px;color:var(--text-soft);font-weight:600;}
+  .interval-preview-sub{font-size:10px;color:var(--muted);font-family:var(--mono);}
+
+  .form-footer{padding:18px 22px;border-top:1px solid var(--border);background:var(--surface2);
+    display:flex;align-items:center;justify-content:space-between;}
+  .btn{display:inline-flex;align-items:center;gap:8px;padding:10px 22px;border-radius:9px;
+    font-size:13px;font-weight:700;text-decoration:none;border:none;cursor:pointer;
+    font-family:var(--sans);transition:all .15s;}
+  .btn-primary{background:var(--accent);color:#fff;}
+  .btn-primary:hover{background:var(--accent2);}
+  .btn-outline{background:var(--surface);color:var(--text-soft);border:1.5px solid var(--border);}
+  .btn-outline:hover{border-color:var(--accent);color:var(--accent);}
+
+  .anim{opacity:0;transform:translateY(10px);animation:fadeUp .35s forwards;}
+  .anim:nth-child(1){animation-delay:.04s;}.anim:nth-child(2){animation-delay:.08s;}
+  .anim:nth-child(3){animation-delay:.12s;}
+  @keyframes fadeUp{to{opacity:1;transform:none;}}
+  @media(max-width:640px){.wrap{padding:20px 16px;}}

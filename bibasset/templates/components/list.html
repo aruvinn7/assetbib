@@ -1,0 +1,152 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}Komponen — {{ asset.nama_asset }}{% endblock %}
+
+{% block content %}
+<link rel="stylesheet" href="{% static 'css/pages/components_list.css' %}">
+
+<div class="wrap">
+
+  <!-- BREADCRUMB -->
+  <nav class="breadcrumb anim" aria-label="breadcrumb">
+    <a href="{% url 'asset_list' %}">Aset</a>
+    <span>/</span>
+    <a href="{% url 'asset_detail' asset.id %}">{{ asset.asset_number }}</a>
+    <span>/</span>
+    <span>Komponen (BOM)</span>
+  </nav>
+
+  <!-- PAGE HEADER -->
+  <div class="page-header anim">
+    <div>
+      <span class="page-eyebrow">Bill of Materials</span>
+      <h1 class="page-title">Komponen <em>{{ asset.asset_number }}</em></h1>
+    </div>
+    <div class="header-actions">
+      <a href="{% url 'asset_detail' asset.id %}" class="btn btn-outline">
+        <span>←</span> <span class="btn-text">Kembali</span>
+      </a>
+      <a href="{% url 'component_create' asset.id %}" class="btn btn-success">
+        <span>＋</span> Tambah
+      </a>
+    </div>
+  </div>
+
+  <!-- ASSET INFO CARD -->
+  <div class="card anim">
+    <div class="card-header">
+      <span class="card-dot" style="background:var(--purple);"></span>
+      <span class="card-label">Informasi Aset</span>
+    </div>
+    <div class="asset-body">
+      <div class="asset-icon">📦</div>
+      <div>
+        <div class="asset-name">{{ asset.nama_asset }}</div>
+        <div class="chips">
+          <span class="chip">{{ asset.asset_number }}</span>
+          {% if asset.no_po %}<span class="chip">PO: {{ asset.no_po }}</span>{% endif %}
+          {% if asset.asset_group %}<span class="chip">{{ asset.asset_group }}</span>{% endif %}
+          {% if asset.asset_category %}<span class="chip">{{ asset.asset_category }}</span>{% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- STATS -->
+  <div class="stats-row anim">
+    <div class="stat-card purple">
+      <span class="stat-icon">🔩</span>
+      <div class="stat-num">{{ total_components }}</div>
+      <div class="stat-label">Total</div>
+    </div>
+    <div class="stat-card red">
+      <span class="stat-icon">⚠️</span>
+      <div class="stat-num">{{ critical_count }}</div>
+      <div class="stat-label">Kritis</div>
+    </div>
+    <div class="stat-card green">
+      <span class="stat-icon">💰</span>
+      <div class="stat-num" style="font-size:clamp(12px,3vw,16px);">Rp {{ total_estimated_cost|floatformat:0 }}</div>
+      <div class="stat-label">Est. Biaya</div>
+    </div>
+  </div>
+
+  <!-- COMPONENT LIST -->
+  {% if components %}
+  <div class="anim">
+    {% for comp in components %}
+    <div class="comp-card {% if comp.is_critical %}critical{% endif %}">
+
+      <div class="comp-top">
+        <div class="comp-icon {% if comp.is_critical %}crit{% endif %}">
+          {% if comp.is_critical %}⚠️{% else %}🔩{% endif %}
+        </div>
+
+        <div class="comp-main">
+          <div class="comp-name-row">
+            <span class="comp-name">{{ comp.component_name }}</span>
+            {% if comp.is_critical %}<span class="crit-badge">CRITICAL</span>{% endif %}
+          </div>
+          <span class="comp-pn">PN: {{ comp.part_number }}</span>
+          {% if comp.description %}
+            <div class="comp-desc">{{ comp.description }}</div>
+          {% endif %}
+        </div>
+
+        <div class="comp-actions-wrap">
+          <a href="{% url 'component_detail' comp.id %}" class="btn btn-outline btn-sm" title="Detail">🔍</a>
+          <a href="{% url 'component_update' comp.id %}" class="btn btn-warn btn-sm" title="Edit">✏️</a>
+          <a href="{% url 'component_delete' comp.id %}" class="btn btn-danger btn-sm"
+             onclick="return confirm('Yakin hapus \'{{ comp.component_name|escapejs }}\'?')" title="Hapus">🗑</a>
+        </div>
+      </div>
+
+      <!-- META -->
+      <div class="comp-meta">
+        <div>
+          <div class="meta-label">Quantity</div>
+          <div class="meta-value">{{ comp.quantity }} pcs</div>
+        </div>
+        {% if comp.estimated_price %}
+        <div>
+          <div class="meta-label">Est. Price / Unit</div>
+          <div class="meta-value green">Rp {{ comp.estimated_price|floatformat:0 }}</div>
+        </div>
+        {% endif %}
+        {% if comp.supplier_name %}
+        <div>
+          <div class="meta-label">Supplier</div>
+          <div class="meta-value">{{ comp.supplier_name }}</div>
+        </div>
+        {% endif %}
+        <div>
+          <div class="meta-label">Terakhir Diganti</div>
+          {% if comp.last_replaced %}
+            <div class="meta-value">{{ comp.last_replaced|date:"d M Y" }}</div>
+          {% else %}
+            <div class="meta-value muted">Belum Pernah</div>
+          {% endif %}
+        </div>
+      </div>
+
+      {% if comp.notes %}
+      <div class="comp-notes">📝 <span>{{ comp.notes }}</span></div>
+      {% endif %}
+
+    </div>
+    {% endfor %}
+  </div>
+
+  {% else %}
+  <div class="card anim">
+    <div class="empty-state">
+      <div class="empty-icon">🔩</div>
+      <div class="empty-title">Belum ada komponen</div>
+      <div class="empty-sub">Tambahkan komponen untuk melengkapi BOM aset ini</div>
+      <a href="{% url 'component_create' asset.id %}" class="btn btn-success">＋ Tambah Komponen Pertama</a>
+    </div>
+  </div>
+  {% endif %}
+
+</div>
+{% endblock %}

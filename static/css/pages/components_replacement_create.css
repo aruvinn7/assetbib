@@ -1,0 +1,111 @@
+/* Diekstrak dari templates/components/replacement_create.html */
+@import url('https://fonts.googleapis.com/css2?family=Nunito:wght@300;400;600;700;800;900&family=JetBrains+Mono:wght@400;500;700&display=swap');
+
+  :root {
+  --surface: #ffffff;
+  --mono: 'JetBrains Mono',monospace;
+  --sans: 'Nunito',sans-serif;
+  --r: 12px;
+}
+  *,*::before,*::after{box-sizing:border-box;}
+  body{font-family:var(--sans);background:var(--bg);color:var(--text);}
+
+  .pg-wrap{padding:20px;max-width:780px;margin:0 auto;}
+
+  /* BREADCRUMB */
+  .breadcrumb{display:flex;align-items:center;gap:4px;flex-wrap:wrap;
+    font-size:10px;font-family:var(--mono);color:var(--muted);margin-bottom:14px;}
+  .breadcrumb a{color:var(--muted);text-decoration:none;transition:color .15s;}
+  .breadcrumb a:hover{color:var(--accent);}
+  .breadcrumb-sep{color:var(--border);}
+  .breadcrumb-current{color:var(--text-soft);font-weight:700;}
+
+  /* PAGE TITLE */
+  .pg-eyebrow{font-size:10px;color:var(--muted);font-family:var(--mono);
+    font-weight:500;letter-spacing:.5px;text-transform:uppercase;margin-bottom:2px;}
+  .pg-title{font-size:20px;font-weight:900;letter-spacing:-.4px;line-height:1.1;margin-bottom:4px;}
+  .pg-title em{font-style:normal;color:var(--accent);}
+  .pg-sub{font-size:11px;color:var(--text-soft);font-family:var(--mono);margin-bottom:18px;}
+
+  /* COMPONENT BANNER */
+  .comp-banner{background:var(--surface);border:1px solid var(--border);
+    border-radius:var(--r);padding:14px 16px;margin-bottom:14px;
+    box-shadow:var(--shadow-sm);display:flex;align-items:center;gap:14px;flex-wrap:wrap;}
+  .comp-banner-icon{width:44px;height:44px;border-radius:10px;background:#eff6ff;
+    display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0;}
+  .comp-banner-body{flex:1;min-width:0;}
+  .comp-banner-name{font-weight:800;font-size:14px;color:var(--text);}
+  .comp-banner-meta{font-family:var(--mono);font-size:10px;color:var(--muted);margin-top:3px;}
+  .comp-banner-pills{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;}
+  .pill{display:inline-flex;align-items:center;gap:4px;padding:3px 9px;
+    border-radius:99px;font-size:9px;font-weight:700;font-family:var(--mono);border:1px solid;}
+  .pill.blue {background:#eff6ff;color:var(--accent);border-color:#bfdbfe;}
+  .pill.red  {background:#fee2e2;color:var(--danger);border-color:#fca5a5;}
+  .pill.green{background:#d1fae5;color:var(--success);border-color:#a7f3d0;}
+  .pill.slate{background:var(--surface2);color:var(--text-soft);border-color:var(--border);}
+
+  /* CARD */
+  .db-card{background:var(--surface);border:1px solid var(--border);
+    border-radius:var(--r);box-shadow:var(--shadow-sm);overflow:hidden;margin-bottom:14px;}
+  .db-card-header{padding:12px 16px;border-bottom:1px solid var(--border);
+    display:flex;align-items:center;gap:8px;}
+  .db-card-title{font-size:11px;font-weight:800;text-transform:uppercase;
+    letter-spacing:.6px;color:var(--text-soft);display:flex;align-items:center;gap:7px;}
+  .db-card-title-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;}
+  .card-body{padding:20px;}
+
+  /* FORM */
+  .form-row{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;}
+  .form-row.single{grid-template-columns:1fr;}
+  .form-group{display:flex;flex-direction:column;}
+  .form-label{font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;
+    color:var(--text-soft);margin-bottom:6px;font-family:var(--mono);}
+  .form-label .req{color:var(--danger);}
+  .form-control{width:100%;padding:10px 12px;border:1.5px solid var(--border);
+    border-radius:8px;font-size:13px;font-family:var(--sans);color:var(--text);
+    background:var(--surface);transition:border-color .15s,box-shadow .15s;outline:none;}
+  .form-control:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(26,86,219,.1);}
+  textarea.form-control{resize:vertical;min-height:90px;}
+  .form-hint{font-size:9px;color:var(--muted);font-family:var(--mono);margin-top:4px;}
+
+  /* BIAYA INPUT GROUP */
+  .input-prefix{display:flex;align-items:center;border:1.5px solid var(--border);
+    border-radius:8px;overflow:hidden;transition:border-color .15s,box-shadow .15s;}
+  .input-prefix:focus-within{border-color:var(--accent);box-shadow:0 0 0 3px rgba(26,86,219,.1);}
+  .input-prefix-label{padding:10px 12px;background:var(--surface2);
+    font-family:var(--mono);font-size:11px;font-weight:700;color:var(--text-soft);
+    border-right:1.5px solid var(--border);white-space:nowrap;flex-shrink:0;}
+  .input-prefix .form-control{border:none;border-radius:0;box-shadow:none!important;padding-left:10px;}
+  .input-prefix .form-control:focus{border:none;box-shadow:none;}
+
+  /* DIVIDER */
+  .form-divider{border:none;border-top:1px solid var(--border);margin:20px 0;}
+
+  /* BUTTONS */
+  .form-actions{display:flex;gap:10px;flex-wrap:wrap;}
+  .btn-submit{display:inline-flex;align-items:center;gap:6px;
+    background:var(--accent);color:#fff;border:none;border-radius:8px;
+    padding:10px 20px;font-size:13px;font-weight:700;cursor:pointer;
+    font-family:var(--sans);transition:background .15s;}
+  .btn-submit:hover{background:var(--accent2);}
+  .btn-cancel{display:inline-flex;align-items:center;gap:6px;
+    background:var(--surface2);color:var(--text-soft);border:1.5px solid var(--border);
+    border-radius:8px;padding:10px 18px;font-size:13px;font-weight:700;
+    text-decoration:none;font-family:var(--sans);transition:all .15s;}
+  .btn-cancel:hover{border-color:var(--text-soft);color:var(--text);}
+
+  /* ANIM */
+  .anim{opacity:0;transform:translateY(10px);animation:fadeUp .35s forwards;}
+  .anim:nth-child(1){animation-delay:.04s;}.anim:nth-child(2){animation-delay:.08s;}
+  .anim:nth-child(3){animation-delay:.12s;}.anim:nth-child(4){animation-delay:.16s;}
+  @keyframes fadeUp{to{opacity:1;transform:none;}}
+
+  /* RESPONSIVE */
+  @media(max-width:600px){
+    .pg-wrap{padding:12px;}
+    .card-body{padding:14px;}
+    .form-row{grid-template-columns:1fr;}
+    .form-actions{flex-direction:column;}
+    .btn-submit,.btn-cancel{width:100%;justify-content:center;}
+    .comp-banner{flex-direction:column;align-items:flex-start;}
+  }

@@ -1,0 +1,56 @@
+/* --- Variables & Core --- */
+:root {
+  --bg: #f0f2f7; --surface: #ffffff; --border: #e4e8f0;
+  --accent: #1a56db; --accent2: #0e3fba; --danger: #e02424;
+  --warning: #d97706; --success: #057a55; --text: #111928;
+  --text-soft: #6b7280; --muted: #9ca3af;
+  --mono: 'JetBrains Mono', monospace;
+}
+
+body { background: var(--bg); color: var(--text); }
+
+/* --- Component: Stats --- */
+.db-stat {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  transition: all .2s ease;
+  position: relative;
+  overflow: hidden;
+  display: block;
+  text-decoration: none;
+  color: inherit;
+}
+.db-stat:hover { transform: translateY(-3px); box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); }
+.db-stat-icon { font-size: 1.5rem; }
+.db-stat-number { font-family: var(--mono); font-weight: 800; font-size: 1.75rem; line-height: 1; }
+.db-stat-label { font-size: 0.7rem; font-weight: 700; text-transform: uppercase; color: var(--text-soft); }
+
+/* --- Component: Cards & Tables --- */
+.db-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+}
+.table-custom thead {
+  background: #f8f9fc;
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  text-transform: uppercase;
+}
+.table-custom td { font-size: 0.85rem; vertical-align: middle; }
+
+/* --- Custom Badges (Bootstrap Override) --- */
+.badge-mono {
+  font-family: var(--mono);
+  font-size: 0.65rem;
+  font-weight: 700;
+  padding: 0.35em 0.65em;
+  border-radius: 50rem;
+}
+
+/* --- Animation --- */
+.anim {
+  opacity: 0; transform: translateY(10px);
+  animation: fadeUp .35s forwards;
+}
+@keyframes fadeUp { to { opacity: 1; transform: none; } }

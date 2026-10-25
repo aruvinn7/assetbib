@@ -1,0 +1,148 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}Master Asset Group{% endblock %}
+{% block nav_master %}active{% endblock %}
+
+{% block content %}
+<link rel="stylesheet" href="{% static 'css/pages/master_assetgroup_list.css' %}">
+
+<div class="wrap">
+
+  <!-- BREADCRUMB -->
+  <nav class="breadcrumb anim">
+    <a href="{% url 'dashboard' %}">Dashboard</a>
+    <span>/</span>
+    <span>Master Asset Group</span>
+  </nav>
+
+  <!-- PAGE HEADER -->
+  <div class="page-header anim">
+    <div>
+      <span class="page-eyebrow">Master Data</span>
+      <h1 class="page-title">Master <em>Asset Group</em></h1>
+    </div>
+    <div class="header-actions">
+      <a href="{% url 'dashboard' %}" class="btn btn-outline">← Dashboard</a>
+      <a href="{% url 'assetgroup_create' %}" class="btn btn-success">＋ Tambah</a>
+    </div>
+  </div>
+
+  <!-- TOOLBAR -->
+  <div class="toolbar anim">
+    <div class="search-wrap">
+      <span class="search-icon">🔍</span>
+      <input type="text" class="search-input" id="searchInput"
+        placeholder="Cari nama asset group..."
+        oninput="filterTable(this.value)">
+    </div>
+    <span class="count-label" id="countLabel">{{ groups|length }} group</span>
+  </div>
+
+  <!-- TABLE CARD -->
+  <div class="card anim">
+    <div class="card-header">
+      <div class="card-title">
+        <span class="card-dot"></span>
+        Daftar Asset Group — <span id="tableCount">{{ groups|length }}</span> item
+      </div>
+    </div>
+
+    {% if groups %}
+
+    <!-- DESKTOP TABLE -->
+    <div class="desktop-table">
+    <table class="tbl" id="groupTable">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Nama Asset Group</th>
+          <th>Aksi</th>
+        </tr>
+      </thead>
+      <tbody id="groupTbody">
+        {% for g in groups %}
+        <tr class="group-row" data-search="{{ g.name|lower }}">
+          <td style="font-family:var(--mono);font-size:10px;color:var(--muted);">{{ forloop.counter }}</td>
+          <td>
+            <div class="group-name">
+              <div class="group-icon">📦</div>
+              {{ g.name }}
+            </div>
+          </td>
+          <td>
+            <div class="action-group">
+              <a href="{% url 'assetgroup_update' g.id %}" class="act-btn edit">✏️ Edit</a>
+              <a href="{% url 'assetgroup_delete' g.id %}" class="act-btn"
+                 onclick="return confirm('Hapus asset group \'{{ g.name|escapejs }}\'?')">🗑 Hapus</a>
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    </div>
+
+    <!-- MOBILE CARDS -->
+    <div class="mobile-cards" id="mobileCards">
+      {% for g in groups %}
+      <div class="mc group-row" data-search="{{ g.name|lower }}">
+        <span class="mc-num">{{ forloop.counter }}</span>
+        <div class="mc-icon">📦</div>
+        <span class="mc-name">{{ g.name }}</span>
+        <div class="action-group">
+          <a href="{% url 'assetgroup_update' g.id %}" class="act-btn edit">✏️</a>
+          <a href="{% url 'assetgroup_delete' g.id %}" class="act-btn"
+             onclick="return confirm('Hapus asset group \'{{ g.name|escapejs }}\'?')">🗑</a>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+
+    <!-- EMPTY SEARCH -->
+    <div id="searchEmpty" style="display:none;" class="empty-state">
+      <div class="empty-icon">🔍</div>
+      <div class="empty-title">Asset group tidak ditemukan</div>
+      <div class="empty-sub">Coba kata kunci lain</div>
+    </div>
+
+    {% else %}
+    <div class="empty-state">
+      <div class="empty-icon">📦</div>
+      <div class="empty-title">Belum ada asset group</div>
+      <div class="empty-sub">Tambahkan group pertama untuk mulai mengkategorikan aset</div>
+      <a href="{% url 'assetgroup_create' %}" class="btn btn-success">＋ Tambah Asset Group</a>
+    </div>
+    {% endif %}
+  </div>
+
+</div>
+
+<script>
+  function filterTable(q) {
+    const rows  = document.querySelectorAll('.group-row');
+    const query = q.toLowerCase().trim();
+    let visible = 0;
+
+    rows.forEach(row => {
+      const match = !query || row.dataset.search.includes(query);
+      row.style.display = match ? '' : 'none';
+      if (match) visible++;
+    });
+
+    // Bagi 2 karena desktop row + mobile card keduanya pakai .group-row
+    const count = visible / 2;
+    document.getElementById('tableCount').textContent = count;
+    document.getElementById('countLabel').textContent = count + ' group';
+
+    const tbl = document.getElementById('groupTable');
+    const mob = document.getElementById('mobileCards');
+    const emp = document.getElementById('searchEmpty');
+    const noResult = count === 0 && query;
+
+    if (tbl) tbl.style.display = noResult ? 'none' : '';
+    if (mob) mob.style.display = noResult ? 'none' : '';
+    emp.style.display = noResult ? 'block' : 'none';
+  }
+</script>
+
+{% endblock %}

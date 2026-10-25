@@ -1,0 +1,204 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}Input Maintenance — {{ asset.nama_asset }}{% endblock %}
+
+{% block content %}
+<link rel="stylesheet" href="{% static 'css/pages/maintenance_create.css' %}">
+
+<div class="wrap">
+
+  <!-- HEADER -->
+  <div class="page-header anim">
+    <div class="page-eyebrow">Maintenance Record — Input</div>
+    <h1 class="page-title">Input <em>Maintenance</em></h1>
+  </div>
+
+  <!-- ASSET BANNER -->
+  <div class="asset-banner anim">
+    <div class="asset-banner-icon">🔧</div>
+    <div>
+      <div class="asset-banner-num">{{ asset.asset_number }}</div>
+      <div class="asset-banner-name">{{ asset.nama_asset }}</div>
+      <div class="asset-banner-meta">
+        {{ asset.asset_category.name|default:"—" }} ·
+        {{ asset.lokasi_asset|default:"—" }} ·
+        {{ asset.owned_by_department.name|default:"—" }}
+      </div>
+    </div>
+    <div class="asset-banner-right">
+      {% with interval=asset.get_effective_interval_days %}
+        {% if interval %}
+          <div class="interval-chip">Interval: setiap {{ interval }} hari</div>
+          {% if asset.maintenance_config %}
+            <div style="font-size:10px;color:var(--muted);margin-top:4px;font-family:var(--mono);">custom override</div>
+          {% endif %}
+        {% endif %}
+      {% endwith %}
+    </div>
+  </div>
+
+  <!-- SCHEDULE ALERT -->
+  {% if active_schedule %}
+    {% if active_schedule.status == 'overdue' %}
+    <div class="schedule-alert overdue anim">
+      <span class="schedule-alert-icon">🚨</span>
+      <div>
+        <strong>Jadwal ini sudah OVERDUE!</strong><br>
+        Dijadwalkan: {{ active_schedule.scheduled_date|date:"d M Y" }} —
+        sudah {{ active_schedule.days_remaining|cut:"-" }} hari terlambat.
+        Jadwal ini akan ditandai selesai setelah Anda submit.
+      </div>
+    </div>
+    {% else %}
+    <div class="schedule-alert upcoming anim">
+      <span class="schedule-alert-icon">📅</span>
+      <div>
+        <strong>Melaksanakan jadwal maintenance.</strong>
+        Dijadwalkan: {{ active_schedule.scheduled_date|date:"d M Y" }}.
+        Jadwal ini akan ditandai selesai setelah Anda submit.
+      </div>
+    </div>
+    {% endif %}
+  {% endif %}
+
+  <!-- CHECKLIST HINT -->
+  {% if checklist_hint %}
+  <div class="form-card anim" style="margin-bottom:18px;">
+    <div class="form-card-header">
+      <span style="font-size:16px;">📋</span>
+      <div class="form-card-title">Checklist Standar — {{ asset.asset_category.name }}</div>
+    </div>
+    <div style="padding:16px 22px;">
+      <div class="checklist-box">
+        <div class="checklist-title">Checklist yang harus dilakukan:</div>
+        {% for line in checklist_hint.splitlines %}
+          {% if line.strip %}
+          <div class="checklist-item">
+            <span class="checklist-num">{{ forloop.counter }}</span>
+            {{ line|slice:"3:" }}
+          </div>
+          {% endif %}
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- FORM -->
+  <div class="form-card anim">
+    <div class="form-card-header">
+      <span style="font-size:16px;">📝</span>
+      <div class="form-card-title">Detail Pelaksanaan Maintenance</div>
+    </div>
+
+    <form method="POST">
+      {% csrf_token %}
+      {% if active_schedule %}
+        <input type="hidden" name="schedule_id" value="{{ active_schedule.pk }}">
+      {% endif %}
+
+      <div class="form-body">
+
+        <!-- ROW 1: TYPE + TANGGAL -->
+        <div class="form-row">
+          <div class="form-group">
+            <label>Tipe Maintenance <span>*</span></label>
+            <select name="maintenance_type" required>
+              <option value="">-- Pilih Tipe --</option>
+              <option value="preventive">Preventive — Terjadwal rutin</option>
+              <option value="corrective">Corrective — Perbaikan setelah rusak</option>
+              <option value="inspection">Inspection — Pengecekan visual/ringan</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Tanggal Pelaksanaan <span>*</span></label>
+            <input type="date" name="tanggal_pelaksanaan" value="{{ today|date:'Y-m-d' }}" required>
+          </div>
+        </div>
+
+        <!-- DESKRIPSI -->
+        <div class="form-group">
+          <label>Deskripsi Pekerjaan <span>*</span></label>
+          <textarea name="deskripsi_pekerjaan" required
+            placeholder="Jelaskan apa yang dikerjakan selama maintenance ini..."></textarea>
+        </div>
+
+        <!-- HASIL / KONDISI -->
+        <div class="form-group">
+          <label>Hasil / Kondisi Aset <span>*</span></label>
+          <div class="result-grid">
+
+            <div class="result-option">
+              <input type="radio" name="hasil" id="hasil_ok" value="ok" checked>
+              <label for="hasil_ok" class="result-label success-label">
+                <span class="result-icon">✅</span>
+                <div>
+                  <div class="result-text">Baik</div>
+                  <div class="result-sub">Tidak ada masalah</div>
+                </div>
+              </label>
+            </div>
+
+            <div class="result-option">
+              <input type="radio" name="hasil" id="hasil_minor" value="minor_issue">
+              <label for="hasil_minor" class="result-label warning-label">
+                <span class="result-icon">⚠️</span>
+                <div>
+                  <div class="result-text">Minor Issue</div>
+                  <div class="result-sub">Masih bisa beroperasi</div>
+                </div>
+              </label>
+            </div>
+
+            <div class="result-option">
+              <input type="radio" name="hasil" id="hasil_major" value="major_issue">
+              <label for="hasil_major" class="result-label danger-label">
+                <span class="result-icon">🚨</span>
+                <div>
+                  <div class="result-text">Major Issue</div>
+                  <div class="result-sub">Perlu tindak lanjut segera</div>
+                </div>
+              </label>
+            </div>
+
+            <div class="result-option">
+              <input type="radio" name="hasil" id="hasil_replaced" value="replaced_component">
+              <label for="hasil_replaced" class="result-label">
+                <span class="result-icon">🔄</span>
+                <div>
+                  <div class="result-text">Komponen Diganti</div>
+                  <div class="result-sub">Ada penggantian part</div>
+                </div>
+              </label>
+            </div>
+
+          </div>
+        </div>
+
+        <!-- ROW 3: BIAYA + CATATAN -->
+        <div class="form-row">
+          <div class="form-group">
+            <label>Biaya (Rp)</label>
+            <input type="number" name="biaya" value="0" min="0" step="1000"
+              placeholder="0">
+          </div>
+          <div class="form-group">
+            <label>Catatan Tambahan</label>
+            <input type="text" name="catatan_tambahan"
+              placeholder="Catatan opsional...">
+          </div>
+        </div>
+
+      </div><!-- /form-body -->
+
+      <div class="form-footer">
+        <a href="{% url 'maintenance_list' %}" class="btn btn-outline">← Batal</a>
+        <button type="submit" class="btn btn-primary">
+          💾 Simpan & Generate Jadwal Berikutnya
+        </button>
+      </div>
+    </form>
+  </div>
+
+</div>
+{% endblock %}

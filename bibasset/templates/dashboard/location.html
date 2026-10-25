@@ -1,0 +1,324 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}Dashboard Lokasi — Asset Management{% endblock %}
+
+{% block content %}
+<link rel="stylesheet" href="{% static 'css/pages/dashboard_location.css' %}">
+
+<div class="loc-wrap">
+
+  <!-- HEADER -->
+  <div class="loc-header anim">
+    <div>
+      <div class="loc-eyebrow">PT Borneo Indobara · Asset Management</div>
+      <h1 class="loc-title">Dashboard <em>Lokasi</em></h1>
+    </div>
+    <a href="{% url 'dashboard' %}" class="btn-back">← Dashboard</a>
+  </div>
+
+  <!-- STATS -->
+  <div class="loc-stats anim">
+    <div class="loc-stat">
+      <div class="loc-stat-num" style="color:var(--accent);">{{ total_with_location }}</div>
+      <div class="loc-stat-label">📍 Aset Berlokasi</div>
+    </div>
+    <div class="loc-stat">
+      <div class="loc-stat-num" style="color:var(--warning);">{{ total_without_location }}</div>
+      <div class="loc-stat-label">❓ Tanpa Lokasi</div>
+    </div>
+    <div class="loc-stat">
+      <div class="loc-stat-num" style="color:var(--text);">{{ roots|length }}</div>
+      <div class="loc-stat-label">🗺️ Area Utama</div>
+    </div>
+  </div>
+
+  <!-- LAYOUT -->
+  <div class="loc-layout">
+
+    <!-- ═══════════ TREE PANEL ═══════════ -->
+    <div class="tree-panel anim">
+      <div class="tree-panel-header">
+        <div class="tree-panel-title">
+          <span class="tree-dot"></span>Pohon Lokasi
+        </div>
+        <span style="font-size:9px;color:var(--muted);font-family:var(--mono);">klik untuk filter</span>
+      </div>
+      <div class="tree-search-wrap">
+        <span class="tree-search-icon">🔍</span>
+        <input type="text" class="tree-search" id="treeSearch" placeholder="Cari lokasi...">
+      </div>
+      <div class="tree-body" id="treeBody">
+
+        <!-- Root: Semua -->
+        <a href="{% url 'location_dashboard' %}"
+          class="tree-node-row tl0 {% if not selected_id %}selected{% endif %}">
+          <span style="width:22px;"></span>
+          <span style="font-size:13px;margin-right:4px;">🗺️</span>
+          <span class="tree-node-name" style="font-weight:800;">Semua Area</span>
+          <span class="tree-node-count has">{{ total_with_location }}</span>
+        </a>
+
+        {% for root in roots %}
+          {% include "dashboard/partials/tree_node.html" with node=root level=0 %}
+        {% endfor %}
+
+      </div>
+    </div>
+
+    <!-- ═══════════ CONTENT PANEL ═══════════ -->
+    <div class="content-panel">
+
+      {% if selected_node %}
+
+        <!-- BREADCRUMB -->
+        <div class="bc-wrap anim">
+          <a href="{% url 'location_dashboard' %}" class="bc-item">🗺️ Semua</a>
+          {% for crumb in breadcrumb %}
+            <span class="bc-sep">›</span>
+            {% if forloop.last %}
+              <span class="bc-item cur">{{ crumb.name }}</span>
+            {% else %}
+              <a href="{% url 'location_dashboard' %}?location={{ crumb.pk }}"
+                class="bc-item">{{ crumb.name }}</a>
+            {% endif %}
+          {% endfor %}
+        </div>
+
+        <!-- DETAIL CARD -->
+        <div class="detail-card anim">
+          <div class="detail-header">
+            <div class="detail-icon">
+              {% if selected_node.children_list %}🏢{% else %}📍{% endif %}
+            </div>
+            <div>
+              <div class="detail-name">{{ selected_node.name }}</div>
+              <div class="detail-sub">
+                {{ selected_node.children_list|length }} sub-lokasi ·
+                {{ selected_assets|length }} total aset (inkl. sub-lokasi)
+              </div>
+            </div>
+            <a href="{% url 'asset_list' %}?location={{ selected_node.pk }}"
+              class="detail-link">Lihat di Daftar Aset →</a>
+          </div>
+          <div class="stat-strip">
+            <div class="sstrip">
+              <div class="sstrip-num" style="color:var(--accent);">{{ selected_node.total_assets }}</div>
+              <div class="sstrip-label">Total</div>
+            </div>
+            <div class="sstrip">
+              <div class="sstrip-num" style="color:var(--success);">{{ selected_node.total_active }}</div>
+              <div class="sstrip-label">🟢 Aktif</div>
+            </div>
+            <div class="sstrip">
+              <div class="sstrip-num" style="color:var(--accent);">{{ selected_node.total_maint }}</div>
+              <div class="sstrip-label">🔧 Maint.</div>
+            </div>
+            <div class="sstrip">
+              <div class="sstrip-num" style="color:var(--text-soft);">{{ selected_node.total_writeoff }}</div>
+              <div class="sstrip-label">⚫ W/O</div>
+            </div>
+          </div>
+
+          {% if selected_node.children_list %}
+          <div class="subloc-section">
+            <div class="subloc-section-label">📁 Sub-Lokasi</div>
+            <div class="subloc-grid">
+              {% for child in selected_node.children_list %}
+              {% if child.total_assets > 0 or child.children_list %}
+              <a href="{% url 'location_dashboard' %}?location={{ child.pk }}" class="subloc-card">
+                <div class="subloc-name">{{ child.name }}</div>
+                <div class="subloc-meta">
+                  <div class="subloc-count">{{ child.total_assets }}</div>
+                  <div class="subloc-pills">
+                    {% if child.total_active > 0 %}<span class="spill g">✅ {{ child.total_active }}</span>{% endif %}
+                    {% if child.total_maint > 0 %}<span class="spill b">🔧 {{ child.total_maint }}</span>{% endif %}
+                    {% if child.total_writeoff > 0 %}<span class="spill gr">⚫ {{ child.total_writeoff }}</span>{% endif %}
+                  </div>
+                </div>
+                <div class="subloc-arrow">
+                  {% if child.children_list %}{{ child.children_list|length }} sub →{% else %}Lihat aset →{% endif %}
+                </div>
+              </a>
+              {% endif %}
+              {% endfor %}
+            </div>
+          </div>
+          {% endif %}
+        </div>
+
+        <!-- ASSET TABLE -->
+        {% if selected_assets %}
+        <div class="asset-panel anim">
+          <div class="asset-panel-header">
+            <div class="ap-title"><span class="ap-dot"></span>
+              Aset di {{ selected_node.name }}
+              <span style="font-weight:400;color:var(--muted);">(inkl. sub-lokasi)</span>
+            </div>
+            <div class="ap-filters">
+              <button class="ap-tab active" onclick="filterAssets('all',this)">Semua ({{ selected_assets|length }})</button>
+              <button class="ap-tab g" onclick="filterAssets('active',this)">🟢 Aktif</button>
+              <button class="ap-tab a" onclick="filterAssets('maintenance',this)">🔧 Maint.</button>
+              <button class="ap-tab r" onclick="filterAssets('writeoff',this)">⚫ W/O</button>
+            </div>
+          </div>
+          <div style="overflow-x:auto;">
+            <table class="loc-tbl" id="locAssetTable">
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>Nama Aset</th>
+                  <th class="hm">Kategori</th>
+                  <th>Lokasi Spesifik</th>
+                  <th class="hm">Dept.</th>
+                  <th>Status</th>
+                  <th>Aksi</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for asset in selected_assets %}
+                <tr data-status="{{ asset.lifecycle_status }}"
+                  onclick="window.location='{% url 'asset_detail' asset.pk %}'">
+                  <td style="font-family:var(--mono);font-size:10px;color:var(--muted);">{{ forloop.counter }}</td>
+                  <td>
+                    <div style="font-weight:700;font-size:12px;">{{ asset.nama_asset }}</div>
+                    <div style="font-size:9px;color:var(--muted);font-family:var(--mono);margin-top:1px;">
+                      {{ asset.asset_number }}{% if asset.asset_group %} · {{ asset.asset_group.name }}{% endif %}
+                    </div>
+                  </td>
+                  <td class="hm" style="font-size:11px;color:var(--text-soft);">
+                    {{ asset.asset_category.name|default:"—" }}
+                  </td>
+                  <td style="font-size:11px;color:var(--text-soft);">{{ asset.lokasi_asset|default:"—" }}</td>
+                  <td class="hm">
+                    <span style="font-size:10px;font-weight:600;color:var(--text-soft);
+                      background:var(--surface2);padding:2px 7px;border-radius:5px;
+                      border:1px solid var(--border);">{{ asset.owned_by_department|default:"—" }}</span>
+                  </td>
+                  <td>
+                    {% if asset.lifecycle_status == 'active' %}<span class="pill active">Active</span>
+                    {% elif asset.lifecycle_status == 'maintenance' %}<span class="pill maintenance">Maint.</span>
+                    {% else %}<span class="pill writeoff">W/O</span>{% endif %}
+                  </td>
+                  <td onclick="event.stopPropagation()">
+                   <a href="{% url 'maintenance_create' asset.id %}"  
+                      style="padding:4px 10px;border-radius:5px;font-size:10px;font-weight:700;
+                      text-decoration:none;border:1.5px solid #16a34a;
+                      background:#dcfce7;color:#166534;display:inline-block;">
+                      + Input
+                    </a>
+                    <a href="{% url 'asset_detail' asset.pk %}"
+                      style="padding:4px 10px;border-radius:5px;font-size:10px;font-weight:700;
+                        text-decoration:none;border:1.5px solid var(--border);
+                        background:var(--surface2);color:var(--text-soft);display:inline-block;">Detail</a>
+                  </td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+        {% endif %}
+
+      {% else %}
+        <!-- PROMPT — belum ada yang dipilih -->
+        <div class="detail-card anim">
+          <div class="loc-empty">
+            <div class="loc-empty-icon">🗺️</div>
+            <div class="loc-empty-title">Pilih Lokasi</div>
+            <div class="loc-empty-sub">Klik area di panel kiri untuk melihat aset di lokasi tersebut.</div>
+          </div>
+          {% if roots %}
+          <div class="subloc-section" style="border-top:1px solid var(--border);">
+            <div class="subloc-section-label">🗺️ Area Utama</div>
+            <div class="subloc-grid">
+              {% for root in roots %}
+              {% if root.total_assets > 0 or root.children_list %}
+              <a href="{% url 'location_dashboard' %}?location={{ root.pk }}" class="subloc-card">
+                <div class="subloc-name">{{ root.name }}</div>
+                <div class="subloc-meta">
+                  <div class="subloc-count">{{ root.total_assets }}</div>
+                  <div class="subloc-pills">
+                    {% if root.total_active > 0 %}<span class="spill g">✅ {{ root.total_active }}</span>{% endif %}
+                    {% if root.total_maint > 0 %}<span class="spill b">🔧 {{ root.total_maint }}</span>{% endif %}
+                    {% if root.total_writeoff > 0 %}<span class="spill gr">⚫ {{ root.total_writeoff }}</span>{% endif %}
+                  </div>
+                </div>
+                <div class="subloc-arrow">{{ root.children_list|length }} sub-lokasi →</div>
+              </a>
+              {% endif %}
+              {% endfor %}
+            </div>
+          </div>
+          {% endif %}
+        </div>
+      {% endif %}
+
+    </div>
+  </div>
+</div>
+
+<script>
+const selectedId = "{{ selected_id }}";
+
+// Auto-expand tree ke node terpilih
+document.addEventListener('DOMContentLoaded', () => {
+  if (!selectedId) return;
+  // Expand semua ancestor
+  const sel = document.querySelector(`[data-nid="${selectedId}"]`);
+  if (!sel) return;
+  let parent = sel.closest('.tree-children');
+  while (parent) {
+    parent.classList.add('open');
+    const pid = parent.id.replace('tc-','');
+    document.getElementById('tt-'+pid)?.classList.add('open');
+    parent = parent.parentElement?.closest('.tree-children');
+  }
+  setTimeout(() => sel.scrollIntoView({block:'nearest',behavior:'smooth'}), 150);
+});
+
+// Toggle
+function toggleNode(pk) {
+  const c = document.getElementById('tc-'+pk);
+  const t = document.getElementById('tt-'+pk);
+  if (!c) return;
+  const open = c.classList.toggle('open');
+  t?.classList.toggle('open', open);
+}
+
+// Filter tabel aset
+function filterAssets(status, btn) {
+  document.querySelectorAll('.ap-tab').forEach(t => t.classList.remove('active'));
+  btn.classList.add('active');
+  document.querySelectorAll('#locAssetTable tbody tr').forEach(row => {
+    row.style.display = (status === 'all' || row.dataset.status === status) ? '' : 'none';
+  });
+}
+
+// Tree search
+document.getElementById('treeSearch').addEventListener('input', function() {
+  const q = this.value.toLowerCase().trim();
+  const rows = document.querySelectorAll('.tree-node-row[data-nid]');
+  if (!q) {
+    rows.forEach(r => { r.style.display=''; });
+    document.querySelectorAll('.tree-children').forEach(c => c.classList.remove('open'));
+    document.querySelectorAll('.tree-toggle').forEach(t => t.classList.remove('open'));
+    return;
+  }
+  rows.forEach(row => {
+    const match = (row.dataset.name||'').toLowerCase().includes(q);
+    row.style.display = match ? '' : 'none';
+    if (match) {
+      let p = row.closest('.tree-children');
+      while (p) {
+        p.classList.add('open');
+        const pid = p.id.replace('tc-','');
+        document.getElementById('tt-'+pid)?.classList.add('open');
+        const pr = document.querySelector(`[data-nid="${pid}"]`);
+        if (pr) pr.style.display = '';
+        p = p.parentElement?.closest('.tree-children');
+      }
+    }
+  });
+});
+</script>
+{% endblock %}

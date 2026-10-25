@@ -1,0 +1,341 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}Master Lokasi{% endblock %}
+{% block nav_master %}active{% endblock %}
+{% include "master/partials/location_node.html" with node=child depth=1 %}
+
+{% block content %}
+<link rel="stylesheet" href="{% static 'css/pages/master_location_list.css' %}">
+
+<div class="wrap">
+
+  <!-- BREADCRUMB -->
+  <nav class="breadcrumb anim">
+    <a href="{% url 'dashboard' %}">Dashboard</a>
+    <span>/</span>
+    <span>Master Lokasi</span>
+  </nav>
+
+  <!-- PAGE HEADER -->
+  <div class="page-header anim">
+    <div>
+      <span class="page-eyebrow">Master Data</span>
+      <h1 class="page-title">Master <em>Lokasi</em></h1>
+    </div>
+    <div class="header-actions">
+      <a href="{% url 'dashboard' %}" class="btn btn-outline">← Dashboard</a>
+      <a href="{% url 'location_create' %}" class="btn btn-success">＋ Tambah</a>
+    </div>
+  </div>
+
+  <!-- TOOLBAR -->
+  <div class="toolbar anim">
+    <div class="search-wrap">
+      <span class="search-icon">🔍</span>
+      <input type="text" class="search-input" id="searchInput"
+        placeholder="Cari nama lokasi..."
+        oninput="filterTree(this.value)">
+    </div>
+    <span class="count-label" id="countLabel">{{ locations|length }} lokasi</span>
+
+    <button id="expandAllBtn" onclick="expandAll()"
+      style="padding:6px 12px;border-radius:8px;border:1.5px solid #c7d2fe;
+        background:#eef2ff;color:#4338ca;font-size:10px;font-weight:700;
+        cursor:pointer;font-family:var(--sans);">
+      ⊞ Buka Semua
+    </button>
+    <button id="collapseAllBtn" onclick="collapseAll()"
+      style="padding:6px 12px;border-radius:8px;border:1.5px solid #e5e7eb;
+        background:#f9fafb;color:#6b7280;font-size:10px;font-weight:700;
+        cursor:pointer;font-family:var(--sans);">
+      ⊟ Tutup Semua
+    </button>
+  </div>
+
+  <!-- SELECTION BAR -->
+  <div id="selectionBar">
+    <span style="font-size:13px;">🗑</span>
+    <span style="font-size:12px;font-weight:700;color:#e02424;">
+      <span id="selBarCount">0</span> lokasi dipilih
+    </span>
+    <span style="font-size:11px;color:#9b1c1c;">
+      — lokasi yang memiliki sub-lokasi akan menghapus seluruh turunannya
+    </span>
+    <button onclick="clearSelection()"
+      style="margin-left:auto;padding:5px 12px;border-radius:7px;border:1.5px solid #fca5a5;
+        background:#fff;color:#e02424;font-size:10px;font-weight:700;cursor:pointer;
+        font-family:var(--sans);">
+      ✕ Batal
+    </button>
+    <button onclick="confirmBulkDelete()"
+      style="padding:5px 14px;border-radius:7px;border:none;
+        background:#e02424;color:#fff;font-size:10px;font-weight:700;cursor:pointer;
+        font-family:var(--sans);">
+      🗑 Hapus Sekarang
+    </button>
+  </div>
+
+  <!-- BULK DELETE FORM -->
+  <form method="post" action="{% url 'location_bulk_delete' %}" id="bulkForm">
+    {% csrf_token %}
+
+    <!-- CARD -->
+    <div class="card anim">
+      <div class="card-header">
+        <div class="card-title">
+          <span class="card-dot"></span>
+          Hierarki Lokasi — <span id="tableCount">{{ locations|length }}</span> item
+        </div>
+        {% if locations %}
+        <label style="display:flex;align-items:center;gap:6px;font-size:11px;
+          font-weight:700;color:var(--text-soft);cursor:pointer;user-select:none;">
+          <input type="checkbox" id="selectAll" onchange="toggleSelectAll(this)"
+            style="width:15px;height:15px;cursor:pointer;accent-color:#e02424;">
+          Pilih Semua
+        </label>
+        {% endif %}
+      </div>
+
+      {% if tree %}
+
+      <div style="padding:14px;">
+        <div class="tree-wrap" id="treeWrap">
+
+          {% for root_node in tree %}
+          {# ── ROOT NODE ─────────────────────────────────────────── #}
+          <div class="tree-root {% if root_node.children %}has-children{% endif %}"
+               id="root-{{ root_node.obj.pk }}"
+               data-name="{{ root_node.obj.name|lower }}">
+
+            <div class="root-header {% if root_node.children %}open{% endif %}"
+                 onclick="toggleRoot(this, 'panel-{{ root_node.obj.pk }}')">
+
+              <!-- Checkbox -->
+              <div onclick="event.stopPropagation()">
+                <input type="checkbox" name="selected_ids"
+                  value="{{ root_node.obj.pk }}"
+                  class="row-cb"
+                  onchange="onCheckboxChange()"
+                  id="cb-{{ root_node.obj.pk }}">
+              </div>
+
+              {% if root_node.children %}
+              <span class="toggle-arrow open">▶</span>
+              {% endif %}
+
+              <span class="root-icon">🏢</span>
+              <span class="root-name">{{ root_node.obj.name }}</span>
+
+              <div class="root-meta" onclick="event.stopPropagation()">
+                {% if root_node.children %}
+                  <span class="child-count-badge">{{ root_node.children|length }} sub-lokasi</span>
+                {% else %}
+                  <span class="root-tag">root</span>
+                {% endif %}
+
+                <a href="{% url 'location_update' root_node.obj.id %}" class="act-btn edit">✏️ Edit</a>
+                <a href="{% url 'location_delete' root_node.obj.id %}" class="act-btn del"
+                   onclick="return confirm('Hapus lokasi \'{{ root_node.obj.name|escapejs }}\'?\nSemua sub-lokasi juga akan terhapus.')">
+                  🗑
+                </a>
+              </div>
+            </div>
+
+            {# ── CHILDREN PANEL ──────────────────────────────── #}
+            {% if root_node.children %}
+            <div class="children-panel open" id="panel-{{ root_node.obj.pk }}">
+              <div class="level-wrap level-1">
+                {% for child in root_node.children %}
+                {% include "master/partials/location_node.html" with node=child depth=1 %}
+                {% endfor %}
+              </div>
+            </div>
+            {% endif %}
+
+          </div>
+          {# ── END ROOT NODE ──────────────────────────────────── #}
+          {% endfor %}
+
+        </div>
+
+        <!-- EMPTY SEARCH STATE -->
+        <div id="searchEmpty" style="display:none;" class="empty-state">
+          <div class="empty-icon">🔍</div>
+          <div class="empty-title">Lokasi tidak ditemukan</div>
+          <div class="empty-sub">Coba kata kunci lain</div>
+        </div>
+      </div>
+
+      {% else %}
+      <div class="empty-state">
+        <div class="empty-icon">📍</div>
+        <div class="empty-title">Belum ada lokasi</div>
+        <div class="empty-sub">Tambahkan lokasi pertama untuk mulai mengorganisir aset</div>
+        <a href="{% url 'location_create' %}" class="btn btn-success">＋ Tambah Lokasi</a>
+      </div>
+      {% endif %}
+
+    </div>
+  </form>
+
+</div>
+
+{# ── PARTIAL: location_node.html (rekursif) ──────────────────────────────── #}
+{# Simpan sebagai master/partials/location_node.html                         #}
+{# Template ini di-include di atas; lihat file terpisah                      #}
+
+<script>
+// ═══════════════════════════════════════════════════════
+//  ACCORDION LOGIC
+// ═══════════════════════════════════════════════════════
+
+function toggleRoot(headerEl, panelId) {
+  const panel  = document.getElementById(panelId);
+  const arrow  = headerEl.querySelector('.toggle-arrow');
+  if (!panel) return;
+
+  const isOpen = panel.classList.contains('open');
+  panel.classList.toggle('open', !isOpen);
+  headerEl.classList.toggle('open', !isOpen);
+  if (arrow) arrow.classList.toggle('open', !isOpen);
+}
+
+function toggleSub(btn, panelId) {
+  const panel  = document.getElementById(panelId);
+  if (!panel) return;
+  const isOpen = panel.classList.contains('open');
+  panel.classList.toggle('open', !isOpen);
+  btn.textContent = isOpen
+    ? '▶ ' + btn.dataset.count + ' sub'
+    : '▼ ' + btn.dataset.count + ' sub';
+}
+
+function expandAll() {
+  document.querySelectorAll('.children-panel, .sub-panel').forEach(p => p.classList.add('open'));
+  document.querySelectorAll('.toggle-arrow').forEach(a => a.classList.add('open'));
+  document.querySelectorAll('.root-header').forEach(h => h.classList.add('open'));
+  document.querySelectorAll('.sub-toggle').forEach(b => {
+    b.textContent = '▼ ' + b.dataset.count + ' sub';
+  });
+}
+
+function collapseAll() {
+  document.querySelectorAll('.children-panel, .sub-panel').forEach(p => p.classList.remove('open'));
+  document.querySelectorAll('.toggle-arrow').forEach(a => a.classList.remove('open'));
+  document.querySelectorAll('.root-header').forEach(h => h.classList.remove('open'));
+  document.querySelectorAll('.sub-toggle').forEach(b => {
+    b.textContent = '▶ ' + b.dataset.count + ' sub';
+  });
+}
+
+// ═══════════════════════════════════════════════════════
+//  SEARCH / FILTER
+// ═══════════════════════════════════════════════════════
+
+function filterTree(q) {
+  q = q.toLowerCase().trim();
+  let visible = 0;
+
+  document.querySelectorAll('.tree-root').forEach(root => {
+    const rootName = (root.dataset.name || '');
+    // Cari semua node di dalam root ini
+    const allNames = Array.from(root.querySelectorAll('[data-name]'))
+                          .map(n => n.dataset.name || '');
+    allNames.push(rootName);
+
+    const match = allNames.some(n => n.includes(q));
+    root.style.display = match ? '' : 'none';
+    if (match) visible++;
+
+    // Kalau ada query, buka accordion supaya hasil kelihatan
+    if (q && match) {
+      root.querySelectorAll('.children-panel, .sub-panel').forEach(p => p.classList.add('open'));
+    }
+  });
+
+  // Individual child highlight
+  document.querySelectorAll('.child-node').forEach(node => {
+    const name = (node.dataset.name || '');
+    if (!q) {
+      node.style.outline = '';
+      node.style.background = '';
+      return;
+    }
+    if (name.includes(q)) {
+      node.style.outline = '2px solid #6366f1';
+      node.style.outlineOffset = '-2px';
+      node.style.background = '#eef2ff';
+    } else {
+      node.style.outline = '';
+      node.style.background = '';
+    }
+  });
+
+  document.getElementById('tableCount').textContent = visible > 0 ? visible + '+ node' : '0';
+  document.getElementById('countLabel').textContent = visible > 0 ? visible + '+ grup' : '0 lokasi';
+  document.getElementById('searchEmpty').style.display =
+    visible === 0 && q ? 'block' : 'none';
+}
+
+// ═══════════════════════════════════════════════════════
+//  CHECKBOX / BULK DELETE
+// ═══════════════════════════════════════════════════════
+
+function onCheckboxChange() {
+  const checked = document.querySelectorAll('.row-cb:checked');
+  const count   = checked.length;
+  const total   = document.querySelectorAll('.row-cb').length;
+  const selAll  = document.getElementById('selectAll');
+  const selBar  = document.getElementById('selectionBar');
+
+  document.getElementById('selBarCount').textContent = count;
+
+  selBar.style.display = count > 0 ? 'flex' : 'none';
+
+  selAll.indeterminate = count > 0 && count < total;
+  selAll.checked       = count > 0 && count === total;
+
+  // Highlight root nodes
+  document.querySelectorAll('.row-cb').forEach(cb => {
+    const rootEl  = document.getElementById('root-' + cb.value);
+    const childEl = document.getElementById('child-' + cb.value);
+    const target  = rootEl || childEl;
+    if (!target) return;
+
+    if (rootEl) {
+      rootEl.classList.toggle('selected-root', cb.checked);
+    }
+    if (childEl) {
+      childEl.classList.toggle('selected-child', cb.checked);
+    }
+  });
+}
+
+function toggleSelectAll(masterCb) {
+  document.querySelectorAll('.row-cb').forEach(cb => {
+    cb.checked = masterCb.checked;
+  });
+  onCheckboxChange();
+}
+
+function clearSelection() {
+  document.querySelectorAll('.row-cb').forEach(cb => { cb.checked = false; });
+  const selAll = document.getElementById('selectAll');
+  if (selAll) { selAll.checked = false; selAll.indeterminate = false; }
+  onCheckboxChange();
+}
+
+function confirmBulkDelete() {
+  const checked = document.querySelectorAll('.row-cb:checked');
+  if (!checked.length) return;
+  if (confirm(
+    `Hapus ${checked.length} lokasi yang dipilih?\n\n` +
+    `⚠️ Lokasi yang memiliki sub-lokasi akan menghapus seluruh turunannya.\n` +
+    `Tindakan ini tidak dapat dibatalkan.`
+  )) {
+    document.getElementById('bulkForm').submit();
+  }
+}
+</script>
+
+{% endblock %}

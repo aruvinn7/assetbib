@@ -1,0 +1,111 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}Hapus Asset Category — {{ category.name }}{% endblock %}
+
+{% block content %}
+<link rel="stylesheet" href="{% static 'css/pages/master_assetcategory_delete.css' %}">
+
+<div class="wrap">
+  <div class="danger-card anim">
+
+    <div class="danger-header">
+      <span class="danger-icon">🗑️</span>
+      <div class="danger-title">Hapus Asset Category</div>
+      <div class="danger-sub">Tindakan ini tidak dapat dibatalkan</div>
+    </div>
+
+    <!-- CATEGORY INFO -->
+    <div class="cat-preview">
+      <div class="cat-preview-label">Kategori yang akan dihapus</div>
+      <div class="cat-preview-name">{{ category.name }}</div>
+      <div class="cat-preview-meta">
+        {{ category.group.name }} · ID: {{ category.pk }}
+      </div>
+      {% if category.default_interval_value %}
+      <div class="cat-preview-interval">
+        Interval: {{ category.default_interval_value }}
+        {% if category.default_interval_unit == 'days' %}hari
+        {% elif category.default_interval_unit == 'months' %}bulan
+        {% elif category.default_interval_unit == 'weeks' %}minggu{% endif %}
+      </div>
+      {% endif %}
+    </div>
+
+    {% with aset_count=category.assets.count %}
+    {% if aset_count > 0 %}
+
+    <!-- BLOCKED: tidak bisa hapus -->
+    <div class="blocked-box">
+      <div class="blocked-title">
+        🚫 Tidak Dapat Dihapus
+      </div>
+      <div class="blocked-text">
+        Kategori ini masih digunakan oleh <strong>{{ aset_count }} aset aktif</strong>.
+        Hapus atau pindahkan semua aset ke kategori lain sebelum menghapus kategori ini.
+      </div>
+      {% if category.assets.count <= 5 %}
+      <div class="asset-list-preview">
+        {% for asset in category.assets.all|slice:":5" %}
+        <div class="asset-item">
+          <span class="asset-num">{{ asset.asset_number }}</span>
+          <span>{{ asset.nama_asset }}</span>
+        </div>
+        {% endfor %}
+      </div>
+      {% endif %}
+    </div>
+
+    <div class="form-footer">
+      <a href="{% url 'assetcategory_list' %}" class="btn btn-outline">← Kembali ke Daftar</a>
+      <a href="{% url 'assetcategory_update' category.pk %}" class="btn" style="background:#eff6ff;color:var(--accent);border:1.5px solid #bfdbfe;">
+        ✏️ Edit Kategori
+      </a>
+    </div>
+
+    {% else %}
+
+    <!-- KONFIRMASI HAPUS -->
+    <div class="confirm-section">
+      <div class="confirm-warning">
+        <span style="font-size:16px;flex-shrink:0;">⚠️</span>
+        <div>
+          Kategori <strong>"{{ category.name }}"</strong> tidak memiliki aset terdaftar
+          dan aman untuk dihapus. Ketik nama kategori di bawah untuk konfirmasi.
+        </div>
+      </div>
+
+      <form method="POST" id="deleteForm">
+        {% csrf_token %}
+        <div class="confirm-input-group">
+          <label class="confirm-label">Ketik nama kategori untuk konfirmasi:</label>
+          <input type="text" class="confirm-input" id="confirmInput"
+            placeholder="{{ category.name }}"
+            oninput="checkConfirm(this.value)">
+          <div style="font-size:10px;color:var(--muted);font-family:var(--mono);">
+            Ketik: <strong>{{ category.name }}</strong>
+          </div>
+        </div>
+      </form>
+    </div>
+
+    <div class="form-footer">
+      <a href="{% url 'assetcategory_list' %}" class="btn btn-outline">← Batal</a>
+      <button type="submit" form="deleteForm" class="btn btn-danger"
+        id="deleteBtn" disabled>
+        🗑️ Hapus Permanen
+      </button>
+    </div>
+
+    <script>
+      function checkConfirm(val) {
+        const target = "{{ category.name }}";
+        document.getElementById('deleteBtn').disabled = (val.trim() !== target);
+      }
+    </script>
+
+    {% endif %}
+    {% endwith %}
+
+  </div>
+</div>
+{% endblock %}

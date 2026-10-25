@@ -1,0 +1,24 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+env/
+
+# Django
+db.sqlite3
+db.sqlite3-journal
+media/
+staticfiles/
+.env
+
+# Dump / backup data (bisa berisi data karyawan)
+dump*.json
+backup_*.json
+*_fixture.json
+
+# Editor / OS
+.vscode/
+.idea/
+Thumbs.db
+.DS_Store

@@ -1,0 +1,258 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}Asset Management{% endblock %} — PT Borneo Indobara</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700;800;900&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+  {# Ikon tidak kritis untuk render pertama → dimuat tanpa memblokir halaman #}
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"
+        media="print" onload="this.media='all'">
+  <noscript><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"></noscript>
+
+  {# CSS library per halaman (mis. Bootstrap) — dimuat sebelum base.css supaya tema tetap menang #}
+  {% block vendor_css %}{% endblock %}
+  <link rel="stylesheet" href="{% static 'css/base.css' %}">
+
+  {% block extra_head %}{% endblock %}
+</head>
+
+  <body>
+
+  <!-- ── NAVBAR ── -->
+  <nav class="navbar">
+    <div class="navbar-inner">
+
+      <a class="nav-brand" href="{% url 'dashboard' %}">
+        <div class="nav-brand-icon">⛏️</div>
+        <div>
+          <div class="nav-brand-text">AssetMS</div>
+          <div class="nav-brand-sub">PT Borneo Indobara</div>
+        </div>
+      </a>
+
+      <!-- DESKTOP LINKS -->
+      <div class="nav-links">
+        <a href="{% url 'dashboard' %}" class="nav-link {% block nav_dashboard %}{% endblock %}">
+          <i class="fa-solid fa-house"></i> Dashboard
+        </a>
+        <a href="{% url 'asset_list' %}" class="nav-link {% block nav_assets %}{% endblock %}">
+          <i class="fa-solid fa-box-archive"></i> Aset
+        </a>
+
+        {% if request.user.is_authenticated %}
+          {% if request.user.employee.ga_profile %}
+          <div class="nav-dropdown">
+            <div class="nav-link nav-dropdown-toggle {% block nav_maintenance %}{% endblock %}">
+              <i class="fa-solid fa-wrench"></i> Maintenance
+              <i class="fa-solid fa-chevron-down chevron"></i>
+            </div>
+            <div class="nav-dropdown-menu">
+              <a href="{% url 'maintenance_list' %}" class="nav-dropdown-item">
+                <i class="fa-solid fa-gauge"></i> Monitor Dashboard
+              </a>
+              <div class="nav-divider"></div>
+              <a href="#" class="nav-dropdown-item" id="navMaintCreate" style="display:none;">
+                <i class="fa-solid fa-plus"></i> Input Maintenance
+              </a>
+            </div>
+          </div>
+
+          <div class="nav-dropdown">
+            <div class="nav-link nav-dropdown-toggle {% block nav_master %}{% endblock %}">
+              <i class="fa-solid fa-database"></i> Master Data
+              <i class="fa-solid fa-chevron-down chevron"></i>
+            </div>
+            <div class="nav-dropdown-menu">
+              <a href="{% url 'department_list' %}" class="nav-dropdown-item"><i class="fa-solid fa-building"></i> Department</a>
+              <a href="{% url 'location_list' %}" class="nav-dropdown-item"><i class="fa-solid fa-location-dot"></i> Lokasi</a>
+              <a href="{% url 'assetgroup_list' %}" class="nav-dropdown-item"><i class="fa-solid fa-layer-group"></i> Asset Group</a>
+              <a href="{% url 'assetcategory_list' %}" class="nav-dropdown-item"><i class="fa-solid fa-tags"></i> Asset Category</a>
+            </div>
+          </div>
+          {% endif %}
+
+          {% if request.user.employee.finance_profile %}
+          <a href="{% url 'asset_list' %}?financial=no" class="nav-link {% block nav_financial %}{% endblock %}">
+            <i class="fa-solid fa-coins"></i> Finansial
+          </a>
+          {% endif %}
+        {% endif %}
+      </div>
+
+      <!-- DESKTOP RIGHT -->
+      {% if request.user.is_authenticated %}
+      <div class="nav-right">
+        <div class="nav-sep"></div>
+        <div>
+          <div class="nav-user-name">{{ request.user.employee.nama|default:request.user.username }}</div>
+          <div class="nav-user-sub">
+            {{ request.user.employee.jabatan|default:"" }}{% if request.user.employee.department %} · {{ request.user.employee.department.name }}{% endif %}
+          </div>
+        </div>
+        {% if request.user.employee.ga_profile %}
+          <span class="role-pill ga">GA</span>
+        {% elif request.user.employee.finance_profile %}
+          <span class="role-pill finance">Finance</span>
+        {% else %}
+          <span class="role-pill user">User</span>
+        {% endif %}
+        <div class="nav-sep"></div>
+        <a href="{% url 'logout' %}" class="nav-logout">
+          <i class="fa-solid fa-right-from-bracket"></i> Logout
+        </a>
+      </div>
+      {% endif %}
+
+      <!-- HAMBURGER -->
+      <button class="nav-hamburger" onclick="toggleMobile()" id="hamburgerBtn" aria-label="Menu">
+        <i class="fa-solid fa-bars" id="hamburgerIcon"></i>
+      </button>
+
+    </div>
+  </nav>
+
+  <!-- MOBILE MENU -->
+  {% if request.user.is_authenticated %}
+  <div class="nav-mobile-menu" id="mobileMenu">
+
+    <!-- User info mini -->
+    <div class="mobile-user-info">
+      <div class="mobile-user-avatar">👤</div>
+      <div>
+        <div class="nav-user-name">{{ request.user.employee.nama|default:request.user.username }}</div>
+        <div class="nav-user-sub">{{ request.user.employee.jabatan|default:"" }}</div>
+      </div>
+      {% if request.user.employee.ga_profile %}
+        <span class="role-pill ga" style="margin-left:auto;">GA</span>
+      {% elif request.user.employee.finance_profile %}
+        <span class="role-pill finance" style="margin-left:auto;">Finance</span>
+      {% else %}
+        <span class="role-pill user" style="margin-left:auto;">User</span>
+      {% endif %}
+    </div>
+
+    <a href="{% url 'dashboard' %}" class="nav-mobile-link"><i class="fa-solid fa-house"></i> Dashboard</a>
+    <a href="{% url 'asset_list' %}" class="nav-mobile-link"><i class="fa-solid fa-box-archive"></i> Aset</a>
+
+    {% if request.user.employee.ga_profile %}
+    <a href="{% url 'maintenance_list' %}" class="nav-mobile-link"><i class="fa-solid fa-wrench"></i> Maintenance Monitor</a>
+    <a href="{% url 'department_list' %}" class="nav-mobile-link"><i class="fa-solid fa-building"></i> Department</a>
+    <a href="{% url 'location_list' %}" class="nav-mobile-link"><i class="fa-solid fa-location-dot"></i> Lokasi</a>
+    <a href="{% url 'assetgroup_list' %}" class="nav-mobile-link"><i class="fa-solid fa-layer-group"></i> Asset Group</a>
+    <a href="{% url 'assetcategory_list' %}" class="nav-mobile-link"><i class="fa-solid fa-tags"></i> Asset Category</a>
+    {% endif %}
+
+    {% if request.user.employee.finance_profile %}
+    <a href="{% url 'asset_list' %}?financial=no" class="nav-mobile-link"><i class="fa-solid fa-coins"></i> Finansial</a>
+    {% endif %}
+
+    <div style="border-top:1px solid var(--border);margin:8px 0 4px;padding-top:4px;">
+      <a href="{% url 'logout' %}" class="nav-mobile-link" style="color:var(--danger);">
+        <i class="fa-solid fa-right-from-bracket"></i> Logout
+      </a>
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- ── FLASH MESSAGES ── -->
+  {% if messages %}
+  <div class="messages-wrap">
+    {% for message in messages %}
+    <div class="flash-msg {{ message.tags }}" id="flash-{{ forloop.counter }}">
+      {% if message.tags == 'success' %}✅
+      {% elif message.tags == 'error' %}❌
+      {% elif message.tags == 'warning' %}⚠️
+      {% else %}ℹ️{% endif %}
+      {{ message }}
+      <button class="flash-close" onclick="this.parentElement.remove()">✕</button>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  <!-- ── MAIN ── -->
+  <main class="main-content">
+    {% block content %}{% endblock %}
+  </main>
+
+  <!-- ── FOOTER ── -->
+  <footer class="footer">
+    <div class="footer-text"><strong>Asset Management System</strong> · PT Borneo Indobara</div>
+    <div class="footer-text" id="footerClock">—</div>
+  </footer>
+
+<script>
+  function toggleMobile() {
+    const menu = document.getElementById('mobileMenu');
+    const icon = document.getElementById('hamburgerIcon');
+    const isOpen = menu.classList.toggle('open');
+    icon.className = isOpen ? 'fa-solid fa-xmark' : 'fa-solid fa-bars';
+  }
+
+  // Close mobile menu on outside click
+  document.addEventListener('click', function(e) {
+    const menu = document.getElementById('mobileMenu');
+    const btn = document.getElementById('hamburgerBtn');
+    if (menu && menu.classList.contains('open') && !menu.contains(e.target) && !btn.contains(e.target)) {
+      menu.classList.remove('open');
+      document.getElementById('hamburgerIcon').className = 'fa-solid fa-bars';
+    }
+  });
+
+  // Footer clock
+  function updateClock() {
+    const el = document.getElementById('footerClock');
+    if (!el) return;
+    const now = new Date();
+    el.textContent = now.toLocaleDateString('id-ID', { weekday: 'short', day: '2-digit', month: 'short', year: 'numeric' })
+      + ' · ' + now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  }
+  updateClock();
+  setInterval(updateClock, 1000);
+
+  // Auto-dismiss flash after 5s — kecuali error, supaya pesan validasi sempat dibaca
+  document.querySelectorAll('.flash-msg:not(.error)').forEach(el => {
+    setTimeout(() => {
+      el.style.transition = 'opacity .4s';
+      el.style.opacity = '0';
+      setTimeout(() => el.remove(), 400);
+    }, 5000);
+  });
+
+  // Active nav highlight
+  const path = window.location.pathname;
+  document.querySelectorAll('.nav-link, .nav-mobile-link').forEach(link => {
+    if (link.getAttribute('href') === path) link.classList.add('active');
+  });
+</script>
+
+{% if posted %}
+{# Validasi gagal → isi ulang form dengan input terakhir user (pakai atribut name="") #}
+{{ posted|json_script:"posted-data" }}
+<script>
+  (() => {
+    const data = JSON.parse(document.getElementById('posted-data').textContent);
+    const form = document.querySelector('main form[method="post"], main form[method="POST"]');
+    if (!form) return;
+    for (const [name, value] of Object.entries(data)) {
+      if (name === 'csrfmiddlewaretoken') continue;
+      form.querySelectorAll(`[name="${CSS.escape(name)}"]`).forEach(el => {
+        if (el.type === 'file') return;
+        if (el.type === 'checkbox' || el.type === 'radio') el.checked = (el.value === value || value === 'on');
+        else el.value = value;
+        el.dispatchEvent(new Event('change', { bubbles: true }));
+      });
+    }
+  })();
+</script>
+{% endif %}
+
+{% block extra_scripts %}{% endblock %}
+
+</body>
+</html>

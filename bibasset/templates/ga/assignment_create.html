@@ -1,0 +1,131 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}Serahkan Aset ke Karyawan{% endblock %}
+
+{% block content %}
+<link rel="stylesheet" href="{% static 'css/pages/ga_assignment_create.css' %}">
+
+<div class="pg-wrap">
+
+  <a href="{% url 'assignment_list' %}" class="back-link anim">← Kembali ke Serah Terima</a>
+
+  <div class="anim">
+    <div class="pg-eyebrow">General Affairs</div>
+    <div class="pg-title">Serahkan <em>Aset</em></div>
+    <div class="pg-sub">Assign aset ke karyawan pemegang — histori serah terima akan tersimpan otomatis</div>
+  </div>
+
+  <!-- INFO BOX -->
+  <div class="info-box anim">
+    <div class="info-box-icon">ℹ️</div>
+    <div class="info-box-text">
+      <strong>Catatan:</strong> Jika aset sudah dipegang karyawan lain, assignment lama akan otomatis
+      ditutup dan dipindahkan ke karyawan baru. Riwayat serah terima tetap tersimpan.
+    </div>
+  </div>
+
+  <!-- FORM CARD -->
+  <div class="db-card anim">
+    <div class="db-card-header">
+      <div class="db-card-title">
+        <span class="db-card-title-dot" style="background:var(--accent)"></span>
+        Form Serah Terima Aset
+      </div>
+    </div>
+    <div class="card-body">
+      <form method="POST">
+        {% csrf_token %}
+
+        <!-- PILIH ASET -->
+        <div class="form-group">
+          <label class="form-label" for="asset_id">Aset <span>*</span></label>
+          <select name="asset_id" id="asset_id" class="form-control" required onchange="previewAsset(this)">
+            <option value="">— Pilih aset yang akan diserahkan —</option>
+            {% for asset in assets %}
+            <option value="{{ asset.id }}"
+              data-num="{{ asset.asset_number }}"
+              data-cat="{{ asset.asset_category|default:'-' }}"
+              data-loc="{{ asset.lokasi_asset|default:'-' }}"
+              {% if selected_asset and selected_asset.id == asset.id %}selected{% endif %}>
+              {{ asset.nama_asset }} — {{ asset.asset_number }}
+            </option>
+            {% endfor %}
+          </select>
+          <div class="form-hint">Hanya aset dengan status Active yang ditampilkan.</div>
+
+          <!-- Asset preview -->
+          <div class="asset-preview" id="assetPreview">
+            <div class="asset-preview-name" id="previewName">—</div>
+            <div class="asset-preview-meta">
+              <span id="previewNum"></span>
+              · Kategori: <span id="previewCat"></span>
+              · Lokasi: <span id="previewLoc"></span>
+            </div>
+          </div>
+        </div>
+
+        <hr class="form-divider">
+
+        <!-- PILIH KARYAWAN -->
+        <div class="form-group">
+          <label class="form-label" for="assigned_to">Diserahkan ke Karyawan <span>*</span></label>
+          <select name="assigned_to" id="assigned_to" class="form-control" required>
+            <option value="">— Pilih karyawan penerima —</option>
+            {% for emp in employees %}
+            <option value="{{ emp.id }}">
+              {{ emp.nama }} — {{ emp.jabatan }}{% if emp.department %} ({{ emp.department }}){% endif %}
+            </option>
+            {% endfor %}
+          </select>
+          <div class="form-hint">Hanya karyawan dengan UserProfile yang dapat menerima aset.</div>
+        </div>
+
+        <!-- TANGGAL -->
+        <div class="form-group">
+          <label class="form-label" for="assigned_date">Tanggal Serah Terima</label>
+          <input type="date" name="assigned_date" id="assigned_date" class="form-control"
+                 value="{% now 'Y-m-d' %}">
+          <div class="form-hint">Kosongkan untuk menggunakan tanggal hari ini.</div>
+        </div>
+
+        <!-- CATATAN -->
+        <div class="form-group">
+          <label class="form-label" for="notes">Catatan Serah Terima</label>
+          <textarea name="notes" id="notes" class="form-control"
+                    placeholder="Contoh: Kondisi baik, sudah dilengkapi charger dan tas. Diserahkan saat onboarding karyawan baru."></textarea>
+          <div class="form-hint">Opsional — dokumentasikan kondisi aset saat diserahkan.</div>
+        </div>
+
+        <hr class="form-divider">
+
+        <div class="form-actions">
+          <button type="submit" class="btn-submit">
+            🤝 Serahkan Aset
+          </button>
+          <a href="{% url 'assignment_list' %}" class="btn-cancel">Batal</a>
+        </div>
+      </form>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  function previewAsset(select) {
+    const opt = select.options[select.selectedIndex];
+    const preview = document.getElementById('assetPreview');
+    if (!opt.value) { preview.classList.remove('show'); return; }
+    document.getElementById('previewName').textContent = opt.text.split(' — ')[0];
+    document.getElementById('previewNum').textContent  = opt.dataset.num;
+    document.getElementById('previewCat').textContent  = opt.dataset.cat;
+    document.getElementById('previewLoc').textContent  = opt.dataset.loc;
+    preview.classList.add('show');
+  }
+
+  // Auto-trigger preview jika ada selected_asset (pre-select dari URL)
+  window.addEventListener('DOMContentLoaded', () => {
+    const sel = document.getElementById('asset_id');
+    if (sel && sel.value) previewAsset(sel);
+  });
+</script>
+{% endblock %}

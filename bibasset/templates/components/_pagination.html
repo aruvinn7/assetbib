@@ -1,0 +1,35 @@
+{# Pagination umum. Pakai: {% include "components/_pagination.html" with label="aset" %} #}
+{# {% querystring %} (Django 5.1) menjaga semua filter GET lain & meng-encode nilainya. #}
+{% if page_obj.paginator.num_pages > 1 %}
+<div class="pagination-wrap" id="paginationWrap">
+  <div class="pagination-info">
+    Menampilkan <strong>{{ page_obj.start_index }}–{{ page_obj.end_index }}</strong>
+    dari <strong>{{ page_obj.paginator.count }}</strong> {{ label|default:"data" }}
+  </div>
+  <div class="pagination-nav">
+    {% if page_obj.has_previous %}
+      <a href="{% querystring page=page_obj.previous_page_number %}" class="pg-btn" title="Sebelumnya">‹</a>
+    {% else %}
+      <span class="pg-btn disabled">‹</span>
+    {% endif %}
+
+    {% for i in page_obj.paginator.page_range %}
+      {% if i == 1 or i == page_obj.paginator.num_pages or i >= page_obj.number|add:"-2" and i <= page_obj.number|add:"2" %}
+        {% if i == page_obj.number %}
+          <span class="pg-btn active">{{ i }}</span>
+        {% else %}
+          <a href="{% querystring page=i %}" class="pg-btn">{{ i }}</a>
+        {% endif %}
+      {% elif i == page_obj.number|add:"-3" or i == page_obj.number|add:"3" %}
+        <span class="pg-dots">…</span>
+      {% endif %}
+    {% endfor %}
+
+    {% if page_obj.has_next %}
+      <a href="{% querystring page=page_obj.next_page_number %}" class="pg-btn" title="Berikutnya">›</a>
+    {% else %}
+      <span class="pg-btn disabled">›</span>
+    {% endif %}
+  </div>
+</div>
+{% endif %}

@@ -1,0 +1,148 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}Master Department{% endblock %}
+{% block nav_master %}active{% endblock %}
+
+{% block content %}
+<link rel="stylesheet" href="{% static 'css/pages/master_department_list.css' %}">
+
+<div class="wrap">
+
+  <!-- BREADCRUMB -->
+  <nav class="breadcrumb anim">
+    <a href="{% url 'dashboard' %}">Dashboard</a>
+    <span>/</span>
+    <span>Master Department</span>
+  </nav>
+
+  <!-- PAGE HEADER -->
+  <div class="page-header anim">
+    <div>
+      <span class="page-eyebrow">Master Data</span>
+      <h1 class="page-title">Master <em>Department</em></h1>
+    </div>
+    <div class="header-actions">
+      <a href="{% url 'dashboard' %}" class="btn btn-outline">← Dashboard</a>
+      <a href="{% url 'department_create' %}" class="btn btn-success">＋ Tambah</a>
+    </div>
+  </div>
+
+  <!-- TOOLBAR -->
+  <div class="toolbar anim">
+    <div class="search-wrap">
+      <span class="search-icon">🔍</span>
+      <input type="text" class="search-input" id="searchInput"
+        placeholder="Cari department..."
+        oninput="filterTable(this.value)">
+    </div>
+    <span class="count-label" id="countLabel">{{ departments|length }} dept</span>
+  </div>
+
+  <!-- TABLE CARD -->
+  <div class="card anim">
+    <div class="card-header">
+      <div class="card-title">
+        <span class="card-dot"></span>
+        Daftar Department — <span id="tableCount">{{ departments|length }}</span> item
+      </div>
+    </div>
+
+    {% if departments %}
+
+    <!-- DESKTOP TABLE -->
+    <div class="desktop-table">
+    <table class="tbl" id="deptTable">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Nama Department</th>
+          <th>Aksi</th>
+        </tr>
+      </thead>
+      <tbody id="deptTbody">
+        {% for d in departments %}
+        <tr class="dept-row" data-search="{{ d.name|lower }}">
+          <td style="font-family:var(--mono);font-size:10px;color:var(--muted);">{{ forloop.counter }}</td>
+          <td>
+            <div class="dept-name">
+              <div class="dept-icon">🏛</div>
+              {{ d.name }}
+            </div>
+          </td>
+          <td>
+            <a href="{% url 'department_delete' d.id %}" class="act-btn"
+               onclick="return confirm('Hapus department \'{{ d.name|escapejs }}\'?')">
+              🗑 Hapus
+            </a>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    </div>
+
+    <!-- MOBILE CARDS -->
+    <div class="mobile-cards" id="mobileCards">
+      {% for d in departments %}
+      <div class="mc dept-row" data-search="{{ d.name|lower }}">
+        <div class="mc-icon">🏛</div>
+        <div class="mc-body">
+          <div class="mc-name">{{ d.name }}</div>
+          <div class="mc-num">{{ forloop.counter }}</div>
+        </div>
+        <a href="{% url 'department_delete' d.id %}" class="act-btn"
+           onclick="return confirm('Hapus department \'{{ d.name|escapejs }}\'?')">
+          🗑
+        </a>
+      </div>
+      {% endfor %}
+    </div>
+
+    <!-- EMPTY SEARCH -->
+    <div id="searchEmpty" style="display:none;" class="empty-state">
+      <div class="empty-icon">🔍</div>
+      <div class="empty-title">Department tidak ditemukan</div>
+      <div class="empty-sub">Coba kata kunci lain</div>
+    </div>
+
+    {% else %}
+    <div class="empty-state">
+      <div class="empty-icon">🏛</div>
+      <div class="empty-title">Belum ada department</div>
+      <div class="empty-sub">Tambahkan department pertama untuk mulai mengorganisir struktur</div>
+      <a href="{% url 'department_create' %}" class="btn btn-success">＋ Tambah Department</a>
+    </div>
+    {% endif %}
+  </div>
+
+</div>
+
+<script>
+  function filterTable(q) {
+    const rows  = document.querySelectorAll('.dept-row');
+    const query = q.toLowerCase().trim();
+    let visible = 0;
+
+    rows.forEach(row => {
+      const match = !query || row.dataset.search.includes(query);
+      row.style.display = match ? '' : 'none';
+      if (match) visible++;
+    });
+
+    // Bagi 2 karena tiap item punya row desktop + card mobile
+    const count = visible / 2;
+    document.getElementById('tableCount').textContent = count;
+    document.getElementById('countLabel').textContent = count + ' dept';
+
+    const tbl = document.getElementById('deptTable');
+    const mob = document.getElementById('mobileCards');
+    const emp = document.getElementById('searchEmpty');
+    const noResult = count === 0 && query;
+
+    if (tbl) tbl.style.display = noResult ? 'none' : '';
+    if (mob) mob.style.display = noResult ? 'none' : '';
+    emp.style.display = noResult ? 'block' : 'none';
+  }
+</script>
+
+{% endblock %}

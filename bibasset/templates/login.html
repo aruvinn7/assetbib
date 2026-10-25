@@ -1,0 +1,124 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Login — Asset Management</title>
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@300;400;600;700;800;900&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{% static 'css/pages/login.css' %}">
+</head>
+<body>
+
+  <!-- Background decoration -->
+  <div class="bg-dots">
+    <div class="bg-dot"></div>
+    <div class="bg-dot"></div>
+    <div class="bg-dot"></div>
+    <div class="bg-dot"></div>
+  </div>
+
+  <div class="login-card">
+
+    <!-- Top accent stripe -->
+    <div class="card-accent"></div>
+
+    <!-- Header -->
+    <div class="card-header">
+      <div class="logo-wrap">📦</div>
+      <div class="card-eyebrow">Asset Information Management</div>
+      <div class="card-title">Selamat <em>Datang</em></div>
+      <div class="card-subtitle">Masuk untuk melanjutkan ke sistem</div>
+    </div>
+
+    <!-- Body -->
+    <div class="card-body">
+
+      <!-- Messages / Notifications -->
+      {% if messages %}
+        {% for message in messages %}
+          <div class="msg {{ message.tags }}">
+            <span class="msg-icon">
+              {% if message.tags == 'error' or message.tags == 'danger' %}⛔
+              {% elif message.tags == 'success' %}✅
+              {% elif message.tags == 'warning' %}⚠️
+              {% else %}ℹ️{% endif %}
+            </span>
+            <span>{{ message }}</span>
+          </div>
+        {% endfor %}
+      {% endif %}
+
+      <form method="POST" autocomplete="off">
+        {% csrf_token %}
+
+        <!-- Username -->
+        <div class="field">
+          <div class="field-label">
+            <span class="field-label-icon">👤</span> Username
+          </div>
+          <div class="field-input-wrap">
+            <span class="field-icon">🔑</span>
+            <input
+              type="text"
+              name="username"
+              class="field-input"
+              placeholder="Masukkan username"
+              autocomplete="username"
+              autofocus
+              required>
+          </div>
+        </div>
+
+        <!-- Password -->
+        <div class="field">
+          <div class="field-label">
+            <span class="field-label-icon">🔒</span> Password
+          </div>
+          <div class="field-input-wrap">
+            <span class="field-icon">🛡</span>
+            <input
+              type="password"
+              name="password"
+              id="passwordInput"
+              class="field-input has-toggle"
+              placeholder="Masukkan password"
+              autocomplete="current-password"
+              required>
+            <button type="button" class="pwd-toggle" id="pwdToggle"
+                    onclick="togglePassword()" title="Tampilkan/sembunyikan password">
+              👁
+            </button>
+          </div>
+        </div>
+
+        <button type="submit" class="btn-login">
+          <span>→</span> Masuk ke Sistem
+        </button>
+
+      </form>
+    </div>
+
+    <!-- Footer -->
+    <div class="card-footer">
+      <strong>Asset Management System</strong> · Hanya untuk pengguna terdaftar
+    </div>
+
+  </div>
+
+  <script>
+    function togglePassword() {
+      const input  = document.getElementById('passwordInput');
+      const toggle = document.getElementById('pwdToggle');
+      if (input.type === 'password') {
+        input.type = 'text';
+        toggle.textContent = '🙈';
+      } else {
+        input.type = 'password';
+        toggle.textContent = '👁';
+      }
+    }
+  </script>
+
+</body>
+</html>

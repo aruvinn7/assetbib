@@ -1,0 +1,153 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}Tambah Komponen — {{ asset.asset_number }}{% endblock %}
+
+{% block content %}
+<link rel="stylesheet" href="{% static 'css/pages/components_create.css' %}">
+
+<div class="wrap">
+
+  <!-- BREADCRUMB -->
+  <div class="breadcrumb-wrap anim">
+    <a href="{% url 'asset_list' %}">Aset</a>
+    <span class="sep">/</span>
+    <a href="{% url 'asset_detail' asset.id %}">{{ asset.asset_number }}</a>
+    <span class="sep">/</span>
+    <a href="{% url 'component_list' asset.id %}">Komponen</a>
+    <span class="sep">/</span>
+    <span class="current">Tambah</span>
+  </div>
+
+  <!-- PAGE HEADER -->
+  <div class="page-header anim">
+    <div class="page-header-left">
+      <span class="page-eyebrow">Bill of Materials</span>
+      <h1 class="page-title">Tambah <em>Komponen</em></h1>
+      <p class="page-sub">{{ asset.nama_asset }} · {{ asset.asset_number }}</p>
+    </div>
+    <a href="{% url 'component_list' asset.id %}" class="btn btn-outline">← Kembali</a>
+  </div>
+
+  <form method="POST">
+    {% csrf_token %}
+
+    <!-- SECTION 1: INFORMASI DASAR -->
+    <div class="form-section anim">
+      <div class="section-header">
+        <div class="section-icon blue">ℹ️</div>
+        <span class="section-label">Informasi Dasar</span>
+      </div>
+      <div class="section-body">
+
+        <div class="field-row cols-2">
+          <div class="field">
+            <label class="field-label">Part Number <span class="req">*</span></label>
+            <input type="text" name="part_number" class="form-control"
+              placeholder="e.g. MB-SS55-001" required>
+            <span class="field-hint">Kode unik komponen / SKU</span>
+          </div>
+          <div class="field">
+            <label class="field-label">Nama Komponen <span class="req">*</span></label>
+            <input type="text" name="component_name" class="form-control"
+              placeholder="e.g. Mainboard Samsung 55 Inch" required>
+          </div>
+        </div>
+
+        <div class="field-row cols-1">
+          <div class="field">
+            <label class="field-label">Deskripsi</label>
+            <textarea name="description" class="form-control"
+              placeholder="Deskripsi detail komponen..."></textarea>
+          </div>
+        </div>
+
+        <div class="field-row cols-2">
+          <div class="field">
+            <label class="field-label">Quantity <span class="req">*</span></label>
+            <input type="number" name="quantity" class="form-control"
+              value="1" min="1" required>
+          </div>
+          <div class="field">
+            <label class="field-label">Status Komponen</label>
+            <div class="toggle-wrap" id="criticalToggle" onclick="toggleCritical()">
+              <div class="toggle-switch" id="toggleSwitch"></div>
+              <div class="toggle-text">
+                <div class="toggle-title">Komponen Kritis</div>
+                <div class="toggle-sub">Centang jika vital untuk operasional aset</div>
+              </div>
+            </div>
+            <input type="checkbox" name="is_critical" id="criticalCheck" style="display:none;">
+            <div class="critical-alert" id="criticalAlert">
+              ⚠️ Komponen kritis — jika rusak, aset tidak dapat beroperasi.
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- SECTION 2: SUPPLIER & HARGA -->
+    <div class="form-section anim">
+      <div class="section-header">
+        <div class="section-icon green">💰</div>
+        <span class="section-label">Supplier &amp; Harga</span>
+      </div>
+      <div class="section-body">
+        <div class="field-row cols-2">
+          <div class="field">
+            <label class="field-label">Nama Supplier</label>
+            <input type="text" name="supplier_name" class="form-control"
+              placeholder="e.g. PT Electronic Supplier">
+          </div>
+          <div class="field">
+            <label class="field-label">Estimasi Harga / Unit</label>
+            <input type="number" name="estimated_price" class="form-control"
+              step="0.01" placeholder="0">
+            <span class="field-hint">Dalam Rupiah (Rp)</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SECTION 3: MAINTENANCE INFO -->
+    <div class="form-section anim">
+      <div class="section-header">
+        <div class="section-icon amber">🔧</div>
+        <span class="section-label">Informasi Maintenance</span>
+      </div>
+      <div class="section-body">
+        <div class="field-row cols-2">
+          <div class="field">
+            <label class="field-label">Tanggal Terakhir Diganti</label>
+            <input type="date" name="last_replaced" class="form-control">
+            <span class="field-hint">Kosongkan jika komponen baru / belum pernah diganti</span>
+          </div>
+          <div class="field">
+            <label class="field-label">Catatan</label>
+            <textarea name="notes" class="form-control" style="min-height:70px;"
+              placeholder="Catatan tambahan..."></textarea>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SUBMIT -->
+    <div class="submit-row anim">
+      <button type="submit" class="btn btn-primary">💾 Simpan Komponen</button>
+      <a href="{% url 'component_list' asset.id %}" class="btn btn-secondary">Batal</a>
+    </div>
+
+  </form>
+</div>
+
+<script>
+  let isCritical = false;
+  function toggleCritical() {
+    isCritical = !isCritical;
+    document.getElementById('criticalCheck').checked = isCritical;
+    document.getElementById('toggleSwitch').classList.toggle('on', isCritical);
+    document.getElementById('criticalToggle').classList.toggle('active', isCritical);
+    document.getElementById('criticalAlert').classList.toggle('show', isCritical);
+  }
+</script>
+{% endblock %}

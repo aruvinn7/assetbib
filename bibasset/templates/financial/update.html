@@ -1,0 +1,266 @@
+{% extends "base.html" %}
+{% load static %}
+{% load rupiah %}
+{% block title %}Edit Finansial — {{ asset.asset_number }}{% endblock %}
+
+{% block content %}
+<link rel="stylesheet" href="{% static 'css/pages/financial_update.css' %}">
+
+<div class="wrap">
+
+  <!-- BREADCRUMB -->
+  <div class="breadcrumb-wrap anim">
+    <a href="{% url 'dashboard' %}">Dashboard</a>
+    <span class="sep">/</span>
+    <a href="{% url 'asset_list' %}">Aset</a>
+    <span class="sep">/</span>
+    <a href="{% url 'asset_detail' asset.id %}">{{ asset.asset_number }}</a>
+    <span class="sep">/</span>
+    <a href="{% url 'financial_detail' asset.id %}">Finansial</a>
+    <span class="sep">/</span>
+    <span class="current">Edit</span>
+  </div>
+
+  <!-- PAGE HEADER -->
+  <div class="page-header anim">
+    <div>
+      <div class="page-eyebrow">Finance — Edit Valuasi</div>
+      <h1 class="page-title">Edit <em>Data Finansial</em></h1>
+      <div class="page-sub">{{ asset.asset_number }} · {{ asset.nama_asset }}</div>
+    </div>
+    <a href="{% url 'financial_detail' asset.id %}" class="btn btn-outline">← Kembali</a>
+  </div>
+
+  <!-- ASSET IDENTITY CARD -->
+  <div class="asset-id-card anim">
+    <div class="asset-id-left">
+      <div class="asset-id-icon">📦</div>
+      <div>
+        <div class="asset-id-num">{{ asset.asset_number }}</div>
+        <div class="asset-id-name">{{ asset.nama_asset }}</div>
+        <div class="asset-id-meta">
+          {{ asset.asset_group|default:"—" }}{% if asset.asset_category %} · {{ asset.asset_category.name }}{% endif %}
+          · Umur aktual {{ asset.umur_asset }} thn {{ asset.umur_asset_detail.months }} bln
+          · Input pertama oleh {{ financial.created_by.nama|default:"—" }}
+        </div>
+      </div>
+    </div>
+    <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;">
+      {% if asset.lifecycle_status == 'active' %}
+        <span class="pill active">Active</span>
+      {% elif asset.lifecycle_status == 'maintenance' %}
+        <span class="pill maintenance">Maintenance</span>
+      {% else %}
+        <span class="pill writeoff">Write Off</span>
+      {% endif %}
+      <div style="font-size:11px;color:var(--muted);font-family:var(--mono);">
+        Input: {{ financial.created_at|date:"d M Y" }}
+      </div>
+    </div>
+  </div>
+
+  <form method="POST" id="financialForm">
+    {% csrf_token %}
+
+    <!-- SECTION 1: UMUR EKONOMIS -->
+    <div class="form-section anim">
+      <div class="section-header">
+        <div class="section-icon si-amber">📅</div>
+        <div class="section-label">Umur Ekonomis</div>
+      </div>
+      <div class="section-body">
+        <div class="field-row c2">
+          <div class="field">
+            <label class="field-label">Umur Aktual Aset</label>
+            <div class="umur-readonly">
+              {{ asset.umur_asset }} thn {{ asset.umur_asset_detail.months }} bln
+              <span class="umur-sub">(otomatis)</span>
+            </div>
+            <span class="field-hint">Dihitung dari {{ asset.tanggal_pembelian|date:"d M Y" }}</span>
+          </div>
+          <div class="field">
+            <label class="field-label">
+              Umur Ekonomis <span class="req">*</span>
+              <span class="changed-badge" id="umurChangedBadge">✏️ Diubah</span>
+            </label>
+            <div class="input-wrap">
+              <input type="number" name="umur_ekonomis" id="umurEkonomis"
+                class="form-control"
+                value="{{ financial.umur_ekonomis }}"
+                min="1" max="50" required
+                oninput="onUmurChange(); updatePreview()">
+            </div>
+            <span class="field-hint">Nilai sebelumnya: <strong style="font-family:var(--mono);">{{ financial.umur_ekonomis }} tahun</strong></span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SECTION 2: NILAI ASET -->
+    <div class="form-section anim">
+      <div class="section-header">
+        <div class="section-icon si-green">💰</div>
+        <div class="section-label">Nilai Aset</div>
+      </div>
+      <div class="section-body">
+
+        <div class="field-row c2">
+          <div class="field">
+            <label class="field-label">
+              Nilai Awal Aset <span class="req">*</span>
+              <span class="changed-badge" id="nilaiAwalChangedBadge">✏️ Diubah</span>
+            </label>
+            <div class="input-wrap">
+              <span class="input-prefix">Rp</span>
+              <input type="text" name="nilai_awal" id="nilaiAwal"
+                class="form-control has-prefix rupiah-input"
+                value="{{ financial.nilai_awal_aset|floatformat:0 }}"
+                required oninput="updatePreview()">
+            </div>
+            <span class="field-hint">Sebelumnya: <strong style="font-family:var(--mono);">{{ financial.nilai_awal_aset|rupiah }}</strong></span>
+          </div>
+          <div class="field">
+            <label class="field-label">
+              Nilai Residual <span class="req">*</span>
+              <span class="changed-badge" id="nilaiResidualChangedBadge">✏️ Diubah</span>
+            </label>
+            <div class="input-wrap">
+              <span class="input-prefix">Rp</span>
+              <input type="text" name="nilai_residual" id="nilaiResidual"
+                class="form-control has-prefix rupiah-input"
+                value="{{ financial.nilai_residual|floatformat:0 }}"
+                required oninput="updatePreview()">
+            </div>
+            <span class="field-hint">Sebelumnya: <strong style="font-family:var(--mono);">{{ financial.nilai_residual|rupiah }}</strong></span>
+          </div>
+        </div>
+
+        <!-- DEPRECIATION LIVE PREVIEW — always visible on update page -->
+        <div class="dep-preview" id="depPreview">
+          <div class="dep-preview-title">⚡ Preview Kalkulasi Depresiasi (Straight-Line)</div>
+          <div class="dep-grid">
+            <div class="dep-cell">
+              <div class="dep-cell-label">Dapat Disusutkan</div>
+              <div class="dep-cell-value blue" id="prevDepreciable">Rp —</div>
+            </div>
+            <div class="dep-cell">
+              <div class="dep-cell-label">Depresiasi / Tahun</div>
+              <div class="dep-cell-value amber" id="prevDepYear">Rp —</div>
+            </div>
+            <div class="dep-cell">
+              <div class="dep-cell-label">Book Value Saat Ini</div>
+              <div class="dep-cell-value green" id="prevBookValue">Rp —</div>
+            </div>
+          </div>
+          <div class="bv-bar-wrap">
+            <div class="bv-bar-title">Posisi Book Value terhadap Nilai Awal</div>
+            <div class="bv-track"><div class="bv-fill" id="bvFill"></div></div>
+            <div class="bv-bar-labels">
+              <span style="color:var(--danger);">Residual</span>
+              <span style="color:var(--success);">Nilai Awal</span>
+            </div>
+            <div class="bv-bar-note" id="bvBarNote">—</div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- SECTION 3: METODE -->
+    <div class="form-section anim">
+      <div class="section-header">
+        <div class="section-icon si-blue">📊</div>
+        <div class="section-label">Metode Depresiasi</div>
+      </div>
+      <div class="section-body">
+        <div class="info-note">
+          <span style="font-size:16px;flex-shrink:0;">ℹ️</span>
+          <div>
+            Sistem menggunakan metode <strong>Straight-Line Depreciation</strong>.
+            Rumus: <code>(Nilai Awal − Residual) ÷ Umur Ekonomis</code>.
+            Perubahan nilai akan langsung mempengaruhi perhitungan book value dan laporan depresiasi.
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SUBMIT -->
+    <div class="submit-row anim">
+      <button type="submit" class="btn btn-warning">💾 Update Data Finansial</button>
+      <a href="{% url 'financial_detail' asset.id %}" class="btn btn-secondary">Batal</a>
+    </div>
+
+  </form>
+</div>
+
+<script>
+  const UMUR_TERPAKAI  = {{ asset.umur_asset }};
+  const ORIG_NA        = {{ financial.nilai_awal_aset }};
+  const ORIG_NR        = {{ financial.nilai_residual }};
+  const ORIG_UMUR      = {{ financial.umur_ekonomis }};
+
+  function formatRupiah(num) {
+    if (isNaN(num)) return '—';
+    return Math.round(num).toLocaleString('id-ID');
+  }
+  function parseRupiah(str) {
+    return parseFloat((str || '').replace(/\./g, '').replace(',', '.')) || 0;
+  }
+
+  // Format existing values on load
+  window.addEventListener('DOMContentLoaded', function() {
+    ['nilaiAwal', 'nilaiResidual'].forEach(function(id) {
+      const el = document.getElementById(id);
+      const raw = el.value.replace(/\D/g, '');
+      if (raw) el.value = parseInt(raw).toLocaleString('id-ID');
+    });
+    updatePreview();
+  });
+
+  document.querySelectorAll('.rupiah-input').forEach(function(el) {
+    el.addEventListener('input', function() {
+      const raw = this.value.replace(/\D/g, '');
+      this.value = raw ? parseInt(raw).toLocaleString('id-ID') : '';
+    });
+  });
+
+  function onUmurChange() {
+    const cur = parseInt(document.getElementById('umurEkonomis').value) || 0;
+    const badge = document.getElementById('umurChangedBadge');
+    if (cur !== ORIG_UMUR) badge.classList.add('show');
+    else badge.classList.remove('show');
+  }
+
+  function updatePreview() {
+    const na   = parseRupiah(document.getElementById('nilaiAwal').value);
+    const nr   = parseRupiah(document.getElementById('nilaiResidual').value);
+    const umur = parseInt(document.getElementById('umurEkonomis').value) || 0;
+
+    if (!na || !nr || na <= nr || !umur) return;
+
+    const depreciable = na - nr;
+    const depYear     = depreciable / umur;
+    const bookValue   = Math.max(na - (depYear * UMUR_TERPAKAI), nr);
+    const sisaUmur    = Math.max(umur - UMUR_TERPAKAI, 0);
+    const pct         = ((bookValue - nr) / depreciable) * 100;
+
+    document.getElementById('prevDepreciable').textContent = 'Rp ' + formatRupiah(depreciable);
+    document.getElementById('prevDepYear').textContent     = 'Rp ' + formatRupiah(depYear);
+    document.getElementById('prevBookValue').textContent   = 'Rp ' + formatRupiah(bookValue);
+    document.getElementById('bvBarNote').textContent =
+      `Umur terpakai ${UMUR_TERPAKAI} dari ${umur} tahun — sisa ${sisaUmur} tahun — nilai tersisa ${Math.max(pct,0).toFixed(0)}%`;
+
+    setTimeout(() => {
+      document.getElementById('bvFill').style.width = Math.min(Math.max(pct,0),100).toFixed(1) + '%';
+    }, 100);
+  }
+
+  document.getElementById('financialForm').addEventListener('submit', function() {
+    ['nilaiAwal', 'nilaiResidual'].forEach(function(id) {
+      const el = document.getElementById(id);
+      el.value = el.value.replace(/\./g, '');
+    });
+  });
+</script>
+
+{% endblock %}

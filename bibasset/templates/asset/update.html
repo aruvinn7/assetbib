@@ -1,0 +1,412 @@
+{% extends "base.html" %}
+{% load static %}
+{% load rupiah %}
+{% load math_filter %}
+{% block title %}Edit {{ asset.asset_number }} — Asset Management{% endblock %}
+
+{% block content %}
+<link rel="stylesheet" href="{% static 'css/pages/asset_update.css' %}">
+
+<div class="wrap">
+
+  <!-- BREADCRUMB -->
+  <nav class="breadcrumb anim">
+    <a href="{% url 'dashboard' %}">Dashboard</a>
+    <span>/</span>
+    <a href="{% url 'asset_list' %}">Aset</a>
+    <span>/</span>
+    <a href="{% url 'asset_detail' asset.id %}">{{ asset.asset_number }}</a>
+    <span>/</span>
+    <span>Edit</span>
+  </nav>
+
+  <!-- PAGE HEADER -->
+  <div class="page-header anim">
+    <div>
+      <span class="page-eyebrow">Edit Aset</span>
+      <h1 class="page-title">Edit <em>{{ asset.nama_asset|truncatechars:30 }}</em></h1>
+    </div>
+    <div style="display:flex;gap:8px;">
+      <a href="{% url 'asset_detail' asset.id %}" class="btn btn-outline">← Detail</a>
+      <a href="{% url 'asset_list' %}" class="btn btn-outline">Daftar Aset</a>
+    </div>
+  </div>
+
+  <!-- EDIT BANNER -->
+  <div class="edit-banner anim">
+    <span style="font-size:16px;">✏️</span>
+    Kamu sedang mengedit aset <strong>{{ asset.asset_number }}</strong>.
+    Perubahan akan langsung tersimpan setelah klik "Simpan Perubahan".
+  </div>
+
+  <div class="main-grid">
+
+    <!-- ══════════════════════════════════════
+         LEFT — FORM EDIT
+    ══════════════════════════════════════ -->
+    <div>
+      <form method="POST">
+        {% csrf_token %}
+
+        <!-- IDENTITAS ASET -->
+        <div class="card anim">
+          <div class="card-header">
+            <span class="card-dot" style="background:var(--accent);"></span>
+            <span class="card-label">Identitas Aset</span>
+          </div>
+          <div class="card-body">
+
+            <div class="form-row">
+              <div class="form-group">
+                <label class="form-label" for="asset_number">Asset Number <span class="req">*</span></label>
+                <input type="text" id="asset_number" name="asset_number" class="form-input"
+                  value="{{ asset.asset_number }}" required>
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="no_po">No. PO <span class="req">*</span></label>
+                <input type="text" id="no_po" name="no_po" class="form-input"
+                  value="{{ asset.no_po }}" required>
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="nama_asset">Nama Aset <span class="req">*</span></label>
+              <input type="text" id="nama_asset" name="nama_asset" class="form-input"
+                value="{{ asset.nama_asset }}" required>
+            </div>
+
+            <div class="form-row">
+              <div class="form-group">
+                <label class="form-label" for="tanggal_pembelian">Tanggal Pembelian <span class="req">*</span></label>
+                <input type="date" id="tanggal_pembelian" name="tanggal_pembelian" class="form-input"
+                  value="{{ asset.tanggal_pembelian|date:'Y-m-d' }}" required>
+              </div>
+              <div class="form-group">
+                <label class="form-label">Umur Aset</label>
+                <div class="form-hint">Dihitung otomatis dari tanggal pembelian</div>
+                <div class="form-readonly">
+                  {{ asset.umur_asset }} thn {{ asset.umur_asset_detail.months }} bln
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+        <!-- KLASIFIKASI -->
+        <div class="card anim">
+          <div class="card-header">
+            <span class="card-dot" style="background:var(--purple);"></span>
+            <span class="card-label">Klasifikasi Aset</span>
+          </div>
+          <div class="card-body">
+
+            <div class="form-row">
+              <div class="form-group">
+                <label class="form-label" for="asset_group">Asset Group</label>
+                <select name="asset_group" id="asset_group" class="form-select"
+                  onchange="filterCategories(this.value)">
+                  <option value="">— Pilih Group</option>
+                  {% for g in asset_groups %}
+                  <option value="{{ g.pk }}"
+                    {% if asset.asset_group_id == g.pk %}selected{% endif %}>
+                    {{ g.name }}
+                  </option>
+                  {% endfor %}
+                </select>
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="asset_category">Asset Category</label>
+                <select name="asset_category" id="asset_category" class="form-select">
+                  <option value="">— Pilih Kategori</option>
+                  {% for g in asset_groups %}
+                    {% for cat in g.categories.all %}
+                    <option value="{{ cat.pk }}"
+                      data-group="{{ g.pk }}"
+                      {% if asset.asset_category_id == cat.pk %}selected{% endif %}>
+                      {{ cat.name }}
+                    </option>
+                    {% endfor %}
+                  {% endfor %}
+                </select>
+              </div>
+            </div>
+
+            <div class="form-row">
+              <div class="form-group">
+                <label class="form-label" for="lokasi_asset">Lokasi Aset</label>
+                <select name="lokasi_asset" id="lokasi_asset" class="form-select">
+                  <option value="">— Pilih Lokasi</option>
+                  {% for loc in locations %}
+                  <option value="{{ loc.pk }}"
+                    {% if asset.lokasi_asset_id == loc.pk %}selected{% endif %}>
+                    {{ loc }}
+                  </option>
+                  {% endfor %}
+                </select>
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="department">Department</label>
+                <select name="department" id="department" class="form-select">
+                  <option value="">— Pilih Department</option>
+                  {% for dept in departments %}
+                  <option value="{{ dept.pk }}"
+                    {% if asset.owned_by_department_id == dept.pk %}selected{% endif %}>
+                    {{ dept.name }}
+                  </option>
+                  {% endfor %}
+                </select>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+        <!-- STATUS -->
+        <div class="card anim">
+          <div class="card-header">
+            <span class="card-dot" style="background:var(--warning);"></span>
+            <span class="card-label">Status Lifecycle</span>
+          </div>
+          <div class="card-body">
+            <div class="form-group" style="margin-bottom:0;">
+              <label class="form-label" for="status">Status Aset <span class="req">*</span></label>
+              <select name="status" id="status" class="form-select">
+                <option value="active"      {% if asset.lifecycle_status == 'active' %}selected{% endif %}>🟢 Active — Beroperasi normal</option>
+                <option value="maintenance" {% if asset.lifecycle_status == 'maintenance' %}selected{% endif %}>🔧 Maintenance — Sedang dalam perbaikan</option>
+                <option value="writeoff"   {% if asset.lifecycle_status == 'writeoff' %}selected{% endif %}>✖ Write Off — Sudah tidak digunakan</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <!-- FORM ACTIONS -->
+        <div class="form-actions anim">
+          <button type="submit" class="btn btn-warning">💾 Simpan Perubahan</button>
+          <a href="{% url 'asset_detail' asset.id %}" class="btn btn-outline">Batal</a>
+          {% if request.user.employee.ga_profile %}
+          <a href="{% url 'asset_delete' asset.id %}" class="btn btn-danger"
+             style="margin-left:auto;"
+             onclick="return confirm('Hapus aset {{ asset.nama_asset|escapejs }}? Tindakan ini tidak bisa dibatalkan.')">
+            🗑 Hapus Aset
+          </a>
+          {% endif %}
+        </div>
+
+      </form>
+    </div>
+
+    <!-- ══════════════════════════════════════
+         RIGHT — INFO SIDEBAR (read-only)
+    ══════════════════════════════════════ -->
+    <div>
+
+      <!-- STATUS SEKARANG -->
+      <div class="card anim">
+        <div class="card-header">
+          <span class="card-dot" style="background:var(--accent);"></span>
+          <span class="card-label">Status Saat Ini</span>
+        </div>
+        <div class="info-row">
+          <span class="ir-label">Lifecycle</span>
+          <span class="ir-value">
+            {% if asset.lifecycle_status == 'active' %}<span class="pill active">Active</span>
+            {% elif asset.lifecycle_status == 'maintenance' %}<span class="pill maintenance">Maintenance</span>
+            {% elif asset.lifecycle_status == 'writeoff' %}<span class="pill writeoff">Write Off</span>{% endif %}
+          </span>
+        </div>
+        <div class="info-row">
+          <span class="ir-label">Kesehatan</span>
+          <span class="ir-value">
+            {% with hs=asset.health_status %}
+            <span class="health-pill {{ hs }}">
+              {% if hs == 'critical' %}🔴 Critical
+              {% elif hs == 'waspada' %}🟠 Waspada
+              {% elif hs == 'warning' %}🟡 Warning
+              {% elif hs == 'normal' %}🟢 Normal
+              {% else %}⚪ No Data{% endif %}
+            </span>
+            {% endwith %}
+          </span>
+        </div>
+        <div class="info-row">
+          <span class="ir-label">Komponen</span>
+          <span class="ir-value" style="color:var(--purple);">{{ asset.components.count }} part</span>
+        </div>
+        <div class="info-row">
+          <span class="ir-label">Maintenance</span>
+          <span class="ir-value">{{ maintenance_records.count }} record</span>
+        </div>
+        {% if last_maintenance %}
+        <div class="info-row">
+          <span class="ir-label">Terakhir</span>
+          <span class="ir-value">{{ last_maintenance.tanggal_pelaksanaan|date:"d M Y" }}</span>
+        </div>
+        {% endif %}
+      </div>
+
+      <!-- JADWAL MAINTENANCE -->
+      <div class="card anim">
+        <div class="card-header">
+          <span class="card-dot" style="background:var(--warning);"></span>
+          <span class="card-label">Jadwal Maintenance</span>
+        </div>
+        <div style="padding:12px 14px;">
+          {% if next_schedule %}
+            {% if next_schedule.status == 'overdue' %}
+            <div class="sched-box overdue">
+              <div class="sched-label overdue">🔴 Terlambat</div>
+              <div class="sched-date overdue">{{ next_schedule.scheduled_date|date:"d M Y" }}</div>
+              <div class="sched-sub">{{ next_schedule.days_remaining }} hari lewat batas</div>
+            </div>
+            {% else %}
+            <div class="sched-box upcoming">
+              <div class="sched-label upcoming">🔵 Jadwal Berikutnya</div>
+              <div class="sched-date upcoming">{{ next_schedule.scheduled_date|date:"d M Y" }}</div>
+              <div class="sched-sub">dalam {{ next_schedule.days_remaining }} hari</div>
+            </div>
+            {% endif %}
+          {% else %}
+            <div class="sched-box none">📅 Belum ada jadwal aktif</div>
+          {% endif %}
+
+          {% if asset.maintenance_config %}
+          <div style="margin-top:8px;padding:10px 12px;background:#ecfeff;border:1px solid #a5f3fc;border-radius:8px;">
+            <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:#0e7490;font-family:var(--mono);margin-bottom:3px;">⚙️ Interval Custom</div>
+            <div style="font-size:14px;font-weight:900;font-family:var(--mono);">{{ asset.maintenance_config.custom_interval_days }} hari</div>
+          </div>
+          {% elif effective_interval %}
+          <div style="margin-top:8px;padding:10px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;">
+            <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--muted);font-family:var(--mono);margin-bottom:3px;">📋 Interval Standar</div>
+            <div style="font-size:14px;font-weight:900;font-family:var(--mono);">{{ effective_interval }} hari</div>
+          </div>
+          {% endif %}
+        </div>
+      </div>
+
+      <!-- RIWAYAT MAINTENANCE (3 terakhir) -->
+      <div class="card anim">
+        <div class="card-header">
+          <span class="card-dot" style="background:var(--warning);"></span>
+          <span class="card-label">Riwayat Terakhir</span>
+          {% if maintenance_records.count > 0 %}
+          <span style="margin-left:auto;font-size:10px;color:var(--muted);font-family:var(--mono);">
+            {{ maintenance_records.count }} total
+          </span>
+          {% endif %}
+        </div>
+        {% if maintenance_records %}
+          {% for r in maintenance_records|slice:":3" %}
+          <div class="mh-mini">
+            <div class="mh-dot {{ r.maintenance_type }}"></div>
+            <div style="flex:1;min-width:0;">
+              <div style="font-size:10px;font-weight:700;color:var(--muted);font-family:var(--mono);margin-bottom:2px;">
+                {{ r.get_maintenance_type_display|truncatechars:20 }}
+              </div>
+              <div style="font-weight:700;font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
+                {{ r.deskripsi_pekerjaan|truncatechars:40 }}
+              </div>
+              <div style="font-size:10px;color:var(--muted);font-family:var(--mono);margin-top:2px;">
+                {{ r.tanggal_pelaksanaan|date:"d M Y" }}
+              </div>
+            </div>
+          </div>
+          {% endfor %}
+          {% if maintenance_records.count > 3 %}
+          <div style="padding:8px 14px;font-size:10px;color:var(--muted);font-family:var(--mono);
+            border-top:1px solid var(--border);text-align:center;">
+            + {{ maintenance_records.count|add:"-3" }} record lainnya
+          </div>
+          {% endif %}
+        {% else %}
+          <div style="padding:20px 14px;text-align:center;color:var(--muted);
+            font-size:11px;font-family:var(--mono);">📭 Belum ada riwayat</div>
+        {% endif %}
+      </div>
+
+      <!-- QUICK LINK KE DETAIL -->
+      <div class="card anim">
+        <div class="card-header">
+          <span class="card-dot" style="background:var(--muted);"></span>
+          <span class="card-label">Navigasi Cepat</span>
+        </div>
+        <div style="padding:10px 12px;display:flex;flex-direction:column;gap:6px;">
+          <a href="{% url 'asset_detail' asset.id %}"
+             style="display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:7px;
+               border:1.5px solid var(--border);background:var(--surface2);text-decoration:none;
+               color:var(--text);font-size:12px;font-weight:700;transition:all .15s;"
+             onmouseover="this.style.borderColor='var(--accent)'"
+             onmouseout="this.style.borderColor='var(--border)'">
+            📋 <span>Lihat Detail Lengkap</span>
+          </a>
+          <a href="{% url 'component_list' asset.id %}"
+             style="display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:7px;
+               border:1.5px solid var(--border);background:var(--surface2);text-decoration:none;
+               color:var(--text);font-size:12px;font-weight:700;transition:all .15s;"
+             onmouseover="this.style.borderColor='var(--purple)'"
+             onmouseout="this.style.borderColor='var(--border)'">
+            🔩 <span>Bill of Materials</span>
+          </a>
+          <a href="{% url 'maintenance_create' asset.id %}"
+             style="display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:7px;
+               border:1.5px solid var(--border);background:var(--surface2);text-decoration:none;
+               color:var(--text);font-size:12px;font-weight:700;transition:all .15s;"
+             onmouseover="this.style.borderColor='var(--warning)'"
+             onmouseout="this.style.borderColor='var(--border)'">
+            🔧 <span>Catat Maintenance Baru</span>
+          </a>
+          {% if asset.maintenance_config %}
+          <a href="{% url 'maintenance_config_update' asset_id=asset.id %}"
+             style="display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:7px;
+               border:1.5px solid var(--border);background:var(--surface2);text-decoration:none;
+               color:var(--text);font-size:12px;font-weight:700;transition:all .15s;"
+             onmouseover="this.style.borderColor='var(--accent)'"
+             onmouseout="this.style.borderColor='var(--border)'">
+            ⚙️ <span>Ubah Custom Interval</span>
+          </a>
+          {% else %}
+          <a href="{% url 'maintenance_config_create' asset_id=asset.id %}"
+             style="display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:7px;
+               border:1.5px solid var(--border);background:var(--surface2);text-decoration:none;
+               color:var(--text);font-size:12px;font-weight:700;transition:all .15s;"
+             onmouseover="this.style.borderColor='var(--accent)'"
+             onmouseout="this.style.borderColor='var(--border)'">
+            ⚙️ <span>Set Custom Interval</span>
+          </a>
+          {% endif %}
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script>
+// Filter kategori sesuai group yang dipilih
+function filterCategories(groupId) {
+  const catSelect = document.getElementById('asset_category');
+  const options   = catSelect.querySelectorAll('option');
+  let firstVisible = null;
+
+  options.forEach(opt => {
+    if (!opt.value) return; // skip placeholder
+    const show = !groupId || opt.dataset.group === groupId;
+    opt.style.display = show ? '' : 'none';
+    if (show && !firstVisible) firstVisible = opt;
+  });
+
+  // Jika kategori yang sedang dipilih tidak cocok dengan group baru → reset
+  const selected = catSelect.querySelector('option:checked');
+  if (selected && selected.dataset.group && selected.dataset.group !== groupId) {
+    catSelect.value = '';
+  }
+}
+
+// Jalankan saat load supaya kategori sudah terfilter sesuai group awal
+document.addEventListener('DOMContentLoaded', () => {
+  const groupSelect = document.getElementById('asset_group');
+  if (groupSelect.value) filterCategories(groupSelect.value);
+});
+</script>
+
+{% endblock %}

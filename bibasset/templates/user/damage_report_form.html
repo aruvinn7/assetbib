@@ -1,0 +1,135 @@
+{% extends "base.html" %}
+{% block title %}Laporkan Kerusakan Aset{% endblock %}
+
+{% block vendor_css %}{% include "components/_bootstrap_css.html" %}{% endblock %}
+
+{% block content %}
+<div class="container py-4" style="max-width: 720px;">
+
+  <div class="mb-4">
+    <a href="{% url 'user_dashboard' %}" class="text-decoration-none text-muted">
+      <i class="bi bi-arrow-left me-1"></i>Kembali ke Dashboard
+    </a>
+    <h4 class="mt-2 mb-0">Laporkan Kerusakan Aset</h4>
+    <p class="text-muted">Isi form berikut dengan detail kondisi kerusakan yang Anda temukan.</p>
+  </div>
+
+  <div class="card border-0 shadow-sm">
+    <div class="card-body p-4">
+      <form method="POST" enctype="multipart/form-data">
+        {% csrf_token %}
+
+        <!-- Pilih Aset -->
+        <div class="mb-4">
+          <label class="form-label fw-semibold">Aset yang Rusak <span class="text-danger">*</span></label>
+          {% if selected_asset %}
+            <input type="hidden" name="asset_id" value="{{ selected_asset.id }}">
+            <div class="border rounded-3 p-3 bg-light">
+              <div class="fw-semibold">{{ selected_asset.nama_asset }}</div>
+              <div class="text-muted small">{{ selected_asset.asset_number }}
+                {% if selected_asset.asset_category %} · {{ selected_asset.asset_category }}{% endif %}
+                {% if selected_asset.lokasi_asset %} · {{ selected_asset.lokasi_asset }}{% endif %}
+              </div>
+            </div>
+          {% else %}
+            <select name="asset_id" class="form-select" required>
+              <option value="">— Pilih aset yang bermasalah —</option>
+              {% for asset in held_assets %}
+              <option value="{{ asset.id }}">
+                {{ asset.nama_asset }} ({{ asset.asset_number }})
+                {% if asset.lokasi_asset %} — {{ asset.lokasi_asset }}{% endif %}
+              </option>
+              {% endfor %}
+            </select>
+            {% if not held_assets %}
+            <div class="form-text text-warning">
+              <i class="bi bi-exclamation-triangle me-1"></i>
+              Anda tidak memegang aset aktif yang bisa dilaporkan.
+            </div>
+            {% endif %}
+          {% endif %}
+        </div>
+
+        <!-- Judul -->
+        <div class="mb-3">
+          <label class="form-label fw-semibold">Judul Kerusakan <span class="text-danger">*</span></label>
+          <input type="text" name="title" class="form-control" required
+                 placeholder="Contoh: AC tidak mendingin, Layar laptop retak, Printer paper jam terus-menerus">
+          <div class="form-text">Tuliskan ringkasan singkat masalah yang dialami.</div>
+        </div>
+
+        <!-- Severity -->
+        <div class="mb-3">
+          <label class="form-label fw-semibold">Tingkat Keparahan <span class="text-danger">*</span></label>
+          <div class="row g-2">
+            <div class="col-6 col-md-3">
+              <input type="radio" class="btn-check" name="severity" id="sev_low" value="low">
+              <label class="btn btn-outline-success w-100" for="sev_low">
+                <i class="bi bi-check-circle d-block fs-5 mb-1"></i>
+                <span class="small">Ringan</span><br>
+                <span style="font-size:0.7rem" class="text-muted">Masih bisa dipakai</span>
+              </label>
+            </div>
+            <div class="col-6 col-md-3">
+              <input type="radio" class="btn-check" name="severity" id="sev_medium" value="medium" checked>
+              <label class="btn btn-outline-warning w-100" for="sev_medium">
+                <i class="bi bi-exclamation-circle d-block fs-5 mb-1"></i>
+                <span class="small">Sedang</span><br>
+                <span style="font-size:0.7rem" class="text-muted">Fungsi terganggu</span>
+              </label>
+            </div>
+            <div class="col-6 col-md-3">
+              <input type="radio" class="btn-check" name="severity" id="sev_high" value="high">
+              <label class="btn btn-outline-danger w-100" for="sev_high">
+                <i class="bi bi-x-circle d-block fs-5 mb-1"></i>
+                <span class="small">Parah</span><br>
+                <span style="font-size:0.7rem" class="text-muted">Tidak bisa dipakai</span>
+              </label>
+            </div>
+            <div class="col-6 col-md-3">
+              <input type="radio" class="btn-check" name="severity" id="sev_critical" value="critical">
+              <label class="btn btn-outline-dark w-100" for="sev_critical">
+                <i class="bi bi-lightning-fill d-block fs-5 mb-1"></i>
+                <span class="small">Kritis</span><br>
+                <span style="font-size:0.7rem" class="text-muted">Darurat/berbahaya</span>
+              </label>
+            </div>
+          </div>
+        </div>
+
+        <!-- Deskripsi -->
+        <div class="mb-3">
+          <label class="form-label fw-semibold">Deskripsi Detail <span class="text-danger">*</span></label>
+          <textarea name="description" class="form-control" rows="4" required
+                    placeholder="Jelaskan detail kondisi kerusakan:&#10;- Kapan pertama kali terjadi?&#10;- Gejala / tanda-tanda yang terlihat?&#10;- Apakah sudah pernah terjadi sebelumnya?"></textarea>
+        </div>
+
+        <!-- Foto Bukti -->
+        <div class="mb-4">
+          <label class="form-label fw-semibold">Foto Bukti Kerusakan</label>
+          <input type="file" name="photo_evidence" class="form-control" accept="image/*">
+          <div class="form-text">Opsional, tapi sangat membantu GA untuk menilai kondisi. Maks. 5MB.</div>
+        </div>
+
+        <!-- Info Box -->
+        <div class="alert alert-info d-flex gap-2 align-items-start mb-4">
+          <i class="bi bi-info-circle-fill mt-1 flex-shrink-0"></i>
+          <div class="small">
+            <strong>Setelah laporan dikirim:</strong><br>
+            Status aset akan otomatis berubah ke <strong>Dalam Perbaikan</strong> dan tim GA akan mendapat
+            notifikasi untuk menindaklanjuti. Anda bisa memantau progress perbaikan di halaman laporan Anda.
+          </div>
+        </div>
+
+        <div class="d-flex gap-2">
+          <button type="submit" class="btn btn-danger px-4" {% if not held_assets and not selected_asset %}disabled{% endif %}>
+            <i class="bi bi-send-fill me-2"></i>Kirim Laporan
+          </button>
+          <a href="{% url 'user_dashboard' %}" class="btn btn-outline-secondary">Batal</a>
+        </div>
+      </form>
+    </div>
+  </div>
+
+</div>
+{% endblock %}

@@ -1,0 +1,117 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}Record Replacement — {{ component.component_name }}{% endblock %}
+
+{% block content %}
+<link rel="stylesheet" href="{% static 'css/pages/components_replacement_create.css' %}">
+
+<div class="pg-wrap">
+
+  <!-- BREADCRUMB -->
+  <div class="breadcrumb anim">
+    <a href="{% url 'asset_list' %}">Aset</a>
+    <span class="breadcrumb-sep">›</span>
+    <a href="{% url 'asset_detail' asset.id %}">{{ asset.asset_number }}</a>
+    <span class="breadcrumb-sep">›</span>
+    <a href="{% url 'component_list' asset.id %}">Komponen</a>
+    <span class="breadcrumb-sep">›</span>
+    <a href="{% url 'component_detail' component.id %}">{{ component.component_name }}</a>
+    <span class="breadcrumb-sep">›</span>
+    <span class="breadcrumb-current">Record Replacement</span>
+  </div>
+
+  <!-- PAGE TITLE -->
+  <div class="anim">
+    <div class="pg-eyebrow">Komponen — {{ asset.asset_number }}</div>
+    <div class="pg-title">Record <em>Replacement</em></div>
+    <div class="pg-sub">Catat penggantian komponen beserta biaya dan alasannya</div>
+  </div>
+
+  <!-- COMPONENT BANNER -->
+  <div class="comp-banner anim">
+    <div class="comp-banner-icon">⚙️</div>
+    <div class="comp-banner-body">
+      <div class="comp-banner-name">{{ component.component_name }}</div>
+      <div class="comp-banner-meta">Part# {{ component.part_number }} · {{ asset.nama_asset }}</div>
+      <div class="comp-banner-pills">
+        <span class="pill blue">{{ asset.asset_number }}</span>
+        {% if component.is_critical %}
+          <span class="pill red">⚡ Komponen Kritis</span>
+        {% endif %}
+        {% if component.last_replaced %}
+          <span class="pill slate">Terakhir diganti: {{ component.last_replaced|date:"d M Y" }}</span>
+        {% else %}
+          <span class="pill slate">Belum pernah diganti</span>
+        {% endif %}
+        {% if component.estimated_price %}
+          <span class="pill green">Est. Rp {{ component.estimated_price|floatformat:0 }}</span>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <!-- FORM CARD -->
+  <div class="db-card anim">
+    <div class="db-card-header">
+      <div class="db-card-title">
+        <span class="db-card-title-dot" style="background:var(--accent)"></span>
+        Detail Penggantian
+      </div>
+    </div>
+    <div class="card-body">
+      <form method="POST">
+        {% csrf_token %}
+
+        <!-- ROW 1: Tanggal + Biaya -->
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Tanggal Penggantian <span class="req">*</span></label>
+            <input type="date" name="replaced_date" class="form-control"
+                   value="{% now 'Y-m-d' %}" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Biaya Penggantian <span class="req">*</span></label>
+            <div class="input-prefix">
+              <span class="input-prefix-label">Rp</span>
+              <input type="number" name="cost" class="form-control"
+                     placeholder="0" min="0" step="1000" required>
+            </div>
+            <div class="form-hint">Biaya aktual penggantian komponen</div>
+          </div>
+        </div>
+
+        <!-- ROW 2: Alasan -->
+        <div class="form-row single">
+          <div class="form-group">
+            <label class="form-label">Alasan Penggantian <span class="req">*</span></label>
+            <textarea name="reason" class="form-control" required
+                      placeholder="Jelaskan mengapa komponen ini diganti — misal: kerusakan fisik, aus, upgrade performa, penggantian preventive, dll."></textarea>
+          </div>
+        </div>
+
+        <!-- ROW 3: Old Part Number -->
+        <div class="form-row single">
+          <div class="form-group">
+            <label class="form-label">Old Part Number</label>
+            <input type="text" name="old_part_number" class="form-control"
+                   placeholder="Kosongkan jika part number tidak berubah"
+                   value="{{ component.part_number }}">
+            <div class="form-hint">Isi jika part number komponen baru berbeda dari sebelumnya</div>
+          </div>
+        </div>
+
+        <hr class="form-divider">
+
+        <div class="form-actions">
+          <button type="submit" class="btn-submit">
+            🔧 Simpan Replacement Record
+          </button>
+          <a href="{% url 'component_detail' component.id %}" class="btn-cancel">Batal</a>
+        </div>
+
+      </form>
+    </div>
+  </div>
+
+</div>
+{% endblock %}

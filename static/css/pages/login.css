@@ -1,0 +1,199 @@
+/* Diekstrak dari templates/login.html */
+:root {
+  --bg:#f0f2f7;--surface:#ffffff;--surface2:#f8f9fc;--border:#e4e8f0;
+  --accent:#1a56db;--accent2:#0e3fba;--danger:#e02424;--warning:#d97706;
+  --success:#057a55;--text:#111928;--text-soft:#6b7280;--muted:#9ca3af;
+  --mono:'JetBrains Mono',monospace;--sans:'Nunito',sans-serif;
+  --shadow-sm:0 1px 3px rgba(0,0,0,.06);
+  --shadow:0 8px 32px rgba(0,0,0,.10);
+  --shadow-lg:0 20px 60px rgba(0,0,0,.13);
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+html,body{height:100%;}
+body{
+  font-family:var(--sans);
+  background:var(--bg);
+  color:var(--text);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  min-height:100vh;
+  padding:20px;
+  position:relative;
+  overflow:hidden;
+}
+
+/* Subtle background pattern */
+body::before{
+  content:'';
+  position:fixed;inset:0;
+  background:
+    radial-gradient(ellipse 80% 50% at 20% 20%, rgba(26,86,219,.06) 0%, transparent 60%),
+    radial-gradient(ellipse 60% 40% at 80% 80%, rgba(124,58,237,.04) 0%, transparent 60%);
+  pointer-events:none;z-index:0;
+}
+
+/* Floating dots decoration */
+.bg-dots{position:fixed;inset:0;pointer-events:none;z-index:0;overflow:hidden;}
+.bg-dot{position:absolute;border-radius:50%;opacity:.06;}
+.bg-dot:nth-child(1){width:320px;height:320px;background:var(--accent);top:-80px;right:-80px;}
+.bg-dot:nth-child(2){width:200px;height:200px;background:var(--accent);bottom:-60px;left:-60px;}
+.bg-dot:nth-child(3){width:80px;height:80px;background:var(--accent);top:40%;left:5%;}
+.bg-dot:nth-child(4){width:50px;height:50px;background:#7c3aed;bottom:20%;right:8%;}
+
+/* CARD */
+.login-card{
+  position:relative;z-index:1;
+  background:var(--surface);
+  border:1px solid var(--border);
+  border-radius:20px;
+  box-shadow:var(--shadow-lg);
+  width:100%;
+  max-width:420px;
+  overflow:hidden;
+  animation:cardIn .4s cubic-bezier(.4,0,.2,1) forwards;
+  opacity:0;transform:translateY(20px);
+}
+@keyframes cardIn{to{opacity:1;transform:none;}}
+
+/* CARD TOP ACCENT */
+.card-accent{
+  height:4px;
+  background:linear-gradient(90deg, var(--accent), #4f81f7, #7c3aed);
+}
+
+/* CARD HEADER */
+.card-header{
+  padding:32px 36px 24px;
+  text-align:center;
+  border-bottom:1px solid var(--border);
+  background:var(--surface2);
+}
+.logo-wrap{
+  width:56px;height:56px;border-radius:14px;
+  background:linear-gradient(135deg, var(--accent), #4f81f7);
+  display:flex;align-items:center;justify-content:center;
+  margin:0 auto 16px;
+  box-shadow:0 4px 16px rgba(26,86,219,.25);
+  font-size:24px;
+}
+.card-eyebrow{
+  font-size:10px;font-weight:700;text-transform:uppercase;
+  letter-spacing:.8px;color:var(--muted);font-family:var(--mono);
+  margin-bottom:6px;
+}
+.card-title{
+  font-size:20px;font-weight:900;letter-spacing:-.3px;color:var(--text);
+}
+.card-title em{font-style:normal;color:var(--accent);}
+.card-subtitle{
+  font-size:11px;color:var(--text-soft);margin-top:5px;
+  font-family:var(--mono);
+}
+
+/* CARD BODY */
+.card-body{padding:28px 36px 32px;}
+
+/* MESSAGES */
+.msg{
+  display:flex;align-items:flex-start;gap:10px;
+  padding:11px 14px;border-radius:10px;
+  font-size:12px;font-weight:700;margin-bottom:20px;
+  animation:msgIn .3s ease forwards;
+}
+@keyframes msgIn{from{opacity:0;transform:translateY(-6px);}to{opacity:1;transform:none;}}
+.msg-icon{font-size:15px;flex-shrink:0;margin-top:1px;}
+.msg.error  {background:#fef2f2;border:1.5px solid #fca5a5;color:#991b1b;}
+.msg.success{background:#ecfdf5;border:1.5px solid #6ee7b7;color:#065f46;}
+.msg.warning{background:#fffbeb;border:1.5px solid #fcd34d;color:#92400e;}
+.msg.info   {background:#eff6ff;border:1.5px solid #bfdbfe;color:#1e40af;}
+/* Bootstrap fallback tags */
+.msg.danger {background:#fef2f2;border:1.5px solid #fca5a5;color:#991b1b;}
+
+/* FORM FIELDS */
+.field{margin-bottom:18px;}
+.field-label{
+  display:flex;align-items:center;gap:6px;
+  font-size:11px;font-weight:800;text-transform:uppercase;
+  letter-spacing:.4px;color:var(--text-soft);
+  margin-bottom:7px;font-family:var(--sans);
+}
+.field-label-icon{font-size:12px;}
+.field-input-wrap{position:relative;}
+.field-input{
+  width:100%;
+  padding:10px 14px 10px 38px;
+  border:1.5px solid var(--border);
+  border-radius:10px;
+  font-size:13px;
+  font-family:var(--sans);
+  color:var(--text);
+  background:var(--surface);
+  outline:none;
+  transition:border-color .15s, box-shadow .15s;
+  -webkit-appearance:none;
+}
+.field-input:focus{
+  border-color:var(--accent);
+  box-shadow:0 0 0 3px rgba(26,86,219,.08);
+}
+.field-input::placeholder{color:var(--muted);}
+.field-icon{
+  position:absolute;left:12px;top:50%;transform:translateY(-50%);
+  font-size:13px;color:var(--muted);pointer-events:none;
+  transition:color .15s;
+}
+.field-input-wrap:focus-within .field-icon{color:var(--accent);}
+
+/* Password toggle */
+.pwd-toggle{
+  position:absolute;right:12px;top:50%;transform:translateY(-50%);
+  background:none;border:none;cursor:pointer;
+  font-size:13px;color:var(--muted);padding:2px;
+  transition:color .15s;
+}
+.pwd-toggle:hover{color:var(--accent);}
+.field-input.has-toggle{padding-right:38px;}
+
+/* SUBMIT BUTTON */
+.btn-login{
+  width:100%;
+  padding:12px 20px;
+  border-radius:10px;
+  border:none;
+  cursor:pointer;
+  font-family:var(--sans);
+  font-size:14px;
+  font-weight:800;
+  color:#fff;
+  background:linear-gradient(135deg, var(--accent), #4f81f7);
+  box-shadow:0 4px 14px rgba(26,86,219,.3);
+  transition:all .15s;
+  display:flex;align-items:center;justify-content:center;gap:8px;
+  margin-top:24px;
+  letter-spacing:.2px;
+}
+.btn-login:hover{
+  background:linear-gradient(135deg, var(--accent2), var(--accent));
+  box-shadow:0 6px 20px rgba(26,86,219,.4);
+  transform:translateY(-1px);
+}
+.btn-login:active{transform:none;box-shadow:0 2px 8px rgba(26,86,219,.25);}
+
+/* FOOTER */
+.card-footer{
+  padding:14px 36px;
+  border-top:1px solid var(--border);
+  background:var(--surface2);
+  text-align:center;
+  font-size:10px;
+  color:var(--muted);
+  font-family:var(--mono);
+}
+.card-footer strong{color:var(--text-soft);}
+
+@media(max-width:480px){
+  .card-header{padding:24px 24px 20px;}
+  .card-body{padding:22px 24px 26px;}
+  .card-footer{padding:12px 24px;}
+}

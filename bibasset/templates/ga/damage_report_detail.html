@@ -1,0 +1,241 @@
+{% extends "base.html" %}
+{% block title %}Detail Laporan #{{ report.pk }}{% endblock %}
+
+{% block vendor_css %}{% include "components/_bootstrap_css.html" %}{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+
+  <div class="mb-4">
+    <a href="{% url 'ga_damage_report_list' %}" class="text-decoration-none text-muted">
+      <i class="bi bi-arrow-left me-1"></i>Kembali ke Daftar Laporan
+    </a>
+    <div class="d-flex align-items-center gap-3 mt-2">
+      <h4 class="mb-0">Laporan Kerusakan #{{ report.pk }}</h4>
+      <span class="badge bg-{{ report.severity_color }} fs-6">{{ report.get_severity_display }}</span>
+      <span class="badge bg-{{ report.status_color }}-subtle text-{{ report.status_color }} fs-6">
+        {{ report.get_report_status_display }}
+      </span>
+    </div>
+  </div>
+
+  <div class="row g-4">
+
+    <!-- Detail Laporan -->
+    <div class="col-lg-7">
+
+      <!-- Info Aset -->
+      <div class="card border-0 shadow-sm mb-3">
+        <div class="card-header bg-white border-0 pt-3 pb-0">
+          <h6 class="fw-bold text-muted text-uppercase" style="font-size:0.75rem; letter-spacing:1px">ASET YANG DILAPORKAN</h6>
+        </div>
+        <div class="card-body d-flex align-items-center gap-3">
+          <div class="bg-primary bg-opacity-10 rounded-3 p-3">
+            <i class="bi bi-box-seam fs-3 text-primary"></i>
+          </div>
+          <div>
+            <div class="fw-bold fs-5">{{ report.asset.nama_asset }}</div>
+            <div class="text-muted">
+              {{ report.asset.asset_number }}
+              {% if report.asset.asset_category %} · {{ report.asset.asset_category }}{% endif %}
+              {% if report.asset.lokasi_asset %} · {{ report.asset.lokasi_asset }}{% endif %}
+            </div>
+            <div class="mt-1">
+              {% if report.asset.lifecycle_status == 'maintenance' %}
+                <span class="badge bg-warning text-dark">⚠ Aset Sedang Dalam Maintenance</span>
+              {% endif %}
+            </div>
+          </div>
+          <div class="ms-auto">
+            <a href="{% url 'asset_detail' report.asset.pk %}" class="btn btn-sm btn-outline-primary">
+              Detail Aset <i class="bi bi-arrow-right ms-1"></i>
+            </a>
+          </div>
+        </div>
+      </div>
+
+      <!-- Detail Kerusakan -->
+      <div class="card border-0 shadow-sm mb-3">
+        <div class="card-body">
+          <h6 class="fw-bold mb-3">{{ report.title }}</h6>
+          <p class="text-muted">{{ report.description }}</p>
+
+          {% if report.photo_evidence %}
+          <div class="mt-3">
+            <div class="fw-semibold small mb-2 text-muted">Foto Bukti Kerusakan:</div>
+            <img src="{{ report.photo_evidence.url }}" alt="Foto kerusakan"
+                 class="img-fluid rounded-3 border" style="max-height: 300px; object-fit:cover; width:100%">
+          </div>
+          {% endif %}
+
+          <hr class="my-3">
+          <div class="row g-3 text-sm">
+            <div class="col-md-6">
+              <div class="text-muted small">Dilaporkan oleh</div>
+              <div class="fw-semibold">{{ report.reported_by.nama|default:"—" }}</div>
+              <div class="text-muted small">{{ report.reported_by.jabatan|default:"" }}</div>
+            </div>
+            <div class="col-md-6">
+              <div class="text-muted small">Waktu Laporan</div>
+              <div class="fw-semibold">{{ report.reported_at|date:"d M Y, H:i" }}</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Schedule Corrective yang dibuat -->
+      {% if corrective_schedule %}
+      <div class="card border-0 shadow-sm mb-3 border-start border-danger border-4">
+        <div class="card-body">
+          <h6 class="fw-bold text-danger"><i class="bi bi-calendar-x me-2"></i>Jadwal Corrective Dibuat</h6>
+          <p class="mb-0 small text-muted">{{ corrective_schedule.notes }}</p>
+          <div class="mt-2">
+            <span class="badge bg-danger">
+              {{ corrective_schedule.get_status_display }} — {{ corrective_schedule.scheduled_date|date:"d M Y" }}
+            </span>
+          </div>
+        </div>
+      </div>
+      {% endif %}
+
+      <!-- Maintenance Record (jika sudah selesai) -->
+      {% if report.resolved_maintenance %}
+      <div class="card border-0 shadow-sm border-start border-success border-4">
+        <div class="card-body">
+          <h6 class="fw-bold text-success"><i class="bi bi-check-circle me-2"></i>Maintenance Record</h6>
+          <div class="text-muted small">Dikerjakan oleh: <strong>{{ report.resolved_maintenance.performed_by.nama|default:"—" }}</strong></div>
+          <div class="text-muted small">Tanggal: {{ report.resolved_maintenance.tanggal_pelaksanaan|date:"d M Y" }}</div>
+          <div class="text-muted small">Hasil: {{ report.resolved_maintenance.get_hasil_display }}</div>
+          <div class="text-muted small">Biaya: Rp {{ report.resolved_maintenance.biaya|floatformat:0 }}</div>
+        </div>
+      </div>
+      {% endif %}
+    </div>
+
+    <!-- Action Panel GA -->
+    <div class="col-lg-5">
+
+      <!-- Acknowledge (jika masih pending) -->
+      {% if report.report_status == 'pending' %}
+      <div class="card border-0 shadow-sm mb-3 border-top border-warning border-4">
+        <div class="card-body">
+          <h6 class="fw-bold"><i class="bi bi-hand-index me-2 text-warning"></i>Terima & Akui Laporan</h6>
+          <p class="text-muted small">Konfirmasi bahwa laporan ini sudah diterima dan akan segera ditindaklanjuti.</p>
+          <form method="POST" action="{% url 'ga_damage_report_acknowledge' report.pk %}">
+            {% csrf_token %}
+            <textarea name="ga_notes" class="form-control form-control-sm mb-2" rows="2"
+                      placeholder="Catatan awal (opsional)..."></textarea>
+            <button type="submit" class="btn btn-warning w-100">
+              <i class="bi bi-check2 me-2"></i>Akui Laporan Ini
+            </button>
+          </form>
+        </div>
+      </div>
+      {% endif %}
+
+      <!-- Resolve (buat maintenance record + selesaikan) -->
+      {% if report.report_status in 'pending,acknowledged,in_progress' %}
+      {% if report.report_status != 'resolved' and report.report_status != 'rejected' %}
+      <div class="card border-0 shadow-sm mb-3 border-top border-success border-4">
+        <div class="card-header bg-white border-0">
+          <h6 class="fw-bold mb-0"><i class="bi bi-tools me-2 text-success"></i>Selesaikan Perbaikan</h6>
+        </div>
+        <div class="card-body">
+          <form method="POST" action="{% url 'ga_damage_report_resolve' report.pk %}">
+            {% csrf_token %}
+
+            <div class="mb-3">
+              <label class="form-label small fw-semibold">Tanggal Pelaksanaan Perbaikan <span class="text-danger">*</span></label>
+              <input type="date" name="tanggal_pelaksanaan" class="form-control form-control-sm"
+                     value="{{ today|date:'Y-m-d' }}" required>
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label small fw-semibold">Tindakan Perbaikan yang Dilakukan <span class="text-danger">*</span></label>
+              <textarea name="deskripsi_pekerjaan" class="form-control form-control-sm" rows="3" required
+                        placeholder="Jelaskan apa yang sudah dilakukan untuk memperbaiki kerusakan ini..."></textarea>
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label small fw-semibold">Hasil Perbaikan <span class="text-danger">*</span></label>
+              <select name="hasil" class="form-select form-select-sm" required>
+                <option value="ok">✅ Baik — Tidak ada masalah lagi</option>
+                <option value="minor_issue">⚠ Minor — Masih ada masalah kecil</option>
+                <option value="major_issue">❌ Major — Perlu tindak lanjut lagi</option>
+                <option value="replaced_component">🔧 Komponen diganti</option>
+              </select>
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label small fw-semibold">Biaya Perbaikan (Rp)</label>
+              <input type="number" name="biaya" class="form-control form-control-sm"
+                     placeholder="0" min="0">
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label small fw-semibold">Catatan GA untuk Pelapor</label>
+              <textarea name="ga_notes" class="form-control form-control-sm" rows="2"
+                        placeholder="Feedback untuk karyawan pelapor..."></textarea>
+            </div>
+
+            <button type="submit" class="btn btn-success w-100">
+              <i class="bi bi-check-circle me-2"></i>Selesaikan & Buat Maintenance Record
+            </button>
+          </form>
+        </div>
+      </div>
+
+      <!-- Reject -->
+      <div class="card border-0 shadow-sm">
+        <div class="card-body">
+          <h6 class="fw-bold text-secondary"><i class="bi bi-slash-circle me-2"></i>Tolak Laporan</h6>
+          <p class="text-muted small">Gunakan jika laporan tidak valid, duplikat, atau aset sudah di-writeoff.</p>
+          <form method="POST" action="{% url 'ga_damage_report_reject' report.pk %}">
+            {% csrf_token %}
+            <textarea name="ga_notes" class="form-control form-control-sm mb-2" rows="2"
+                      placeholder="Alasan penolakan..." required></textarea>
+            <button type="submit" class="btn btn-outline-secondary btn-sm w-100"
+                    onclick="return confirm('Yakin menolak laporan ini?')">
+              Tolak Laporan
+            </button>
+          </form>
+        </div>
+      </div>
+      {% endif %}
+      {% endif %}
+
+      <!-- Status Timeline -->
+      <div class="card border-0 shadow-sm mt-3">
+        <div class="card-body">
+          <h6 class="fw-bold mb-3">Timeline Status</h6>
+          <div class="d-flex flex-column gap-2">
+            <div class="d-flex align-items-center gap-2">
+              <i class="bi bi-circle-fill text-warning small"></i>
+              <span class="small">Laporan dikirim — {{ report.reported_at|date:"d M Y, H:i" }}</span>
+            </div>
+            {% if report.report_status in 'acknowledged,in_progress,resolved' %}
+            <div class="d-flex align-items-center gap-2">
+              <i class="bi bi-circle-fill text-info small"></i>
+              <span class="small">Diterima GA{% if report.handled_by %} oleh {{ report.handled_by.nama }}{% endif %}</span>
+            </div>
+            {% endif %}
+            {% if report.resolved_at %}
+            <div class="d-flex align-items-center gap-2">
+              <i class="bi bi-circle-fill text-success small"></i>
+              <span class="small">Diselesaikan — {{ report.resolved_at|date:"d M Y, H:i" }}</span>
+            </div>
+            {% endif %}
+            {% if report.report_status == 'rejected' %}
+            <div class="d-flex align-items-center gap-2">
+              <i class="bi bi-circle-fill text-secondary small"></i>
+              <span class="small">Laporan ditolak</span>
+            </div>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+{% endblock %}
