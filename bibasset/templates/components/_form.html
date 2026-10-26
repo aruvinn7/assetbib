@@ -1,0 +1,55 @@
+{# Isian komponen BOM — dipakai components/create.html & update.html. `c` = komponen yang diedit. #}
+<section class="fsec" aria-labelledby="secPart">
+  <div class="fsec-head"><h2 id="secPart">Komponen</h2></div>
+  <div class="fsec-body">
+    <div class="fgrid">
+      <div class="field">
+        <label for="cName">Nama komponen <span class="req" aria-hidden="true">*</span></label>
+        <input class="input" type="text" id="cName" name="component_name" value="{{ c.component_name|default:'' }}" placeholder="mis. Kompresor Rotary" required maxlength="200">
+      </div>
+      <div class="field">
+        <label for="cPn">Part number <span class="req" aria-hidden="true">*</span></label>
+        <input class="input" type="text" id="cPn" name="part_number" value="{{ c.part_number|default:'' }}" placeholder="mis. KMP-21845" required maxlength="100" autocomplete="off">
+        <p class="field-hint">Unik per aset.</p>
+      </div>
+      <div class="field span-all">
+        <label for="cDesc">Deskripsi <span class="opt">opsional</span></label>
+        <input class="input" type="text" id="cDesc" name="description" value="{{ c.description|default:'' }}" placeholder="Spesifikasi singkat, mis. 1 PK R32">
+      </div>
+      <div class="field">
+        <label for="cQty">Jumlah <span class="req" aria-hidden="true">*</span></label>
+        <input class="input" type="number" id="cQty" name="quantity" min="1" step="1" value="{{ c.quantity|default:'1' }}" required>
+      </div>
+      <div class="field">
+        <label for="cPrice">Harga satuan (perkiraan)</label>
+        <div class="input-affix"><span aria-hidden="true">Rp</span>
+          <input class="input" type="number" id="cPrice" name="estimated_price" min="0" step="1000" inputmode="numeric" value="{% if c.estimated_price %}{{ c.estimated_price|floatformat:0 }}{% endif %}">
+        </div>
+      </div>
+      <div class="field span-all">
+        <label class="check-row"><input type="checkbox" name="is_critical" {% if c.is_critical %}checked{% endif %}><span><strong>Komponen kritis</strong> — aset tidak bisa berfungsi tanpa part ini.</span></label>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="fsec" aria-labelledby="secSupply">
+  <div class="fsec-head"><h2 id="secSupply">Pengadaan</h2><p>Membantu saat harus memesan ulang.</p></div>
+  <div class="fsec-body">
+    <div class="fgrid">
+      <div class="field">
+        <label for="cSup">Pemasok <span class="opt">opsional</span></label>
+        <input class="input" type="text" id="cSup" name="supplier_name" value="{{ c.supplier_name|default:'' }}" placeholder="Nama toko / vendor">
+      </div>
+      <div class="field">
+        <label for="cLast">Terakhir diganti <span class="opt">opsional</span></label>
+        <input class="input" type="date" id="cLast" name="last_replaced" value="{{ c.last_replaced|date:'Y-m-d' }}" max="{% now 'Y-m-d' %}">
+        <p class="field-hint">Otomatis terisi saat penggantian dicatat.</p>
+      </div>
+      <div class="field span-all">
+        <label for="cNotes">Catatan <span class="opt">opsional</span></label>
+        <textarea class="textarea" id="cNotes" name="notes" rows="2">{{ c.notes|default:'' }}</textarea>
+      </div>
+    </div>
+  </div>
+</section>

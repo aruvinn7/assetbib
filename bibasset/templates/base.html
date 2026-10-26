@@ -13,7 +13,7 @@
 
   {# CSS library per halaman (mis. Bootstrap) — dimuat sebelum base.css supaya tema tetap menang #}
   {% block vendor_css %}{% endblock %}
-  <link rel="stylesheet" href="{% static 'css/base.css' %}?v=6">
+  <link rel="stylesheet" href="{% static 'css/base.css' %}?v=10">
 
   {# Pulihkan sidebar ringkas sebelum render supaya tidak berkedip #}
   <script>try { if (localStorage.getItem('sbMini') === '1') document.documentElement.classList.add('sb-mini-pending'); } catch (e) {}</script>
@@ -62,10 +62,9 @@
       {% if emp.ga_profile %}
       <li><a href="{% url 'maintenance_list' %}" class="menu-item {% block nav_maintenance %}{% endblock %}"><i class="mi-icon fa-solid fa-screwdriver-wrench" aria-hidden="true"></i><span class="mi-text">Maintenance</span></a></li>
       <li><a href="{% url 'ga_damage_report_list' %}" class="menu-item {% block nav_damage %}{% endblock %}"><i class="mi-icon fa-solid fa-triangle-exclamation" aria-hidden="true"></i><span class="mi-text">Laporan kerusakan</span></a></li>
-      <li><a href="{% url 'assignment_list' %}" class="menu-item {% block nav_assignment %}{% endblock %}"><i class="mi-icon fa-solid fa-handshake" aria-hidden="true"></i><span class="mi-text">Serah terima</span></a></li>
-      <li><a href="{% url 'location_dashboard' %}" class="menu-item"><i class="mi-icon fa-solid fa-map-location-dot" aria-hidden="true"></i><span class="mi-text">Peta lokasi</span></a></li>
       {% endif %}
-      <li><a href="{% url 'movement_dashboard' %}" class="menu-item {% block nav_movement %}{% endblock %}"><i class="mi-icon fa-solid fa-right-left" aria-hidden="true"></i><span class="mi-text">Movement</span></a></li>
+      {# Lokasi, pemegang, dan riwayat perpindahan digabung: satu pertanyaan "di mana & dipegang siapa" #}
+      <li><a href="{% if emp.ga_profile %}{% url 'location_dashboard' %}{% else %}{% url 'movement_dashboard' %}{% endif %}" class="menu-item {% block nav_tracking %}{% endblock %}"><i class="mi-icon fa-solid fa-location-crosshairs" aria-hidden="true"></i><span class="mi-text">Pelacakan</span></a></li>
       {% if emp.finance_profile %}
       <li><a href="{% url 'asset_list' %}?financial=no" class="menu-item {% block nav_financial %}{% endblock %}"><i class="mi-icon fa-solid fa-coins" aria-hidden="true"></i><span class="mi-text">Belum dinilai</span></a></li>
       {% endif %}

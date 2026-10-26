@@ -385,7 +385,7 @@ a.board.is-active { border-color: var(--brand-500); box-shadow: var(--focus-ring
 
 /* ── Form ──────────────────────────────────────────────── */
 .field { display: grid; gap: 6px; align-content: start; }
-.field label { font-size: 14px; font-weight: 500; color: var(--ink-2); }
+.field label, .field .field-label { font-size: 14px; font-weight: 500; color: var(--ink-2); }
 .input, .select, .textarea {
   width: 100%; min-height: 44px; padding: 10px 14px; background: var(--panel); color: var(--ink);
   border: 1px solid var(--field); border-radius: var(--r); font-size: 14px; box-shadow: var(--shadow-xs);
@@ -593,4 +593,171 @@ dialog.palette[open] { display: flex; flex-direction: column; max-height: min(56
   dialog.palette[open] { max-height: 85dvh; }
   .pal-search kbd, .pal-foot { display: none; }
   .pal-item { padding: 10px; }
+}
+
+/* ── Tab Pelacakan (lokasi · pemegang · riwayat perpindahan) ── */
+.track-tabs { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; margin: 0 0 24px; padding-bottom: 0; border-bottom: 1px solid var(--rule); }
+.track-label { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 500; color: var(--ink-3); padding: 10px 0; }
+.track-list { display: flex; gap: 4px; overflow-x: auto; margin-bottom: -1px; }
+.track-tabs .track-list a {
+  display: inline-flex; align-items: center; gap: 8px; padding: 10px 14px; font-size: 14px; font-weight: 500; white-space: nowrap;
+  color: var(--ink-3); text-decoration: none; border-bottom: 2px solid transparent; border-radius: 0;
+}
+.track-tabs .track-list a i { font-size: 13px; }
+.track-tabs .track-list a:hover { color: var(--ink); }
+.track-tabs .track-list a[aria-current="page"] { color: var(--brand-600); border-bottom-color: var(--brand-500); }
+@media (max-width: 640px) { .track-label { display: none; } .track-tabs .track-list a { padding: 10px 10px; } }
+
+/* ══ Form halaman (tambah/edit aset, finansial, BOM, master data) ══════ */
+.form-layout { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 20px; align-items: start; max-width: 1200px; }
+.form-layout.single { grid-template-columns: minmax(0, 760px); }
+.form-main { display: grid; gap: 20px; min-width: 0; }
+.form-side { display: grid; gap: 20px; position: sticky; top: calc(var(--header-h) + 20px); }
+.fsec { background: var(--panel); border: 1px solid var(--rule); border-radius: var(--r-lg); min-width: 0; }
+.fsec-head { padding: 16px 20px; border-bottom: 1px solid var(--rule-soft); }
+.fsec-head h2 { font-size: 16px; font-weight: 600; color: var(--ink); }
+.fsec-head p { font-size: 13px; color: var(--ink-3); margin-top: 2px; }
+.fsec-body { padding: 20px; display: grid; gap: 16px; }
+.fgrid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.fgrid.three { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.fgrid .span-all { grid-column: 1 / -1; }
+
+/* Select dengan panah sendiri */
+.select { appearance: none; padding-right: 40px; cursor: pointer;
+  background: var(--panel) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1.5l5 5 5-5' fill='none' stroke='%23667085' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") no-repeat right 14px center; }
+.select:disabled, .input:disabled { background-color: var(--ground); color: var(--ink-3); cursor: not-allowed; }
+.readonly { min-height: 44px; display: flex; align-items: center; gap: 8px; padding: 10px 14px; border: 1px dashed var(--field); border-radius: var(--r); background: var(--ground); color: var(--ink-2); font-size: 14px; }
+.readonly.is-empty { color: var(--ink-4); }
+
+/* Catatan info di dalam form */
+.note { display: flex; gap: 10px; align-items: flex-start; padding: 12px 14px; border-radius: var(--r); background: var(--mandatory-tint); color: var(--ink-2); font-size: 14px; line-height: 1.5; }
+.note > i { color: var(--mandatory-ink); margin-top: 3px; }
+.note.warn { background: var(--warning-tint); }
+.note.warn > i { color: var(--warning-ink); }
+.note.danger { background: var(--danger-tint); }
+.note.danger > i { color: var(--danger-ink); }
+
+/* Bilah aksi form: menempel di bawah layar saat form panjang */
+.form-bar {
+  position: sticky; bottom: 0; z-index: 5; display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  padding: 14px 20px; background: var(--panel); border: 1px solid var(--rule); border-radius: var(--r-lg); box-shadow: var(--shadow-lg);
+}
+.form-bar .bar-hint { font-size: 13px; color: var(--ink-3); margin-right: auto; }
+.form-bar .btn.push { margin-left: auto; }
+
+/* Pasangan label–nilai di kartu samping */
+.kv { margin: 0; padding: 4px 20px 8px; }
+.kv > div { display: grid; grid-template-columns: 120px 1fr; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--rule-soft); font-size: 14px; }
+.kv > div:last-child { border-bottom: 0; }
+.kv dt { color: var(--ink-3); }
+.kv dd { margin: 0; color: var(--ink); display: flex; flex-wrap: wrap; align-items: center; gap: 6px; min-width: 0; overflow-wrap: anywhere; }
+.kv .dim { color: var(--ink-3); font-size: 13px; }
+.side-links { list-style: none; margin: 0; padding: 6px; }
+.side-links a { display: flex; align-items: center; gap: 10px; padding: 9px 12px; border-radius: var(--r); color: var(--ink-2); font-size: 14px; font-weight: 500; text-decoration: none; }
+.side-links a i { width: 18px; text-align: center; color: var(--ink-3); }
+.side-links a:hover { background: var(--off-tint); color: var(--brand-600); }
+.side-links a:hover i { color: var(--brand-500); }
+
+/* Tabel di halaman data (master, BOM) */
+.row-actions { white-space: nowrap; text-align: right; }
+.row-actions a, .row-actions button { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 500; padding: 6px 10px; border-radius: 8px; border: 0; background: none; color: var(--ink-2); text-decoration: none; cursor: pointer; }
+.row-actions a:hover, .row-actions button:hover { background: var(--off-tint); color: var(--brand-600); }
+.row-actions .del { color: var(--danger-ink); }
+.row-actions .del:hover { background: var(--danger-tint); color: var(--danger-ink); }
+.row-actions form { display: inline; }
+.count-pill { display: inline-block; min-width: 24px; padding: 1px 8px; border-radius: 999px; background: var(--off-tint); color: var(--ink-2); font-size: 12px; font-weight: 500; text-align: center; font-variant-numeric: tabular-nums; }
+
+@media (max-width: 1100px) {
+  .form-layout { grid-template-columns: minmax(0, 1fr); }
+  .form-side { position: static; }
+}
+@media (max-width: 640px) {
+  .fgrid, .fgrid.three { grid-template-columns: minmax(0, 1fr); }
+  .fsec-body { padding: 16px; }
+  .form-bar { padding: 12px 16px; }
+  .form-bar .bar-hint { width: 100%; }
+  .form-bar .btn { flex: 1; }
+  .kv > div { grid-template-columns: 104px 1fr; }
+}
+
+/* Daftar petunjuk singkat di kartu samping */
+.tips { list-style: none; margin: 0; padding: 14px 20px 18px; display: grid; gap: 12px; }
+.tips li { display: flex; gap: 12px; font-size: 14px; line-height: 1.5; color: var(--ink-2); }
+.tips li > i { width: 18px; margin-top: 3px; text-align: center; color: var(--ink-3); flex: none; }
+.tips strong { color: var(--ink); font-weight: 600; }
+
+/* Tombol teks kecil di dalam petunjuk field */
+.link-btn { border: 0; background: none; padding: 0; color: var(--brand-600); font: inherit; text-decoration: underline; text-underline-offset: 2px; cursor: pointer; }
+.link-btn:hover { color: var(--brand-700); }
+
+/* Pratinjau penyusutan (form finansial) */
+.dep-preview { padding: 16px; border-radius: 12px; background: var(--ground); border: 1px solid var(--rule-soft); display: grid; gap: 12px; }
+.dep-cells { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.dep-cells span { display: block; font-size: 12px; color: var(--ink-3); }
+.dep-cells strong { font-size: 16px; font-weight: 600; color: var(--ink); font-variant-numeric: tabular-nums; }
+.dep-bar { height: 8px; border-radius: 999px; background: var(--brand-50); overflow: hidden; }
+.dep-bar i { display: block; height: 100%; background: var(--brand-500); border-radius: 999px; transition: width .3s var(--ease-out); }
+@media (max-width: 640px) { .dep-cells { grid-template-columns: minmax(0, 1fr); } }
+
+/* ── Kartu angka (dashboard analitik, finansial) ── */
+.stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; margin-bottom: 20px; }
+.stat {
+  display: flex; flex-direction: column; gap: 6px; padding: 18px 20px; background: var(--panel);
+  border: 1px solid var(--rule); border-radius: var(--r-lg); color: var(--ink-2); text-decoration: none; min-width: 0;
+}
+a.stat:hover { border-color: var(--brand-200); box-shadow: var(--shadow-sm); }
+.stat-label { font-size: 14px; color: var(--ink-3); }
+.stat-value { font-size: 24px; line-height: 32px; font-weight: 600; color: var(--ink); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.stat-value small { font-size: 14px; font-weight: 500; color: var(--ink-3); }
+.stat-note { font-size: 13px; color: var(--ink-3); display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+
+.panel-note { padding: 12px 20px 16px; font-size: 13px; color: var(--ink-3); border-top: 1px solid var(--rule-soft); }
+@media (max-width: 1280px) { .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 640px) { .stats { grid-template-columns: minmax(0, 1fr); gap: 12px; } .stat { padding: 16px; } }
+.table tr.is-current-year td { background: var(--brand-25); }
+
+.nowrap { white-space: nowrap; }
+.check-row { display: flex; gap: 10px; align-items: flex-start; padding: 12px 14px; border: 1px solid var(--rule); border-radius: var(--r); cursor: pointer; font-size: 14px; font-weight: 400 !important; color: var(--ink-2); }
+.check-row input { width: 16px; height: 16px; margin-top: 2px; accent-color: var(--brand-500); flex: none; }
+.check-row strong { color: var(--ink); font-weight: 500; }
+.check-row:has(input:checked) { border-color: var(--brand-300); background: var(--brand-25); }
+
+/* Halaman master data: daftar + panel tambah cepat */
+.master-grid { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 20px; align-items: start; }
+.master-grid > aside { display: grid; gap: 20px; position: sticky; top: calc(var(--header-h) + 20px); }
+@media (max-width: 1023px) { .master-grid { grid-template-columns: minmax(0, 1fr); } .master-grid > aside { position: static; order: -1; } }
+
+/* Chip kecil berisi tautan (kategori dalam grup) */
+.chip-list { display: flex; flex-wrap: wrap; gap: 4px; }
+.mini-chip { font-size: 12px; padding: 2px 9px; border-radius: 999px; background: var(--off-tint); color: var(--ink-2); text-decoration: none; white-space: nowrap; }
+.mini-chip:hover { background: var(--brand-50); color: var(--brand-600); }
+.mini-chip.more { background: none; border: 1px dashed var(--field); }
+.row-name { font-weight: 500; color: var(--ink); }
+
+/* Pohon lokasi (master data) */
+.loc-tools { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.loc-tools form { margin: 0; }
+.loc-tree, .loc-children { list-style: none; margin: 0; padding: 0; }
+.loc-tree { padding: 6px 0; }
+.loc-children { margin-left: 26px; border-left: 1px solid var(--rule); }
+.loc-row { display: flex; align-items: center; gap: 10px; padding: 8px 16px 8px 14px; border-bottom: 1px solid var(--rule-soft); min-height: 52px; }
+.loc-row:hover { background: var(--hover); }
+.loc-row input[type=checkbox] { width: 16px; height: 16px; accent-color: var(--brand-500); flex: none; }
+.loc-toggle { width: 26px; height: 26px; flex: none; display: grid; place-items: center; border: 1px solid var(--rule); border-radius: 7px; background: var(--panel); color: var(--ink-3); cursor: pointer; }
+.loc-toggle i { font-size: 10px; transition: transform .15s; }
+.loc-toggle[aria-expanded="true"] i { transform: rotate(90deg); }
+.loc-toggle:hover { color: var(--ink); background: var(--off-tint); }
+.loc-toggle-space { width: 26px; flex: none; }
+.loc-name { flex: 1; min-width: 0; display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.loc-name strong { font-weight: 500; color: var(--ink); font-size: 14px; }
+.loc-name small { font-size: 12px; color: var(--ink-3); }
+.loc-node.hit > .loc-row { background: var(--brand-25); }
+.loc-count { font-size: 13px; color: var(--ink-2); text-decoration: none; white-space: nowrap; min-width: 64px; text-align: right; font-variant-numeric: tabular-nums; }
+.loc-count:hover { color: var(--brand-600); text-decoration: underline; }
+.loc-total { font-size: 12px; color: var(--ink-3); white-space: nowrap; min-width: 64px; text-align: right; font-variant-numeric: tabular-nums; }
+@media (max-width: 640px) {
+  .loc-children { margin-left: 14px; }
+  .loc-total { display: none; }
+  .loc-row { flex-wrap: wrap; }
+  .loc-row .row-actions { width: 100%; text-align: left; padding-left: 36px; }
 }

@@ -1,107 +1,29 @@
 {% extends "base.html" %}
-{% load static %}
-{% block title %}Tambah Asset Group{% endblock %}
+{% block legacy_css %}{% endblock %}
+{% block title %}Tambah grup aset{% endblock %}
 {% block nav_master %}active{% endblock %}
 
-{% block extra_head %}<link rel="stylesheet" href="{% static 'css/pages/master_assetgroup_create.css' %}?v=3">{% endblock %}
-
 {% block content %}
-
-<div class="wrap">
-
-  <!-- BREADCRUMB -->
-  <div class="breadcrumb-wrap anim">
-    <a href="{% url 'dashboard' %}">Dashboard</a>
-    <span class="sep">/</span>
-    <a href="{% url 'assetgroup_list' %}">Master Asset Group</a>
-    <span class="sep">/</span>
-    <span class="current">Tambah Asset Group</span>
-  </div>
-
-  <!-- PAGE HEADER -->
-  <div class="page-header anim">
-    <div class="page-header-left">
-      <span class="page-eyebrow">Master Data</span>
-      <h1 class="page-title">Tambah <em>Asset Group</em></h1>
-    </div>
-    <a href="{% url 'assetgroup_list' %}" class="btn btn-outline">← Kembali</a>
-  </div>
-
-  <!-- FORM CARD -->
-  <div class="card anim">
-    <div class="card-header">
-      <div class="card-title">
-        <span class="card-dot"></span>
-        Informasi Asset Group
+<div class="page">
+  {% include "components/_master_tabs.html" with current="group" %}
+  <div class="page-head"><div><h1>Tambah grup aset</h1></div></div>
+  <form method="post" class="form-layout single">
+    {% csrf_token %}
+    <div class="form-main">
+      <section class="fsec">
+        <div class="fsec-body">
+          <div class="field">
+            <label for="grpName">Nama grup <span class="req" aria-hidden="true">*</span></label>
+            <input class="input" type="text" id="grpName" name="name" maxlength="100" required autofocus placeholder="mis. Kendaraan">
+            <p class="field-hint">Kategori ditambahkan sesudahnya dari menu Kategori aset.</p>
+          </div>
+        </div>
+      </section>
+      <div class="form-bar">
+        <a href="{% url 'assetgroup_list' %}" class="btn outline push">Batal</a>
+        <button type="submit" class="btn">Simpan</button>
       </div>
     </div>
-
-    <form method="POST">
-      {% csrf_token %}
-
-      <div class="card-body">
-
-        <!-- NAMA -->
-        <div class="form-group">
-          <label class="form-label" for="nameInput">
-            Nama Asset Group <span class="req">*</span>
-          </label>
-          <div class="input-wrap">
-            <input
-              type="text"
-              id="nameInput"
-              name="name"
-              class="form-input"
-              placeholder="cth. Elektronik, Furnitur, Kendaraan..."
-              autocomplete="off"
-              maxlength="80"
-              oninput="updatePreview()"
-              required
-              style="padding-right:52px;"
-            >
-            <span class="char-count" id="charCount">0/80</span>
-          </div>
-          <span class="form-hint">Nama kategori grup aset sesuai klasifikasi perusahaan</span>
-        </div>
-
-        <div class="form-divider"></div>
-
-        <!-- PREVIEW -->
-        <div style="display:flex;flex-direction:column;gap:8px;">
-          <span class="form-label" style="margin:0;">Preview</span>
-          <div>
-            <span class="preview-badge">
-              <span id="previewText">nama-asset-group</span>
-            </span>
-          </div>
-          <span class="form-hint">Tampilan group seperti yang akan muncul di sistem</span>
-        </div>
-
-      </div>
-
-      <!-- ACTIONS -->
-      <div class="form-actions">
-        <a href="{% url 'assetgroup_list' %}" class="btn btn-outline">Batal</a>
-        <button type="submit" class="btn btn-success">＋ Simpan Asset Group</button>
-      </div>
-
-    </form>
-  </div>
-
+  </form>
 </div>
-
-<script>
-  const nameInput   = document.getElementById('nameInput');
-  const previewText = document.getElementById('previewText');
-  const charCount   = document.getElementById('charCount');
-
-  function updatePreview() {
-    const val = nameInput.value.trim();
-    previewText.textContent = val || 'nama-asset-group';
-    charCount.textContent   = nameInput.value.length + '/80';
-  }
-
-  updatePreview();
-</script>
-
 {% endblock %}

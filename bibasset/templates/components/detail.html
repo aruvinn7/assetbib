@@ -1,193 +1,60 @@
 {% extends "base.html" %}
-{% load static %}
-{% block title %}{{ component.component_name }} — Detail Komponen{% endblock %}
-
-{% block extra_head %}<link rel="stylesheet" href="{% static 'css/pages/components_detail.css' %}?v=3">{% endblock %}
+{% load rupiah %}
+{% block legacy_css %}{% endblock %}
+{% block title %}{{ component.component_name }} · {{ asset.asset_number }}{% endblock %}
+{% block nav_assets %}active{% endblock %}
 
 {% block content %}
-
-<div class="wrap">
-
-  <!-- BREADCRUMB -->
-  <div class="breadcrumb-wrap anim">
-    <a href="{% url 'asset_list' %}">Aset</a>
-    <span class="sep">/</span>
-    <a href="{% url 'asset_detail' asset.id %}">{{ asset.asset_number }}</a>
-    <span class="sep">/</span>
-    <a href="{% url 'component_list' asset.id %}">Komponen</a>
-    <span class="sep">/</span>
-    <span class="current">{{ component.component_name }}</span>
+<div class="page">
+  <div class="crumbs">
+    <a href="{% url 'asset_detail' asset.id %}">{{ asset.asset_number }}</a><i class="fa-solid fa-chevron-right" aria-hidden="true" style="font-size:10px"></i>
+    <a href="{% url 'component_list' asset.id %}">Komponen</a><i class="fa-solid fa-chevron-right" aria-hidden="true" style="font-size:10px"></i>{{ component.part_number }}
+  </div>
+  <div class="page-head">
+    <div>
+      <h1>{{ component.component_name }} {% if component.is_critical %}{% include "components/_status.html" with kind="warning" label="Kritis" %}{% endif %}</h1>
+      <div class="sub">{{ component.part_number }} · {{ asset.nama_asset }}</div>
+    </div>
+    <div class="page-actions">
+      <a href="{% url 'component_update' component.pk %}" class="btn outline"><i class="fa-regular fa-pen-to-square" aria-hidden="true"></i>Edit</a>
+      <a href="{% url 'replacement_create' component.pk %}" class="btn"><i class="fa-solid fa-rotate" aria-hidden="true"></i>Catat penggantian</a>
+    </div>
   </div>
 
-  <!-- PAGE HEADER -->
-  <div class="page-header anim">
-    <div class="page-header-left">
-      <span class="page-eyebrow">Komponen Aset · {{ asset.asset_number }}</span>
-      <div class="page-title">
-        {% if component.is_critical %}{% else %}{% endif %}
-        <em>{{ component.component_name }}</em>
-        {% if component.is_critical %}
-          <span class="critical-badge">CRITICAL</span>
-        {% endif %}
+  <div class="form-layout" style="max-width:none">
+    <section class="panel" aria-labelledby="replTitle">
+      <div class="panel-head"><h2 id="replTitle">Riwayat penggantian</h2><span class="meta">{{ total_replacements }}× · total {{ total_replacement_cost|rupiah }}</span></div>
+      {% if replacements %}
+      <div class="table-wrap">
+        <table class="table">
+          <thead><tr><th>Tanggal</th><th>Alasan</th><th>Part lama</th><th class="num">Biaya</th><th>Oleh</th></tr></thead>
+          <tbody>
+          {% for r in replacements %}
+            <tr><td class="nowrap">{{ r.replaced_date|date:"d M Y" }}</td><td>{{ r.reason }}</td><td>{{ r.old_part_number|default:"—" }}</td>
+                <td class="num">{{ r.cost|rupiah }}</td><td>{{ r.performed_by.nama|default:"—" }}</td></tr>
+          {% endfor %}
+          </tbody>
+        </table>
       </div>
-      {% if component.description %}
-        <div style="font-size:13px;color:var(--text-soft);margin-top:6px;line-height:1.6;max-width:560px;">
-          {{ component.description }}
-        </div>
+      {% else %}
+      <div class="empty"><strong>Belum pernah diganti</strong>Catat setiap penggantian agar biaya dan umur part bisa dipantau.</div>
       {% endif %}
-    </div>
-    <div style="display:flex;gap:8px;flex-shrink:0;">
-      <a href="{% url 'component_update' component.id %}" class="btn btn-warning-soft">Edit</a>
-      <a href="{% url 'component_list' asset.id %}" class="btn btn-outline">← Kembali</a>
-    </div>
+    </section>
+
+    <aside class="form-side">
+      <section class="panel">
+        <div class="panel-head"><h2>Detail</h2></div>
+        <dl class="kv">
+          <div><dt>Jumlah</dt><dd>{{ component.quantity }}</dd></div>
+          <div><dt>Harga satuan</dt><dd>{% if component.estimated_price %}{{ component.estimated_price|rupiah }}{% else %}<span class="dim">—</span>{% endif %}</dd></div>
+          <div><dt>Total</dt><dd>{{ component.total_estimated_cost|rupiah }}</dd></div>
+          <div><dt>Pemasok</dt><dd>{{ component.supplier_name|default:"—" }}</dd></div>
+          <div><dt>Terakhir diganti</dt><dd>{% if component.last_replaced %}{{ component.last_replaced|date:"d M Y" }}{% else %}<span class="dim">Belum pernah</span>{% endif %}</dd></div>
+          {% if component.description %}<div><dt>Deskripsi</dt><dd>{{ component.description }}</dd></div>{% endif %}
+          {% if component.notes %}<div><dt>Catatan</dt><dd>{{ component.notes|linebreaksbr }}</dd></div>{% endif %}
+        </dl>
+      </section>
+    </aside>
   </div>
-
-  <!-- INFO CARD -->
-  <div class="card anim">
-    <div class="card-header">
-      <div class="card-title">
-        <span class="card-dot" style="background:var(--purple);"></span>
-        Informasi Komponen
-      </div>
-      <span style="font-family:var(--mono);font-size:12px;color:var(--muted);">
-        PN: {{ component.part_number }}
-      </span>
-    </div>
-
-    <div class="info-grid">
-      <div class="info-cell">
-        <div class="info-cell-label">Quantity</div>
-        <div class="info-cell-value purple">{{ component.quantity }} <span style="font-size:12px;font-weight:600;">pcs</span></div>
-      </div>
-      <div class="info-cell">
-        <div class="info-cell-label">Harga / Unit</div>
-        {% if component.estimated_price %}
-          <div class="info-cell-value green" style="font-size:13px;">Rp {{ component.estimated_price|floatformat:0 }}</div>
-        {% else %}
-          <div class="info-cell-value" style="color:var(--muted);">—</div>
-        {% endif %}
-      </div>
-      <div class="info-cell">
-        <div class="info-cell-label">Total Est. Cost</div>
-        {% if component.estimated_price %}
-          <div class="info-cell-value green" style="font-size:13px;">Rp {{ component.total_estimated_cost|floatformat:0 }}</div>
-          <div class="info-cell-sub">{{ component.quantity }} × harga/unit</div>
-        {% else %}
-          <div class="info-cell-value" style="color:var(--muted);">—</div>
-        {% endif %}
-      </div>
-      <div class="info-cell">
-        <div class="info-cell-label">Terakhir Diganti</div>
-        {% if component.last_replaced %}
-          <div class="info-cell-value" style="font-size:13px;">{{ component.last_replaced|date:"d M Y" }}</div>
-        {% else %}
-          <div class="info-cell-value" style="color:var(--muted);font-size:12px;">Belum Pernah</div>
-        {% endif %}
-      </div>
-    </div>
-
-    <!-- META ROW -->
-    {% if component.supplier_name or component.created_by %}
-    <div class="meta-row">
-      {% if component.supplier_name %}
-      <div class="meta-chip">Supplier: <strong>{{ component.supplier_name }}</strong></div>
-      {% endif %}
-      {% if component.created_by %}
-      <div class="meta-chip">
-        Dibuat oleh: <strong>{{ component.created_by.nama }}</strong>
-        <span class="ts">· {{ component.created_at|date:"d M Y" }}</span>
-      </div>
-      {% endif %}
-      <div class="meta-chip">
-        Update: <strong style="font-family:var(--mono);font-size:12px;">{{ component.updated_at|date:"d M Y H:i" }}</strong>
-      </div>
-    </div>
-    {% endif %}
-
-    <!-- NOTES -->
-    {% if component.notes %}
-    <div class="notes-strip">
-      <span>{{ component.notes }}</span>
-    </div>
-    {% endif %}
-
-  </div>
-
-  <!-- STAT MINI CARDS -->
-  {% if replacements %}
-  <div class="stats-row anim">
-    <div class="stat-mini amber">
-      <div class="stat-mini-num">{{ total_replacements }}</div>
-      <div class="stat-mini-label">Total Penggantian</div>
-    </div>
-    <div class="stat-mini red">
-      <div class="stat-mini-num" style="font-size:18px;">Rp {{ total_replacement_cost|floatformat:0 }}</div>
-      <div class="stat-mini-label">Total Biaya</div>
-    </div>
-    <div class="stat-mini green">
-      <div class="stat-mini-num" style="font-size:18px;">{{ replacements.0.replaced_date|date:"M Y" }}</div>
-      <div class="stat-mini-label">Penggantian Terakhir</div>
-    </div>
-  </div>
-  {% endif %}
-
-  <!-- TIMELINE CARD -->
-  <div class="card anim">
-    <div class="card-header">
-      <div class="card-title">
-        <span class="card-dot" style="background:var(--purple);"></span>
-        Riwayat Penggantian Komponen
-        {% if total_replacements %}
-          <span style="font-size:12px;background:var(--mandatory-tint);color:var(--purple);padding:2px 8px;
-            border-radius:var(--r);font-family:var(--mono);font-weight:700;">{{ total_replacements }}x</span>
-        {% endif %}
-      </div>
-      <a href="{% url 'replacement_create' component.id %}" class="btn btn-primary"
-         style="padding:7px 14px;font-size:12px;">＋ Catat Penggantian</a>
-    </div>
-
-    {% if replacements %}
-    <div class="timeline-body">
-      {% for r in replacements %}
-      <div class="tl-item">
-        <div class="tl-line-wrap">
-          <div class="tl-dot"></div>
-          <div class="tl-line"></div>
-        </div>
-        <div class="tl-content">
-          <div class="tl-date">{{ r.replaced_date|date:"d F Y" }}</div>
-          <div class="tl-box">
-            <div class="tl-reason">{{ r.reason }}</div>
-            <div class="tl-meta">
-              <div class="tl-meta-item cost">
-                Biaya: <strong>Rp {{ r.cost|floatformat:0 }}</strong>
-              </div>
-              {% if r.old_part_number %}
-              <div class="tl-meta-item">
-                PN Lama: <code>{{ r.old_part_number }}</code>
-              </div>
-              {% endif %}
-              {% if r.performed_by %}
-              <div class="tl-meta-item">
-                <strong>{{ r.performed_by.nama }}</strong>
-              </div>
-              {% endif %}
-            </div>
-          </div>
-        </div>
-      </div>
-      {% endfor %}
-    </div>
-
-    {% else %}
-    <div class="empty-state">
-      <div class="empty-title">Belum ada riwayat penggantian</div>
-      <div class="empty-sub">Komponen ini belum pernah diganti sejak terpasang</div>
-      <a href="{% url 'replacement_create' component.id %}" class="btn btn-primary"
-         style="font-size:12px;padding:8px 16px;">＋ Catat Penggantian Pertama</a>
-    </div>
-    {% endif %}
-  </div>
-
 </div>
 {% endblock %}

@@ -138,7 +138,7 @@
               <span style="left:{{ threshold.waspada }}%">{{ threshold.waspada }}%<span class="word"> waspada</span></span>
               <span style="left:{% if threshold.critical > 100 %}100{% else %}{{ threshold.critical }}{% endif %}%">{{ threshold.critical }}%<span class="word"> critical</span></span>
             </div>
-            <p class="budget-legend">Ambang: {{ threshold.warning }}% warning · {{ threshold.waspada }}% waspada · {{ threshold.critical }}% critical (berdasarkan nilai awal aset)</p>
+            <p class="budget-legend">Ambang: {{ threshold.warning }}% warning · {{ threshold.waspada }}% waspada · {{ threshold.critical }}% critical (berdasarkan nilai awal aset). Hanya biaya perbaikan kerusakan yang dihitung; preventive & inspeksi tidak.</p>
           </div>
           {% endif %}
 

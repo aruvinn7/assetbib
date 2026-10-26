@@ -381,7 +381,8 @@ def asset_detail(request, pk):
     total_biaya      = stats['total_biaya'] or Decimal('0')
 
     # Health dihitung sekali dari angka aggregate di atas
-    health = asset.health_report(total_biaya=total_biaya, breakdown=corrective_count)
+    # Kesehatan dinilai dari biaya perbaikan (corrective) saja, bukan total maintenance
+    health = asset.health_report(total_biaya=stats['total_biaya_corrective'] or Decimal('0'), breakdown=corrective_count)
 
     def pct(n):
         return round((n or 0) / corrective_count * 100) if corrective_count else 0

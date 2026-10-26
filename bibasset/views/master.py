@@ -34,7 +34,9 @@ def _save_form(request, form, success_msg=None):
 @role_required(is_ga_or_finance)
 def department_list(request):
     return render(request, "master/department_list.html", {
-        "departments": Department.objects.all()
+        "departments": Department.objects.annotate(
+            emp_count=Count('employee', distinct=True), asset_count=Count('asset', distinct=True),
+        ).order_by('name')
     })
 
 
@@ -84,8 +86,14 @@ def build_location_tree(locations):
 @role_required(is_ga_or_finance)
 def location_list(request):
     # select_related parent supaya __str__ tidak N+1
-    locations = Location.objects.select_related('parent').order_by('full_path')
+    locations = Location.objects.select_related('parent').annotate(asset_count=Count('asset')).order_by('full_path')
     tree      = build_location_tree(locations)
+    # Jumlah aset termasuk semua sub-lokasi
+    def _total(node):
+        node['total'] = node['obj'].asset_count + sum(_total(ch) for ch in node['children'])
+        return node['total']
+    for root in tree:
+        _total(root)
 
     return render(request, "master/location_list.html", {
         "locations": locations,   # untuk bulk-delete form & count
@@ -95,9 +103,13 @@ def location_list(request):
 @role_required(is_ga_or_finance)
 def location_create(request):
     parents = Location.objects.order_by('full_path')
+    preset_parent = request.GET.get('parent', '')
     if request.method == "POST" and _save_form(request, LocationForm(request.POST)):
         return redirect("location_list")
-    return render(request, "master/location_create.html", {"parents": parents, "posted": _posted(request)})
+    return render(request, "master/location_create.html", {
+        "parents": parents, "posted": _posted(request),
+        "preset_parent": int(preset_parent) if preset_parent.isdigit() else None,
+    })
 
 
 @role_required(is_ga_or_finance)
@@ -136,7 +148,9 @@ def location_delete(request, pk):
 @role_required(is_ga_or_finance)
 def assetgroup_list(request):
     return render(request, "master/assetgroup_list.html", {
-        "groups": AssetGroup.objects.prefetch_related('categories').all()
+        "groups": AssetGroup.objects.prefetch_related('categories').annotate(
+            asset_count=Count('asset', distinct=True),
+        ).order_by('name')
     })
 
 

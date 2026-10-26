@@ -1,0 +1,57 @@
+{# Isian kategori — dipakai assetcategory_create.html & assetcategory_update.html. `c` = kategori yang diedit. #}
+<section class="fsec" aria-labelledby="secCat">
+  <div class="fsec-head"><h2 id="secCat">Kategori</h2></div>
+  <div class="fsec-body">
+    <div class="fgrid">
+      <div class="field">
+        <label for="catGroup">Grup <span class="req" aria-hidden="true">*</span></label>
+        <select class="input select" id="catGroup" name="group" required>
+          <option value="">Pilih grup</option>
+          {% for g in groups %}<option value="{{ g.pk }}" {% if c.group_id == g.pk or preset_group == g.pk %}selected{% endif %}>{{ g.name }}</option>{% endfor %}
+        </select>
+      </div>
+      <div class="field">
+        <label for="catName">Nama kategori <span class="req" aria-hidden="true">*</span></label>
+        <input class="input" type="text" id="catName" name="name" value="{{ c.name|default:'' }}" maxlength="100" required placeholder="mis. AC">
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="fsec" aria-labelledby="secInterval">
+  <div class="fsec-head"><h2 id="secInterval">Maintenance rutin</h2><p>Jadwal berikutnya dibuat otomatis setiap kali maintenance dicatat. Kosongkan bila kategori ini tidak perlu dijadwalkan.</p></div>
+  <div class="fsec-body">
+    <div class="fgrid">
+      <div class="field">
+        <label for="intervalVal">Setiap</label>
+        <input class="input" type="number" id="intervalVal" name="default_interval_value" min="1" step="1" value="{{ c.default_interval_value|default:'' }}" placeholder="mis. 3">
+      </div>
+      <div class="field">
+        <label for="intervalUnit">Satuan</label>
+        <select class="input select" id="intervalUnit" name="default_interval_unit">
+          <option value="months" {% if not c or c.default_interval_unit == 'months' %}selected{% endif %}>Bulan</option>
+          <option value="days" {% if c.default_interval_unit == 'days' %}selected{% endif %}>Hari</option>
+        </select>
+      </div>
+    </div>
+    <p class="field-hint" id="intervalPreview" aria-live="polite"></p>
+
+    <div class="field">
+      <label for="checklistArea">Checklist pekerjaan <span class="opt">opsional</span></label>
+      <textarea class="textarea" id="checklistArea" name="maintenance_description" rows="6" placeholder="Bersihkan filter&#10;Cek tekanan freon&#10;Bersihkan saluran drain">{{ c.maintenance_description|default:'' }}</textarea>
+      <p class="field-hint">Satu langkah per baris. Nomor ditambahkan otomatis saat disimpan, dan checklist ini muncul di form catat maintenance.</p>
+    </div>
+  </div>
+</section>
+
+<script>
+  (() => {
+    const v = document.getElementById('intervalVal'), u = document.getElementById('intervalUnit'), out = document.getElementById('intervalPreview');
+    const show = () => {
+      const n = Number(v.value);
+      out.textContent = n > 0 ? `Maintenance terjadwal setiap ${n} ${u.value === 'months' ? 'bulan (±' + n * 30 + ' hari)' : 'hari'}.` : 'Tanpa interval: aset di kategori ini tidak dijadwalkan otomatis.';
+    };
+    v.addEventListener('input', show); u.addEventListener('change', show);
+    document.addEventListener('DOMContentLoaded', show); show();
+  })();
+</script>

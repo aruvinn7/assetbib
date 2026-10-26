@@ -1,134 +1,22 @@
 {% extends "base.html" %}
-{% load static %}
-{% block title %}Tambah Lokasi{% endblock %}
+{% block legacy_css %}{% endblock %}
+{% block title %}Tambah lokasi{% endblock %}
 {% block nav_master %}active{% endblock %}
 
-{% block extra_head %}<link rel="stylesheet" href="{% static 'css/pages/master_location_create.css' %}?v=3">{% endblock %}
-
 {% block content %}
-
-<div class="wrap">
-
-  <!-- BREADCRUMB -->
-  <div class="breadcrumb-wrap anim">
-    <a href="{% url 'dashboard' %}">Dashboard</a>
-    <span class="sep">/</span>
-    <a href="{% url 'location_list' %}">Master Lokasi</a>
-    <span class="sep">/</span>
-    <span class="current">Tambah Lokasi</span>
-  </div>
-
-  <!-- PAGE HEADER -->
-  <div class="page-header anim">
-    <div class="page-header-left">
-      <span class="page-eyebrow">Master Data</span>
-      <h1 class="page-title">Tambah <em>Lokasi</em></h1>
-    </div>
-    <a href="{% url 'location_list' %}" class="btn btn-outline">← Kembali</a>
-  </div>
-
-  <!-- FORM CARD -->
-  <div class="card anim">
-    <div class="card-header">
-      <div class="card-title">
-        <span class="card-dot"></span>
-        Informasi Lokasi
+<div class="page">
+  {% include "components/_master_tabs.html" with current="location" %}
+  <div class="page-head"><div><h1>Tambah lokasi</h1><div class="sub">Pilih induk agar lokasi tersusun site → area → ruang.</div></div></div>
+  <form method="post" class="form-layout single">
+    {% csrf_token %}
+    <div class="form-main">
+      {% include "master/_location_form.html" with l=None %}
+      <div class="form-bar">
+        <span class="bar-hint"><span class="req">*</span> wajib diisi</span>
+        <a href="{% url 'location_list' %}" class="btn outline">Batal</a>
+        <button type="submit" class="btn">Simpan lokasi</button>
       </div>
     </div>
-
-    <form method="POST" id="locationForm">
-      {% csrf_token %}
-
-      <div class="card-body">
-
-        <!-- NAMA LOKASI -->
-        <div class="form-group">
-          <label class="form-label" for="nameInput">
-            Nama Lokasi <span class="req">*</span>
-          </label>
-          <input
-            type="text"
-            id="nameInput"
-            name="name"
-            class="form-input"
-            placeholder="cth. Gudang Utara, Lantai 2, Ruang Server..."
-            autocomplete="off"
-            oninput="updatePreview()"
-            required
-          >
-          <span class="form-hint">Nama unik yang mudah dikenali untuk lokasi ini</span>
-        </div>
-
-        <!-- PARENT LOKASI -->
-        <div class="form-group">
-          <label class="form-label" for="parentSelect">
-            Parent / Induk Lokasi
-          </label>
-          <div class="select-wrap">
-            <select id="parentSelect" name="parent" class="form-select" oninput="updatePreview()">
-              <option value="">— Root (Tanpa Induk)</option>
-              {% for p in parents %}
-                <option value="{{ p.id }}">{{ p.name }}</option>
-              {% endfor %}
-            </select>
-            <span class="select-arrow"><i class="fa-solid fa-chevron-down" aria-hidden="true"></i></span>
-          </div>
-          <span class="form-hint">Biarkan kosong jika ini adalah lokasi tingkat teratas</span>
-        </div>
-
-        <div class="form-divider"></div>
-
-        <!-- PATH PREVIEW -->
-        <div style="display:flex;flex-direction:column;gap:8px;">
-          <span class="form-label" style="margin:0;">Preview Full Path</span>
-          <div id="pathPreview" style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
-            <span class="preview-badge" id="previewRoot" style="display:none;"></span>
-            <span id="previewSep" style="color:var(--muted);font-family:var(--mono);font-size:12px;display:none;">/</span>
-            <span class="preview-badge" id="previewName"
-              style="background:var(--safe-tint);color:var(--success);border-color:#A9CDB4;">
-              nama-lokasi
-            </span>
-          </div>
-        </div>
-
-      </div>
-
-      <!-- ACTIONS -->
-      <div class="form-actions">
-        <a href="{% url 'location_list' %}" class="btn btn-outline">Batal</a>
-        <button type="submit" class="btn btn-success">＋ Simpan Lokasi</button>
-      </div>
-
-    </form>
-  </div>
-
+  </form>
 </div>
-
-<script>
-  const nameInput    = document.getElementById('nameInput');
-  const parentSelect = document.getElementById('parentSelect');
-  const previewRoot  = document.getElementById('previewRoot');
-  const previewSep   = document.getElementById('previewSep');
-  const previewName  = document.getElementById('previewName');
-
-  function updatePreview() {
-    const name   = nameInput.value.trim();
-    const parent = parentSelect.options[parentSelect.selectedIndex];
-    const hasParent = parentSelect.value !== '';
-
-    previewName.textContent = name || 'nama-lokasi';
-
-    if (hasParent) {
-      previewRoot.textContent = parent.text;
-      previewRoot.style.display = 'inline-flex';
-      previewSep.style.display  = 'inline';
-    } else {
-      previewRoot.style.display = 'none';
-      previewSep.style.display  = 'none';
-    }
-  }
-
-  updatePreview();
-</script>
-
 {% endblock %}

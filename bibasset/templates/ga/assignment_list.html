@@ -1,18 +1,21 @@
 {% extends "base.html" %}
 {% load static %}
-{% block title %}Serah Terima Aset{% endblock %}
+{% block title %}Pemegang aset · Pelacakan{% endblock %}
 
 {% block extra_head %}<link rel="stylesheet" href="{% static 'css/pages/ga_assignment_list.css' %}?v=3">{% endblock %}
+
+{% block nav_tracking %}active{% endblock %}
 
 {% block content %}
 
 <div class="pg-wrap">
+  {% include "components/_tracking_tabs.html" with current="holder" %}
 
   <!-- TOP BAR -->
   <div class="pg-topbar anim">
     <div>
       <div class="pg-eyebrow">General Affairs</div>
-      <div class="pg-title">Serah Terima <em>Aset</em></div>
+      <h1 class="pg-title">Pemegang aset</h1>
       <div class="pg-sub">Kelola pemegang aset dan histori serah terima karyawan</div>
     </div>
     <a href="{% url 'assignment_create' %}" class="btn-primary-custom">

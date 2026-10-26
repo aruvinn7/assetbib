@@ -143,11 +143,27 @@ Logika ada di `static/js/app.js` (global) dan `static/js/asset_list.js`. Semua t
 - **Daftar aset:** chip filter, kepala kolom (bisa diurutkan, `aria-sort`), paginasi, dan pencarian mengganti hasil tanpa muat ulang, dengan URL ikut diperbarui. Klik baris atau tombol "Ringkas" membuka `dialog.drawer` (laci kanan, lembar bawah di ponsel). Di laci, ↑/↓ berpindah aset.
 - **Toast:** pojok kanan bawah. Sukses hilang setelah 5,5 detik, error setelah 9 detik.
 - **Write off:** status tidak diubah dari form edit. GA memakai tombol "Write off" di detail aset (`asset/write_off.html`): alasan, tanggal, keterangan, konfirmasi, dan nilai buku pada tanggal itu dihitung langsung. `write_off_asset()` menyimpan `AssetWriteOff` (snapshot nilai), menghentikan jadwal, mengembalikan pemegang, menutup laporan aktif, dan mencatat movement. Nilai buku berhenti menyusut di tanggal write off. Pembatalan lewat banner di detail aset (`cancel_write_off()`).
+- **Kesehatan aset:** rasio = biaya perbaikan (corrective) ÷ nilai perolehan. Preventive & inspeksi tidak dihitung, supaya aset yang rajin dirawat tidak terlihat makin "sakit".
 - **Gerak:** satu ease-out eksponensial (`--ease-out`) untuk dialog, laci, palet, dan toast. Dimatikan oleh `prefers-reduced-motion`.
+
+## Form & data master
+
+Form tambah/edit aset, finansial, BOM, dan master data memakai komponen bersama di `base.css`:
+
+- **`.form-layout`** membagi halaman jadi kolom form dan kartu samping 320px. Varian `.single` hanya berisi satu kolom form, lebar 760px.
+- **`.fsec`** adalah bagian form, berisi kepala (judul + penjelasan singkat) dan **`.fgrid`** dua kolom (`.span-all` untuk isian lebar penuh).
+- **`.form-bar`** adalah bilah aksi yang menempel di bawah layar: petunjuk di kiri, Batal + Simpan di kanan, Hapus (bila ada) paling kiri.
+- **`.kv`** adalah pasangan label–nilai di kartu samping, dan **`.side-links`** adalah tautan terkait.
+- **`.note`** (`.warn`, `.danger`) adalah catatan di dalam form. **`.check-row`** dipakai untuk kotak centang berlabel panjang.
+- Isian yang sama dipakai bersama lewat partial: `asset/_form_fields.html`, `financial/_form.html`, `components/_form.html`, `master/_category_form.html`, `master/_location_form.html`.
+- Master data punya tab bersama (`components/_master_tabs.html`). Daftar kecil disaring di sisi klien (`static/js/master.js`), dengan panel "tambah cepat" di samping.
+- Semua penghapusan dilakukan lewat POST + konfirmasi yang menyebut dampaknya (jumlah aset, sub-lokasi, atau kategori yang ikut terdampak).
+
+**Pelacakan:** halaman lokasi, pemegang aset, dan riwayat perpindahan berada di satu menu, dengan tab bersama (`components/_tracking_tabs.html`).
 
 ## Halaman berkelas lama
 
-Halaman yang belum dibangun ulang (form aset/maintenance/finansial, master data, BOM, import, movement, serah terima, laporan kerusakan, dashboard karyawan) masih memakai kosakata kelas lama di `static/css/pages/*.css`. `static/css/legacy.css` dimuat **setelah** CSS halaman dan menyelaraskan tampilannya (tombol, kartu, field, tabel, badge, tombol Bootstrap) ke sistem ini tanpa mengubah tata letak. Link CSS halaman harus berada di `{% block extra_head %}` agar urutan ini benar. Halaman yang sudah dibangun ulang mengosongkan `{% block legacy_css %}`.
+Halaman yang belum dibangun ulang adalah import Excel, form maintenance halaman penuh dan interval khusus, laporan kerusakan (GA & karyawan), dashboard karyawan, serah terima, riwayat perpindahan, dan aset per lokasi. Halaman-halaman ini masih memakai kelas lama di `static/css/pages/*.css`. `static/css/legacy.css` dimuat **setelah** CSS halaman dan menyelaraskan tampilannya ke sistem ini tanpa mengubah tata letak. Link CSS halaman harus berada di `{% block extra_head %}` agar urutan ini benar. Halaman yang sudah dibangun ulang mengosongkan `{% block legacy_css %}`.
 
 ## Do's and Don'ts
 

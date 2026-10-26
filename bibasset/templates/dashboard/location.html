@@ -1,18 +1,21 @@
 {% extends "base.html" %}
 {% load static %}
-{% block title %}Dashboard Lokasi — Asset Management{% endblock %}
+{% block title %}Aset per lokasi · Pelacakan{% endblock %}
 
 {% block extra_head %}<link rel="stylesheet" href="{% static 'css/pages/dashboard_location.css' %}?v=3">{% endblock %}
+
+{% block nav_tracking %}active{% endblock %}
 
 {% block content %}
 
 <div class="loc-wrap">
+  {% include "components/_tracking_tabs.html" with current="location" %}
 
   <!-- HEADER -->
   <div class="loc-header anim">
     <div>
       <div class="loc-eyebrow">PT Borneo Indobara · Asset Management</div>
-      <h1 class="loc-title">Dashboard <em>Lokasi</em></h1>
+      <h1 class="loc-title">Aset per lokasi</h1>
     </div>
     <a href="{% url 'dashboard' %}" class="btn-back">← Dashboard</a>
   </div>

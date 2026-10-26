@@ -1,18 +1,21 @@
 {% extends "base.html" %}
 {% load static %}
-{% block title %}Histori Movement Aset{% endblock %}
+{% block title %}Riwayat perpindahan · Pelacakan{% endblock %}
 
 {% block extra_head %}<link rel="stylesheet" href="{% static 'css/pages/dashboard_movement.css' %}?v=3">{% endblock %}
+
+{% block nav_tracking %}active{% endblock %}
 
 {% block content %}
 
 <div class="mv-wrap">
+  {% include "components/_tracking_tabs.html" with current="movement" %}
 
   <!-- HEADER -->
   <div class="mv-header anim">
     <div>
       <div class="mv-eyebrow">PT Borneo Indobara · Asset Tracking</div>
-      <h1 class="mv-title">Histori <em>Movement</em> Aset</h1>
+      <h1 class="mv-title">Riwayat perpindahan</h1>
     </div>
     <a href="{% url 'dashboard' %}" class="btn-back">← Dashboard</a>
   </div>

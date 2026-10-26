@@ -1,145 +1,66 @@
 {% extends "base.html" %}
-{% load static %}
-{% block title %}Master Asset Group{% endblock %}
+{% block legacy_css %}{% endblock %}
+{% block title %}Grup aset{% endblock %}
 {% block nav_master %}active{% endblock %}
 
-{% block extra_head %}<link rel="stylesheet" href="{% static 'css/pages/master_assetgroup_list.css' %}?v=3">{% endblock %}
-
 {% block content %}
-
-<div class="wrap">
-
-  <!-- BREADCRUMB -->
-  <nav class="breadcrumb anim">
-    <a href="{% url 'dashboard' %}">Dashboard</a>
-    <span>/</span>
-    <span>Master Asset Group</span>
-  </nav>
-
-  <!-- PAGE HEADER -->
-  <div class="page-header anim">
-    <div>
-      <span class="page-eyebrow">Master Data</span>
-      <h1 class="page-title">Master <em>Asset Group</em></h1>
-    </div>
-    <div class="header-actions">
-      <a href="{% url 'dashboard' %}" class="btn btn-outline">← Dashboard</a>
-      <a href="{% url 'assetgroup_create' %}" class="btn btn-success">＋ Tambah</a>
-    </div>
+{% with is_ga=request.user.employee.ga_profile %}
+<div class="page">
+  {% include "components/_master_tabs.html" with current="group" %}
+  <div class="page-head">
+    <div><h1>Grup aset</h1><div class="sub">{{ groups|length }} grup · setiap grup berisi beberapa kategori</div></div>
   </div>
 
-  <!-- TOOLBAR -->
-  <div class="toolbar anim">
-    <div class="search-wrap">
-      <i class="search-icon fa-solid fa-magnifying-glass" aria-hidden="true"></i>
-      <input type="text" class="search-input" id="searchInput"
-        placeholder="Cari nama asset group..."
-        oninput="filterTable(this.value)">
-    </div>
-    <span class="count-label" id="countLabel">{{ groups|length }} group</span>
-  </div>
-
-  <!-- TABLE CARD -->
-  <div class="card anim">
-    <div class="card-header">
-      <div class="card-title">
-        <span class="card-dot"></span>
-        Daftar Asset Group — <span id="tableCount">{{ groups|length }}</span> item
+  <div class="master-grid">
+    <section class="panel" aria-label="Daftar grup aset">
+      <div class="table-wrap">
+        <table class="table">
+          <thead><tr><th>Grup</th><th>Kategori</th><th class="num">Aset</th><th><span class="visually-hidden">Aksi</span></th></tr></thead>
+          <tbody>
+          {% for g in groups %}
+            <tr>
+              <td><strong class="row-name">{{ g.name }}</strong></td>
+              <td>
+                <div class="chip-list">
+                  {% for c in g.categories.all|slice:":6" %}<a class="mini-chip" href="{% url 'assetcategory_update' c.pk %}">{{ c.name }}</a>{% endfor %}
+                  {% if g.categories.all|length > 6 %}<a class="mini-chip more" href="{% url 'assetcategory_list' %}?group={{ g.pk }}">+{{ g.categories.all|length|add:"-6" }} lagi</a>{% endif %}
+                  {% if not g.categories.all %}<span class="cell-sub">Belum ada kategori</span>{% endif %}
+                </div>
+              </td>
+              <td class="num">{% if g.asset_count %}<a href="{% url 'asset_list' %}?group={{ g.pk }}">{{ g.asset_count }}</a>{% else %}—{% endif %}</td>
+              <td class="row-actions">
+                <a href="{% url 'assetcategory_list' %}?group={{ g.pk }}">Kategori</a>
+                <a href="{% url 'assetgroup_update' g.pk %}">Edit</a>
+                {% if is_ga %}
+                <form method="post" action="{% url 'assetgroup_delete' g.pk %}"
+                      onsubmit="return confirm('Hapus grup {{ g.name|escapejs }}?{% if g.categories.all %} {{ g.categories.all|length }} kategori di dalamnya ikut terhapus{% if g.asset_count %} dan {{ g.asset_count }} aset kehilangan grup & kategorinya{% endif %}.{% endif %}')">
+                  {% csrf_token %}<button type="submit" class="del">Hapus</button>
+                </form>
+                {% endif %}
+              </td>
+            </tr>
+          {% empty %}
+            <tr><td colspan="4"><div class="empty"><strong>Belum ada grup</strong></div></td></tr>
+          {% endfor %}
+          </tbody>
+        </table>
       </div>
-    </div>
+    </section>
 
-    {% if groups %}
-
-    <!-- DESKTOP TABLE -->
-    <div class="desktop-table">
-    <table class="tbl" id="groupTable">
-      <thead>
-        <tr>
-          <th>#</th>
-          <th>Nama Asset Group</th>
-          <th>Aksi</th>
-        </tr>
-      </thead>
-      <tbody id="groupTbody">
-        {% for g in groups %}
-        <tr class="group-row" data-search="{{ g.name|lower }}">
-          <td style="font-family:var(--mono);font-size:12px;color:var(--muted);">{{ forloop.counter }}</td>
-          <td>
-            <div class="group-name">
-              {{ g.name }}
-            </div>
-          </td>
-          <td>
-            <div class="action-group">
-              <a href="{% url 'assetgroup_update' g.id %}" class="act-btn edit">Edit</a>
-              <a href="{% url 'assetgroup_delete' g.id %}" class="act-btn"
-                 onclick="return confirm('Hapus asset group \'{{ g.name|escapejs }}\'?')">Hapus</a>
-            </div>
-          </td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
-    </div>
-
-    <!-- MOBILE CARDS -->
-    <div class="mobile-cards" id="mobileCards">
-      {% for g in groups %}
-      <div class="mc group-row" data-search="{{ g.name|lower }}">
-        <span class="mc-num">{{ forloop.counter }}</span>
-        <span class="mc-name">{{ g.name }}</span>
-        <div class="action-group">
-          <a href="{% url 'assetgroup_update' g.id %}" class="act-btn edit">Edit</a>
-          <a href="{% url 'assetgroup_delete' g.id %}" class="act-btn"
-             onclick="return confirm('Hapus asset group \'{{ g.name|escapejs }}\'?')">Hapus</a>
+    <aside>
+      <form method="post" action="{% url 'assetgroup_create' %}" class="panel">
+        {% csrf_token %}
+        <div class="panel-head"><h2>Tambah grup</h2></div>
+        <div class="panel-body" style="display:grid;gap:12px">
+          <div class="field">
+            <label for="grpName">Nama grup</label>
+            <input class="input" type="text" id="grpName" name="name" maxlength="100" required placeholder="mis. Kendaraan">
+          </div>
+          <button type="submit" class="btn">Tambah</button>
         </div>
-      </div>
-      {% endfor %}
-    </div>
-
-    <!-- EMPTY SEARCH -->
-    <div id="searchEmpty" style="display:none;" class="empty-state">
-      <div class="empty-title">Asset group tidak ditemukan</div>
-      <div class="empty-sub">Coba kata kunci lain</div>
-    </div>
-
-    {% else %}
-    <div class="empty-state">
-      <div class="empty-title">Belum ada asset group</div>
-      <div class="empty-sub">Tambahkan group pertama untuk mulai mengkategorikan aset</div>
-      <a href="{% url 'assetgroup_create' %}" class="btn btn-success">＋ Tambah Asset Group</a>
-    </div>
-    {% endif %}
+      </form>
+    </aside>
   </div>
-
 </div>
-
-<script>
-  function filterTable(q) {
-    const rows  = document.querySelectorAll('.group-row');
-    const query = q.toLowerCase().trim();
-    let visible = 0;
-
-    rows.forEach(row => {
-      const match = !query || row.dataset.search.includes(query);
-      row.style.display = match ? '' : 'none';
-      if (match) visible++;
-    });
-
-    // Bagi 2 karena desktop row + mobile card keduanya pakai .group-row
-    const count = visible / 2;
-    document.getElementById('tableCount').textContent = count;
-    document.getElementById('countLabel').textContent = count + ' group';
-
-    const tbl = document.getElementById('groupTable');
-    const mob = document.getElementById('mobileCards');
-    const emp = document.getElementById('searchEmpty');
-    const noResult = count === 0 && query;
-
-    if (tbl) tbl.style.display = noResult ? 'none' : '';
-    if (mob) mob.style.display = noResult ? 'none' : '';
-    emp.style.display = noResult ? 'block' : 'none';
-  }
-</script>
-
+{% endwith %}
 {% endblock %}

@@ -1,0 +1,10 @@
+{# Tab bersama halaman master data. Pakai: include "components/_master_tabs.html" with current="location" #}
+<nav class="track-tabs" aria-label="Master data">
+  <span class="track-label"><i class="fa-solid fa-database" aria-hidden="true"></i>Master data</span>
+  <div class="track-list">
+    <a href="{% url 'location_list' %}" {% if current == 'location' %}aria-current="page"{% endif %}><i class="fa-solid fa-sitemap" aria-hidden="true"></i>Lokasi</a>
+    <a href="{% url 'department_list' %}" {% if current == 'department' %}aria-current="page"{% endif %}><i class="fa-solid fa-building" aria-hidden="true"></i>Departemen</a>
+    <a href="{% url 'assetgroup_list' %}" {% if current == 'group' %}aria-current="page"{% endif %}><i class="fa-solid fa-layer-group" aria-hidden="true"></i>Grup aset</a>
+    <a href="{% url 'assetcategory_list' %}" {% if current == 'category' %}aria-current="page"{% endif %}><i class="fa-solid fa-tags" aria-hidden="true"></i>Kategori aset</a>
+  </div>
+</nav>

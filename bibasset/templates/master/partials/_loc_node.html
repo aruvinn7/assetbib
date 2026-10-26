@@ -1,0 +1,27 @@
+{# Satu simpul pohon lokasi (rekursif). Dipakai master/location_list.html #}
+<li class="loc-node" data-name="{{ node.obj.full_path|lower }}">
+  <div class="loc-row">
+    {% if is_ga %}<input type="checkbox" name="selected_ids" value="{{ node.obj.pk }}" form="bulkForm" aria-label="Pilih {{ node.obj.name }}">{% endif %}
+    {% if node.children %}
+      <button type="button" class="loc-toggle" aria-expanded="{% if depth < 1 %}true{% else %}false{% endif %}" aria-label="Buka/tutup {{ node.obj.name }}"><i class="fa-solid fa-chevron-right" aria-hidden="true"></i></button>
+    {% else %}<span class="loc-toggle-space" aria-hidden="true"></span>{% endif %}
+    <span class="loc-name"><strong>{{ node.obj.name }}</strong>{% if node.children %}<small>{{ node.children|length }} sub-lokasi</small>{% endif %}</span>
+    <a class="loc-count" href="{% url 'asset_list' %}?location={{ node.obj.pk }}" title="Aset langsung di lokasi ini">{% if node.obj.asset_count %}{{ node.obj.asset_count }} aset{% else %}<span class="cell-sub">0 aset</span>{% endif %}</a>
+    <span class="loc-total" title="Termasuk semua sub-lokasi">{% if node.children %}{{ node.total }} total{% endif %}</span>
+    <span class="row-actions">
+      <a href="{% url 'location_create' %}?parent={{ node.obj.pk }}" title="Tambah sub-lokasi"><i class="fa-solid fa-plus" aria-hidden="true"></i><span class="visually-hidden">Tambah sub-lokasi di {{ node.obj.name }}</span></a>
+      <a href="{% url 'location_update' node.obj.pk %}">Edit</a>
+      {% if is_ga %}
+      <form method="post" action="{% url 'location_delete' node.obj.pk %}"
+            onsubmit="return confirm('Hapus lokasi {{ node.obj.full_path|escapejs }}?{% if node.children %} Semua sub-lokasinya ikut terhapus.{% endif %}{% if node.total %} {{ node.total }} aset akan menjadi belum ditempatkan.{% endif %}')">
+        {% csrf_token %}<button type="submit" class="del">Hapus</button>
+      </form>
+      {% endif %}
+    </span>
+  </div>
+  {% if node.children %}
+  <ul class="loc-children" {% if depth >= 1 %}hidden{% endif %}>
+    {% for child in node.children %}{% include "master/partials/_loc_node.html" with node=child depth=depth|add:1 %}{% endfor %}
+  </ul>
+  {% endif %}
+</li>

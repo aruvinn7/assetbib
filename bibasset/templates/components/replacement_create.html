@@ -1,117 +1,52 @@
 {% extends "base.html" %}
-{% load static %}
-{% block title %}Record Replacement — {{ component.component_name }}{% endblock %}
-
-{% block extra_head %}<link rel="stylesheet" href="{% static 'css/pages/components_replacement_create.css' %}?v=3">{% endblock %}
+{% load rupiah %}
+{% block legacy_css %}{% endblock %}
+{% block title %}Catat penggantian · {{ component.component_name }}{% endblock %}
+{% block nav_assets %}active{% endblock %}
 
 {% block content %}
-
-<div class="pg-wrap">
-
-  <!-- BREADCRUMB -->
-  <div class="breadcrumb anim">
-    <a href="{% url 'asset_list' %}">Aset</a>
-    <span class="breadcrumb-sep">›</span>
-    <a href="{% url 'asset_detail' asset.id %}">{{ asset.asset_number }}</a>
-    <span class="breadcrumb-sep">›</span>
-    <a href="{% url 'component_list' asset.id %}">Komponen</a>
-    <span class="breadcrumb-sep">›</span>
-    <a href="{% url 'component_detail' component.id %}">{{ component.component_name }}</a>
-    <span class="breadcrumb-sep">›</span>
-    <span class="breadcrumb-current">Record Replacement</span>
+<div class="page">
+  <div class="crumbs">
+    <a href="{% url 'component_list' asset.id %}">Komponen</a><i class="fa-solid fa-chevron-right" aria-hidden="true" style="font-size:10px"></i>
+    <a href="{% url 'component_detail' component.pk %}">{{ component.part_number }}</a><i class="fa-solid fa-chevron-right" aria-hidden="true" style="font-size:10px"></i>Catat penggantian
   </div>
+  <div class="page-head"><div><h1>Catat penggantian</h1><div class="sub">{{ component.component_name }} · {{ asset.nama_asset }}</div></div></div>
 
-  <!-- PAGE TITLE -->
-  <div class="anim">
-    <div class="pg-eyebrow">Komponen — {{ asset.asset_number }}</div>
-    <div class="pg-title">Record <em>Replacement</em></div>
-    <div class="pg-sub">Catat penggantian komponen beserta biaya dan alasannya</div>
-  </div>
-
-  <!-- COMPONENT BANNER -->
-  <div class="comp-banner anim">
-    <div class="comp-banner-body">
-      <div class="comp-banner-name">{{ component.component_name }}</div>
-      <div class="comp-banner-meta">Part# {{ component.part_number }} · {{ asset.nama_asset }}</div>
-      <div class="comp-banner-pills">
-        <span class="pill blue">{{ asset.asset_number }}</span>
-        {% if component.is_critical %}
-          <span class="pill red">Komponen Kritis</span>
-        {% endif %}
-        {% if component.last_replaced %}
-          <span class="pill slate">Terakhir diganti: {{ component.last_replaced|date:"d M Y" }}</span>
-        {% else %}
-          <span class="pill slate">Belum pernah diganti</span>
-        {% endif %}
-        {% if component.estimated_price %}
-          <span class="pill green">Est. Rp {{ component.estimated_price|floatformat:0 }}</span>
-        {% endif %}
-      </div>
-    </div>
-  </div>
-
-  <!-- FORM CARD -->
-  <div class="db-card anim">
-    <div class="db-card-header">
-      <div class="db-card-title">
-        <span class="db-card-title-dot" style="background:var(--accent)"></span>
-        Detail Penggantian
-      </div>
-    </div>
-    <div class="card-body">
-      <form method="POST">
-        {% csrf_token %}
-
-        <!-- ROW 1: Tanggal + Biaya -->
-        <div class="form-row">
-          <div class="form-group">
-            <label class="form-label">Tanggal Penggantian <span class="req">*</span></label>
-            <input type="date" name="replaced_date" class="form-control"
-                   value="{% now 'Y-m-d' %}" required>
-          </div>
-          <div class="form-group">
-            <label class="form-label">Biaya Penggantian <span class="req">*</span></label>
-            <div class="input-prefix">
-              <span class="input-prefix-label">Rp</span>
-              <input type="number" name="cost" class="form-control"
-                     placeholder="0" min="0" step="1000" required>
+  <form method="post" class="form-layout single">
+    {% csrf_token %}
+    <div class="form-main">
+      <section class="fsec">
+        <div class="fsec-body">
+          <div class="note"><i class="fa-solid fa-circle-info" aria-hidden="true"></i><span>Catatan ini hanya untuk riwayat part. Bila penggantian bagian dari perbaikan kerusakan, catat juga sebagai maintenance <strong>corrective</strong> agar biayanya masuk ke status kesehatan aset.</span></div>
+          <div class="fgrid">
+            <div class="field">
+              <label for="rDate">Tanggal ganti <span class="req" aria-hidden="true">*</span></label>
+              <input class="input" type="date" id="rDate" name="replaced_date" value="{% now 'Y-m-d' %}" max="{% now 'Y-m-d' %}" required>
             </div>
-            <div class="form-hint">Biaya aktual penggantian komponen</div>
+            <div class="field">
+              <label for="rCost">Biaya part <span class="req" aria-hidden="true">*</span></label>
+              <div class="input-affix"><span aria-hidden="true">Rp</span>
+                <input class="input" type="number" id="rCost" name="cost" min="0" step="1000" inputmode="numeric" required value="{% if component.estimated_price %}{{ component.estimated_price|floatformat:0 }}{% endif %}">
+              </div>
+              {% if component.estimated_price %}<p class="field-hint">Terisi dari harga perkiraan {{ component.estimated_price|rupiah }}.</p>{% endif %}
+            </div>
+            <div class="field span-all">
+              <label for="rReason">Alasan penggantian <span class="req" aria-hidden="true">*</span></label>
+              <textarea class="textarea" id="rReason" name="reason" rows="3" required placeholder="mis. Kompresor tidak mau start, ditemukan terbakar saat dibongkar"></textarea>
+            </div>
+            <div class="field">
+              <label for="rOld">Part number lama <span class="opt">opsional</span></label>
+              <input class="input" type="text" id="rOld" name="old_part_number" value="{{ component.part_number }}">
+            </div>
           </div>
         </div>
-
-        <!-- ROW 2: Alasan -->
-        <div class="form-row single">
-          <div class="form-group">
-            <label class="form-label">Alasan Penggantian <span class="req">*</span></label>
-            <textarea name="reason" class="form-control" required
-                      placeholder="Jelaskan mengapa komponen ini diganti — misal: kerusakan fisik, aus, upgrade performa, penggantian preventive, dll."></textarea>
-          </div>
-        </div>
-
-        <!-- ROW 3: Old Part Number -->
-        <div class="form-row single">
-          <div class="form-group">
-            <label class="form-label">Old Part Number</label>
-            <input type="text" name="old_part_number" class="form-control"
-                   placeholder="Kosongkan jika part number tidak berubah"
-                   value="{{ component.part_number }}">
-            <div class="form-hint">Isi jika part number komponen baru berbeda dari sebelumnya</div>
-          </div>
-        </div>
-
-        <hr class="form-divider">
-
-        <div class="form-actions">
-          <button type="submit" class="btn-submit">
-            Simpan Replacement Record
-          </button>
-          <a href="{% url 'component_detail' component.id %}" class="btn-cancel">Batal</a>
-        </div>
-
-      </form>
+      </section>
+      <div class="form-bar">
+        <span class="bar-hint">Tanggal "terakhir diganti" pada komponen ikut diperbarui.</span>
+        <a href="{% url 'component_detail' component.pk %}" class="btn outline">Batal</a>
+        <button type="submit" class="btn">Simpan penggantian</button>
+      </div>
     </div>
-  </div>
-
+  </form>
 </div>
 {% endblock %}

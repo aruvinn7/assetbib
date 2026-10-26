@@ -1,0 +1,114 @@
+{# Isian aset — dipakai asset/create.html & asset/update.html. `a` = aset yang diedit (kosong saat tambah). #}
+<section class="fsec" aria-labelledby="secIdent">
+  <div class="fsec-head"><h2 id="secIdent">Identitas</h2><p>Nomor dan nama sesuai dokumen pengadaan.</p></div>
+  <div class="fsec-body">
+    <div class="fgrid">
+      <div class="field">
+        <label for="fNumber">Nomor aset <span class="req" aria-hidden="true">*</span></label>
+        <input class="input" type="text" id="fNumber" name="asset_number" value="{{ a.asset_number|default:'' }}" placeholder="mis. ELK-AC-021" required autocomplete="off" data-upper>
+        <p class="field-hint">Unik. Huruf otomatis jadi kapital.</p>
+      </div>
+      <div class="field">
+        <label for="fPo">No. PO <span class="req" aria-hidden="true">*</span></label>
+        <input class="input" type="text" id="fPo" name="no_po" value="{{ a.no_po|default:'' }}" placeholder="mis. PO-2026-031" required autocomplete="off">
+      </div>
+      <div class="field span-all">
+        <label for="fName">Nama aset <span class="req" aria-hidden="true">*</span></label>
+        <input class="input" type="text" id="fName" name="nama_asset" value="{{ a.nama_asset|default:'' }}" placeholder="mis. AC Split Daikin 1 PK - Ruang Meeting" required maxlength="200">
+      </div>
+      <div class="field">
+        <label for="fDate">Tanggal pembelian <span class="req" aria-hidden="true">*</span></label>
+        <input class="input" type="date" id="fDate" name="tanggal_pembelian" value="{{ a.tanggal_pembelian|date:'Y-m-d' }}" max="{% now 'Y-m-d' %}" required>
+      </div>
+      <div class="field">
+        <span class="field-label">Umur aset</span>
+        <div class="readonly is-empty" id="fAge" aria-live="polite">Pilih tanggal pembelian</div>
+        <p class="field-hint">Dihitung otomatis.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="fsec" aria-labelledby="secClass">
+  <div class="fsec-head"><h2 id="secClass">Klasifikasi</h2><p>Kategori menentukan interval maintenance otomatis.</p></div>
+  <div class="fsec-body">
+    <div class="fgrid">
+      <div class="field">
+        <label for="fGroup">Grup aset</label>
+        <select class="input select" id="fGroup" name="asset_group">
+          <option value="">Pilih grup</option>
+          {% for g in asset_groups %}<option value="{{ g.pk }}" {% if a.asset_group_id == g.pk %}selected{% endif %}>{{ g.name }}</option>{% endfor %}
+        </select>
+      </div>
+      <div class="field">
+        <label for="fCategory">Kategori</label>
+        <select class="input select" id="fCategory" name="asset_category">
+          <option value="">Pilih kategori</option>
+          {% for g in asset_groups %}{% for c in g.categories.all %}
+          <option value="{{ c.pk }}" data-group="{{ g.pk }}" data-interval="{{ c.default_interval_in_days|default:'' }}" {% if a.asset_category_id == c.pk %}selected{% endif %}>{{ c.name }}</option>
+          {% endfor %}{% endfor %}
+        </select>
+        <p class="field-hint" id="fInterval">Pilih grup dulu untuk menyaring kategori.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="fsec" aria-labelledby="secPlace">
+  <div class="fsec-head"><h2 id="secPlace">Lokasi & pemilik</h2><p>{% if a %}Perpindahan lokasi sebaiknya dicatat lewat Pelacakan agar riwayatnya tersimpan.{% else %}Lokasi fisik aset dan departemen yang memilikinya.{% endif %}</p></div>
+  <div class="fsec-body">
+    <div class="fgrid">
+      <div class="field">
+        <label for="fLoc">Lokasi</label>
+        <select class="input select" id="fLoc" name="lokasi_asset">
+          <option value="">Belum ditempatkan</option>
+          {% for loc in locations %}<option value="{{ loc.pk }}" {% if a.lokasi_asset_id == loc.pk %}selected{% endif %}>{{ loc }}</option>{% endfor %}
+        </select>
+      </div>
+      <div class="field">
+        <label for="fDept">Departemen pemilik</label>
+        <select class="input select" id="fDept" name="department">
+          <option value="">Pilih departemen</option>
+          {% for d in departments %}<option value="{{ d.pk }}" {% if a.owned_by_department_id == d.pk %}selected{% endif %}>{{ d.name }}</option>{% endfor %}
+        </select>
+      </div>
+    </div>
+  </div>
+</section>
+
+<script>
+  (() => {
+    const date = document.getElementById('fDate'), age = document.getElementById('fAge');
+    const group = document.getElementById('fGroup'), cat = document.getElementById('fCategory');
+    const hint = document.getElementById('fInterval');
+
+    const showAge = () => {
+      if (!date.value) { age.textContent = 'Pilih tanggal pembelian'; age.classList.add('is-empty'); return; }
+      const from = new Date(date.value), now = new Date();
+      if (from > now) { age.textContent = 'Tanggal tidak boleh di masa depan'; age.classList.add('is-empty'); return; }
+      let m = (now.getFullYear() - from.getFullYear()) * 12 + now.getMonth() - from.getMonth();
+      if (now.getDate() < from.getDate()) m--;
+      const y = Math.floor(m / 12); m %= 12;
+      age.textContent = y || m ? `${y ? y + ' tahun ' : ''}${m ? m + ' bulan' : ''}`.trim() : 'Kurang dari 1 bulan';
+      age.classList.remove('is-empty');
+    };
+    const filterCats = keep => {
+      [...cat.options].forEach(o => { if (o.value) o.hidden = !!group.value && o.dataset.group !== group.value; });
+      if (!keep && cat.selectedOptions[0]?.hidden) cat.value = '';
+      showInterval();
+    };
+    const showInterval = () => {
+      const o = cat.selectedOptions[0];
+      hint.textContent = o && o.value
+        ? (o.dataset.interval ? `Maintenance otomatis setiap ${o.dataset.interval} hari.` : 'Kategori ini belum punya interval maintenance.')
+        : (group.value ? 'Pilih kategori.' : 'Pilih grup dulu untuk menyaring kategori.');
+    };
+    // Memilih kategori langsung mengisi grupnya
+    cat.addEventListener('change', () => { const o = cat.selectedOptions[0]; if (o?.dataset.group) group.value = o.dataset.group; filterCats(true); });
+    group.addEventListener('change', () => filterCats(false));
+    date.addEventListener('input', showAge);
+    document.querySelectorAll('[data-upper]').forEach(i => i.addEventListener('blur', () => { i.value = i.value.toUpperCase().trim(); }));
+    // base.html mengisi ulang isian setelah validasi gagal sebelum DOMContentLoaded
+    document.addEventListener('DOMContentLoaded', () => { showAge(); filterCats(true); });
+  })();
+</script>

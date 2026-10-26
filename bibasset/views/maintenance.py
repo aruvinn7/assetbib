@@ -1,4 +1,5 @@
 # views/maintenance.py  [OPTIMIZED]
+import re
 from datetime import date, timedelta
 
 from django.contrib import messages
@@ -73,7 +74,8 @@ def maintenance_create(request, asset_id):
             "asset":           asset,
             "form":            form,
             "posted":          request.POST if request.method == "POST" else None,
-            "checklist_lines": [l.strip() for l in checklist_hint.splitlines() if l.strip()],
+            # Nomor di awal baris dibuang; <ol> sudah menomori
+            "checklist_lines": [re.sub(r'^\s*\d+\s*[.)]\s*', '', l).strip() for l in checklist_hint.splitlines() if l.strip()],
             "active_schedule": active_schedule,
             "today":           date.today(),
             "recent":          recent[:3],

@@ -1,0 +1,86 @@
+{# Isian finansial — dipakai financial/create.html & update.html. `f` = data finansial (kosong saat isi baru). #}
+{% load rupiah %}
+<section class="fsec" aria-labelledby="secValue">
+  <div class="fsec-head"><h2 id="secValue">Nilai aset</h2><p>Harga perolehan termasuk PPN dan biaya pasang, serta perkiraan nilai sisa.</p></div>
+  <div class="fsec-body">
+    <div class="fgrid">
+      <div class="field">
+        <label for="nilaiAwal">Nilai perolehan <span class="req" aria-hidden="true">*</span></label>
+        <div class="input-affix"><span aria-hidden="true">Rp</span>
+          <input class="input money" type="text" id="nilaiAwal" name="nilai_awal" inputmode="numeric" autocomplete="off" required
+                 value="{% if f %}{{ f.nilai_awal_aset|floatformat:0 }}{% endif %}" placeholder="0">
+        </div>
+      </div>
+      <div class="field">
+        <label for="nilaiResidual">Nilai residual <span class="req" aria-hidden="true">*</span></label>
+        <div class="input-affix"><span aria-hidden="true">Rp</span>
+          <input class="input money" type="text" id="nilaiResidual" name="nilai_residual" inputmode="numeric" autocomplete="off" required
+                 value="{% if f %}{{ f.nilai_residual|floatformat:0 }}{% endif %}" placeholder="0">
+        </div>
+        <p class="field-hint">Nilai sisa di akhir umur ekonomis. <button type="button" class="link-btn" data-residual="10">Isi 10%</button> · <button type="button" class="link-btn" data-residual="5">5%</button> · <button type="button" class="link-btn" data-residual="0">0</button></p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="fsec" aria-labelledby="secLife">
+  <div class="fsec-head"><h2 id="secLife">Umur ekonomis</h2><p>Metode garis lurus: (perolehan − residual) ÷ umur ekonomis per tahun.</p></div>
+  <div class="fsec-body">
+    <div class="field">
+      <label for="umurEkonomis">Umur ekonomis (tahun) <span class="req" aria-hidden="true">*</span></label>
+      <input class="input" type="number" id="umurEkonomis" name="umur_ekonomis" min="1" max="50" step="1" required style="max-width:200px"
+             value="{% if f %}{{ f.umur_ekonomis }}{% endif %}">
+      <div class="fill-row"><span>Kelompok harta (PMK 72/2023):</span>
+        <button type="button" class="fill-chip" data-life="4">Kelompok 1 · 4 th</button>
+        <button type="button" class="fill-chip" data-life="8">Kelompok 2 · 8 th</button>
+        <button type="button" class="fill-chip" data-life="16">Kelompok 3 · 16 th</button>
+        <button type="button" class="fill-chip" data-life="20">Kelompok 4 · 20 th</button>
+      </div>
+    </div>
+
+    <div class="dep-preview" id="depPreview" hidden aria-live="polite">
+      <div class="dep-cells">
+        <div><span>Dapat disusutkan</span><strong id="pDep">—</strong></div>
+        <div><span>Penyusutan / tahun</span><strong id="pYear">—</strong></div>
+        <div><span>Nilai buku hari ini</span><strong id="pBook">—</strong></div>
+      </div>
+      <div class="dep-bar" aria-hidden="true"><i id="pBar"></i></div>
+      <p class="field-hint" id="pNote"></p>
+    </div>
+  </div>
+</section>
+
+<script>
+  (() => {
+    const awal = document.getElementById('nilaiAwal'), res = document.getElementById('nilaiResidual'), life = document.getElementById('umurEkonomis');
+    const beli = new Date('{{ asset.tanggal_pembelian|date:"Y-m-d" }}');
+    const num = el => Number((el.value || '').replace(/\D/g, '')) || 0;
+    const fmt = v => 'Rp ' + Math.round(v).toLocaleString('id-ID');
+    const mask = el => { const n = num(el); el.value = n ? n.toLocaleString('id-ID') : ''; };
+
+    const update = () => {
+      const a = num(awal), r = num(res), u = Number(life.value) || 0, box = document.getElementById('depPreview');
+      if (!a || !u || r > a) { box.hidden = true; return; }
+      const used = Math.min(Math.round((new Date() - beli) / 864e5 / 365.25 * 10) / 10, u);
+      const perYear = (a - r) / u, book = Math.max(a - perYear * used, r);
+      document.getElementById('pDep').textContent = fmt(a - r);
+      document.getElementById('pYear').textContent = fmt(perYear);
+      document.getElementById('pBook').textContent = fmt(book);
+      document.getElementById('pBar').style.width = (a ? book / a * 100 : 0).toFixed(1) + '%';
+      document.getElementById('pNote').textContent = `Terpakai ${used.toLocaleString('id-ID')} dari ${u} tahun · sisa ${Math.max(u - used, 0).toLocaleString('id-ID')} tahun · ${Math.round(book / a * 100)}% nilai perolehan tersisa.`;
+      box.hidden = false;
+    };
+
+    [awal, res].forEach(el => { mask(el); el.addEventListener('input', () => { mask(el); update(); }); });
+    life.addEventListener('input', update);
+    document.querySelectorAll('[data-life]').forEach(b => b.addEventListener('click', () => { life.value = b.dataset.life; update(); }));
+    document.querySelectorAll('[data-residual]').forEach(b => b.addEventListener('click', () => {
+      const v = Math.round(num(awal) * Number(b.dataset.residual) / 100 / 1000) * 1000;
+      res.value = v ? v.toLocaleString('id-ID') : '0'; update();
+    }));
+    // Titik ribuan dibuang sebelum dikirim
+    awal.form.addEventListener('submit', () => { [awal, res].forEach(el => { el.value = String(num(el)); }); });
+    document.addEventListener('DOMContentLoaded', () => { [awal, res].forEach(mask); update(); });
+    update();
+  })();
+</script>

@@ -1,143 +1,70 @@
 {% extends "base.html" %}
 {% load static %}
-{% block title %}Master Department{% endblock %}
+{% block legacy_css %}{% endblock %}
+{% block title %}Departemen{% endblock %}
 {% block nav_master %}active{% endblock %}
 
-{% block extra_head %}<link rel="stylesheet" href="{% static 'css/pages/master_department_list.css' %}?v=3">{% endblock %}
-
 {% block content %}
-
-<div class="wrap">
-
-  <!-- BREADCRUMB -->
-  <nav class="breadcrumb anim">
-    <a href="{% url 'dashboard' %}">Dashboard</a>
-    <span>/</span>
-    <span>Master Department</span>
-  </nav>
-
-  <!-- PAGE HEADER -->
-  <div class="page-header anim">
-    <div>
-      <span class="page-eyebrow">Master Data</span>
-      <h1 class="page-title">Master <em>Department</em></h1>
-    </div>
-    <div class="header-actions">
-      <a href="{% url 'dashboard' %}" class="btn btn-outline">← Dashboard</a>
-      <a href="{% url 'department_create' %}" class="btn btn-success">＋ Tambah</a>
-    </div>
+{% with is_ga=request.user.employee.ga_profile %}
+<div class="page">
+  {% include "components/_master_tabs.html" with current="department" %}
+  <div class="page-head">
+    <div><h1>Departemen</h1><div class="sub">{{ departments|length }} departemen · dipakai sebagai pemilik aset dan unit kerja karyawan</div></div>
   </div>
 
-  <!-- TOOLBAR -->
-  <div class="toolbar anim">
-    <div class="search-wrap">
-      <i class="search-icon fa-solid fa-magnifying-glass" aria-hidden="true"></i>
-      <input type="text" class="search-input" id="searchInput"
-        placeholder="Cari department..."
-        oninput="filterTable(this.value)">
-    </div>
-    <span class="count-label" id="countLabel">{{ departments|length }} dept</span>
-  </div>
-
-  <!-- TABLE CARD -->
-  <div class="card anim">
-    <div class="card-header">
-      <div class="card-title">
-        <span class="card-dot"></span>
-        Daftar Department — <span id="tableCount">{{ departments|length }}</span> item
-      </div>
-    </div>
-
-    {% if departments %}
-
-    <!-- DESKTOP TABLE -->
-    <div class="desktop-table">
-    <table class="tbl" id="deptTable">
-      <thead>
-        <tr>
-          <th>#</th>
-          <th>Nama Department</th>
-          <th>Aksi</th>
-        </tr>
-      </thead>
-      <tbody id="deptTbody">
-        {% for d in departments %}
-        <tr class="dept-row" data-search="{{ d.name|lower }}">
-          <td style="font-family:var(--mono);font-size:12px;color:var(--muted);">{{ forloop.counter }}</td>
-          <td>
-            <div class="dept-name">
-              {{ d.name }}
-            </div>
-          </td>
-          <td>
-            <a href="{% url 'department_delete' d.id %}" class="act-btn"
-               onclick="return confirm('Hapus department \'{{ d.name|escapejs }}\'?')">
-              Hapus
-            </a>
-          </td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
-    </div>
-
-    <!-- MOBILE CARDS -->
-    <div class="mobile-cards" id="mobileCards">
-      {% for d in departments %}
-      <div class="mc dept-row" data-search="{{ d.name|lower }}">
-        <div class="mc-body">
-          <div class="mc-name">{{ d.name }}</div>
-          <div class="mc-num">{{ forloop.counter }}</div>
+  <div class="master-grid">
+    <section class="panel" aria-label="Daftar departemen">
+      <div class="panel-head">
+        <div class="search" style="max-width:320px;margin:0">
+          <i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i>
+          <label class="visually-hidden" for="deptFilter">Saring departemen</label>
+          <input class="input" type="search" id="deptFilter" placeholder="Saring nama…" data-filter="#deptTable tbody tr">
         </div>
-        <a href="{% url 'department_delete' d.id %}" class="act-btn"
-           onclick="return confirm('Hapus department \'{{ d.name|escapejs }}\'?')">Hapus</a>
+        <span class="meta" data-filter-count></span>
       </div>
-      {% endfor %}
-    </div>
+      <div class="table-wrap">
+        <table class="table" id="deptTable">
+          <thead><tr><th>Nama</th><th class="num">Karyawan</th><th class="num">Aset</th><th><span class="visually-hidden">Aksi</span></th></tr></thead>
+          <tbody>
+          {% for d in departments %}
+            <tr data-name="{{ d.name|lower }}">
+              <td>{{ d.name }}{% if not d.emp_count and not d.asset_count %}<div class="cell-sub">Belum dipakai</div>{% endif %}</td>
+              <td class="num">{{ d.emp_count|default:"—" }}</td>
+              <td class="num">{% if d.asset_count %}<a href="{% url 'asset_list' %}?q={{ d.name|urlencode }}">{{ d.asset_count }}</a>{% else %}—{% endif %}</td>
+              <td class="row-actions">
+                {% if is_ga %}
+                <form method="post" action="{% url 'department_delete' d.pk %}"
+                      onsubmit="return confirm('Hapus departemen {{ d.name|escapejs }}?{% if d.asset_count or d.emp_count %} {{ d.asset_count }} aset dan {{ d.emp_count }} karyawan akan kehilangan departemennya.{% endif %}')">
+                  {% csrf_token %}<button type="submit" class="del">Hapus</button>
+                </form>
+                {% endif %}
+              </td>
+            </tr>
+          {% empty %}
+            <tr><td colspan="4"><div class="empty"><strong>Belum ada departemen</strong></div></td></tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
 
-    <!-- EMPTY SEARCH -->
-    <div id="searchEmpty" style="display:none;" class="empty-state">
-      <div class="empty-title">Department tidak ditemukan</div>
-      <div class="empty-sub">Coba kata kunci lain</div>
-    </div>
-
-    {% else %}
-    <div class="empty-state">
-      <div class="empty-title">Belum ada department</div>
-      <div class="empty-sub">Tambahkan department pertama untuk mulai mengorganisir struktur</div>
-      <a href="{% url 'department_create' %}" class="btn btn-success">＋ Tambah Department</a>
-    </div>
-    {% endif %}
+    <aside>
+      <form method="post" action="{% url 'department_create' %}" class="panel">
+        {% csrf_token %}
+        <div class="panel-head"><h2>Tambah departemen</h2></div>
+        <div class="panel-body" style="display:grid;gap:12px">
+          <div class="field">
+            <label for="deptName">Nama departemen</label>
+            <input class="input" type="text" id="deptName" name="name" maxlength="100" required placeholder="mis. HSE Operation">
+            <p class="field-hint">Cek daftar dulu agar tidak ada nama kembar.</p>
+          </div>
+          <button type="submit" class="btn">Tambah</button>
+        </div>
+      </form>
+    </aside>
   </div>
-
 </div>
-
-<script>
-  function filterTable(q) {
-    const rows  = document.querySelectorAll('.dept-row');
-    const query = q.toLowerCase().trim();
-    let visible = 0;
-
-    rows.forEach(row => {
-      const match = !query || row.dataset.search.includes(query);
-      row.style.display = match ? '' : 'none';
-      if (match) visible++;
-    });
-
-    // Bagi 2 karena tiap item punya row desktop + card mobile
-    const count = visible / 2;
-    document.getElementById('tableCount').textContent = count;
-    document.getElementById('countLabel').textContent = count + ' dept';
-
-    const tbl = document.getElementById('deptTable');
-    const mob = document.getElementById('mobileCards');
-    const emp = document.getElementById('searchEmpty');
-    const noResult = count === 0 && query;
-
-    if (tbl) tbl.style.display = noResult ? 'none' : '';
-    if (mob) mob.style.display = noResult ? 'none' : '';
-    emp.style.display = noResult ? 'block' : 'none';
-  }
-</script>
-
+{% endwith %}
 {% endblock %}
+
+{% block extra_scripts %}<script src="{% static 'js/master.js' %}?v=1"></script>{% endblock %}

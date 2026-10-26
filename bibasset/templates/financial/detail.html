@@ -1,302 +1,77 @@
 {% extends "base.html" %}
-{% load static %}
 {% load rupiah %}
-{% block title %}Finansial — {{ asset.asset_number }}{% endblock %}
-
-{% block extra_head %}<link rel="stylesheet" href="{% static 'css/pages/financial_detail.css' %}?v=3">{% endblock %}
+{% block legacy_css %}{% endblock %}
+{% block title %}Finansial · {{ asset.asset_number }}{% endblock %}
+{% block nav_assets %}active{% endblock %}
 
 {% block content %}
-
-<div class="wrap">
-
-  <!-- BREADCRUMB -->
-  <div class="breadcrumb-wrap anim">
-    <a href="{% url 'dashboard' %}">Dashboard</a>
-    <span class="sep">/</span>
-    <a href="{% url 'asset_list' %}">Aset</a>
-    <span class="sep">/</span>
-    <a href="{% url 'asset_detail' asset.id %}">{{ asset.asset_number }}</a>
-    <span class="sep">/</span>
-    <span class="current">Finansial</span>
+{% with emp=request.user.employee %}
+<div class="page">
+  <div class="crumbs">
+    <a href="{% url 'asset_list' %}">Daftar aset</a><i class="fa-solid fa-chevron-right" aria-hidden="true" style="font-size:10px"></i>
+    <a href="{% url 'asset_detail' asset.id %}">{{ asset.asset_number }}</a><i class="fa-solid fa-chevron-right" aria-hidden="true" style="font-size:10px"></i>Finansial
+  </div>
+  <div class="page-head">
+    <div>
+      <h1>Data finansial</h1>
+      <div class="sub">{{ asset.nama_asset }} · beli {{ asset.tanggal_pembelian|date:"d M Y" }}</div>
+    </div>
+    {% if emp.finance_profile %}<div class="page-actions"><a href="{% url 'financial_update' asset.id %}" class="btn outline"><i class="fa-regular fa-pen-to-square" aria-hidden="true"></i>Edit</a></div>{% endif %}
   </div>
 
-  <!-- PAGE HEADER -->
-  <div class="page-header anim">
-    <div>
-      <div class="page-eyebrow">Finance — Detail Valuasi</div>
-      <h1 class="page-title">Data <em>Finansial</em></h1>
-    </div>
-    <div class="header-actions">
-      {% if request.user.employee.finance_profile %}
-        <a href="{% url 'financial_update' asset.id %}" class="btn btn-warning">Edit Finansial</a>
-      {% endif %}
-      <a href="{% url 'asset_detail' asset.id %}" class="btn btn-outline">← Kembali ke Aset</a>
-    </div>
+  {% if asset.lifecycle_status == 'writeoff' and asset.write_off %}
+  <div class="note warn" style="margin-bottom:20px"><i class="fa-solid fa-box-archive" aria-hidden="true"></i>
+    <span>Di-write off {{ asset.write_off.tanggal|date:"d M Y" }}. Nilai buku berhenti menyusut di tanggal itu{% if asset.write_off.nilai_buku is not None %} ({{ asset.write_off.nilai_buku|rupiah }} dihapus dari pembukuan){% endif %}.</span></div>
+  {% endif %}
+
+  <div class="stats">
+    <div class="stat"><span class="stat-label">Nilai perolehan</span><strong class="stat-value">{{ financial.nilai_awal_aset|rupiah }}</strong><span class="stat-note">residual {{ financial.nilai_residual|rupiah }}</span></div>
+    <div class="stat"><span class="stat-label">Nilai buku {% if asset.lifecycle_status == 'writeoff' %}saat write off{% else %}hari ini{% endif %}</span><strong class="stat-value">{{ book|rupiah }}</strong><span class="stat-note">{{ book_pct }}% dari nilai perolehan</span></div>
+    <div class="stat"><span class="stat-label">Penyusutan per tahun</span><strong class="stat-value">{{ financial.depresiasi_tahunan|rupiah }}</strong><span class="stat-note">garis lurus · {{ financial.umur_ekonomis }} tahun</span></div>
+    <div class="stat"><span class="stat-label">Sisa umur ekonomis</span><strong class="stat-value">{{ financial.sisa_umur_ekonomis }} <small>tahun</small></strong><span class="stat-note">terpakai {{ financial.umur_terpakai }} th · berakhir {{ end_date|date:"M Y" }}</span></div>
   </div>
 
-  <!-- ASSET IDENTITY CARD -->
-  <div class="asset-id-card anim">
-    <div class="asset-id-left">
-      <div>
-        <div class="asset-id-num">{{ asset.asset_number }}</div>
-        <div class="asset-id-name">{{ asset.nama_asset }}</div>
-        <div class="asset-id-meta">
-          {{ asset.asset_group|default:"—" }}{% if asset.asset_category %} · {{ asset.asset_category.name }}{% endif %}
-          · Umur aktual {{ asset.umur_asset }} thn · Beli {{ asset.tanggal_pembelian|date:"d M Y" }}
-        </div>
+  <div class="form-layout" style="max-width:none">
+    <section class="panel" aria-labelledby="schedTitle">
+      <div class="panel-head"><h2 id="schedTitle">Jadwal penyusutan</h2><span class="meta">{{ dep_pct }}% nilai yang dapat disusutkan sudah habis</span></div>
+      <div class="panel-body" style="padding-bottom:8px"><div class="dep-bar" role="img" aria-label="Nilai buku {{ book_pct }} persen dari nilai perolehan"><i style="width:{{ book_pct }}%"></i></div></div>
+      <div class="table-wrap">
+        <table class="table">
+          <thead><tr><th>Tahun</th><th class="num">Nilai awal tahun</th><th class="num">Penyusutan</th><th class="num">Nilai akhir tahun</th></tr></thead>
+          <tbody>
+          {% for r in rows %}
+            <tr {% if r.current %}class="is-current-year"{% endif %}>
+              <td>{{ r.year }}{% if r.current %} {% include "components/_status.html" with kind="mandatory" label="Tahun berjalan" %}{% endif %}</td>
+              <td class="num">{{ r.start|rupiah }}</td>
+              <td class="num">{{ r.dep|rupiah }}</td>
+              <td class="num">{{ r.end|rupiah }}</td>
+            </tr>
+          {% endfor %}
+          </tbody>
+        </table>
       </div>
-    </div>
-    <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;">
-      {% if asset.lifecycle_status == 'active' %}
-        <span class="pill active">Active</span>
-      {% elif asset.lifecycle_status == 'maintenance' %}
-        <span class="pill maintenance">Maintenance</span>
-      {% else %}
-        <span class="pill writeoff">Write Off</span>
-      {% endif %}
-      <div style="font-size:12px;color:var(--muted);font-family:var(--mono);">
-        {{ asset.lokasi_asset|default:"—" }}
-      </div>
-    </div>
-  </div>
+      <p class="panel-note" style="padding:12px 20px 16px;font-size:13px;color:var(--ink-3);border-top:1px solid var(--rule-soft)">Tahun pertama dihitung sejak tanggal beli. Umur terpakai dibulatkan ke 0,1 tahun, sama seperti perhitungan di seluruh aplikasi.</p>
+    </section>
 
-  <!-- MAIN GRID -->
-  <div class="main-grid">
-
-    <!-- LEFT — BIG NUMBERS + TIMELINE -->
-    <div>
-
-      <!-- VALUE CARD -->
-      <div class="card anim">
-        <div class="card-header">
-          <div class="card-title">
-            <span class="card-dot" style="background:var(--success);"></span>
-            Nilai &amp; Depresiasi
-          </div>
-          {% if request.user.employee.finance_profile %}
-            <a href="{% url 'financial_update' asset.id %}" class="btn btn-warning btn-sm">Edit</a>
-          {% endif %}
-        </div>
-
-        <div class="value-grid">
-          <div class="value-cell">
-            <div class="value-label">Nilai Awal Aset</div>
-            <div class="value-num blue">{{ financial.nilai_awal_aset|rupiah }}</div>
-            <div class="value-sub">Harga perolehan</div>
-          </div>
-          <div class="value-cell">
-            <div class="value-label">Nilai Residual</div>
-            <div class="value-num amber">{{ financial.nilai_residual|rupiah }}</div>
-            <div class="value-sub">Nilai sisa akhir umur</div>
-          </div>
-          <div class="value-cell">
-            <div class="value-label">Depresiasi / Tahun</div>
-            <div class="value-num red">{{ financial.depresiasi_tahunan|rupiah }}</div>
-            <div class="value-sub">Straight-line · {{ financial.umur_ekonomis }} thn ekonomis</div>
-          </div>
-          <div class="value-cell">
-            <div class="value-label">Book Value Saat Ini</div>
-            <div class="value-num green">{{ financial.book_value|rupiah }}</div>
-            <div class="value-sub">
-              Terpakai {{ financial.umur_terpakai }} thn
-              · Sisa {{ financial.sisa_umur_ekonomis }} thn
-            </div>
-          </div>
-        </div>
-
-        <!-- BOOK VALUE PROGRESS BAR -->
-        <div class="bv-section">
-          <div class="bv-header">
-            <div class="bv-title">Sisa Nilai Aset</div>
-            <span class="bv-pct" id="bvPctBadge">—%</span>
-          </div>
-          <div class="bv-track">
-            <div class="bv-fill" id="bvFill"></div>
-          </div>
-          <div class="bv-axis">
-            <span>Residual · {{ financial.nilai_residual|rupiah }}</span>
-            <span>Book Value · {{ financial.book_value|rupiah }}</span>
-            <span>Nilai Awal · {{ financial.nilai_awal_aset|rupiah }}</span>
-          </div>
-        </div>
-      </div>
-
-      <!-- DEPRECIATION TIMELINE -->
-      <div class="card anim">
-        <div class="card-header">
-          <div class="card-title">
-            <span class="card-dot" style="background:var(--accent);"></span>
-            Timeline Depresiasi
-          </div>
-        </div>
-        <div class="dep-timeline" id="depTimeline">
-          <!-- Diisi oleh JS -->
-        </div>
-      </div>
-
-    </div>
-
-    <!-- RIGHT SIDEBAR -->
-    <div>
-
-      <!-- UMUR & PERIODE -->
-      <div class="card anim">
-        <div class="card-header">
-          <div class="card-title">
-            <span class="card-dot" style="background:var(--warning);"></span>
-            Periode Aset
-          </div>
-        </div>
-        <div class="info-row">
-          <span class="ir-label">Tanggal Pembelian</span>
-          <span class="ir-value">{{ asset.tanggal_pembelian|date:"d M Y" }}</span>
-        </div>
-        <div class="info-row">
-          <span class="ir-label">Umur Aktual</span>
-          <span class="ir-value">{{ asset.umur_asset }} thn {{ asset.umur_asset_detail.months }} bln</span>
-        </div>
-        <div class="info-row">
-          <span class="ir-label">Umur Ekonomis</span>
-          <span class="ir-value">{{ financial.umur_ekonomis }} tahun</span>
-        </div>
-        <div class="info-row">
-          <span class="ir-label">Umur Terpakai</span>
-          <span class="ir-value" style="color:var(--warning);">{{ financial.umur_terpakai }} tahun</span>
-        </div>
-        <div class="info-row">
-          <span class="ir-label">Sisa Umur Ekonomis</span>
-          <span class="ir-value" style="color:var(--success);">{{ financial.sisa_umur_ekonomis }} tahun</span>
-        </div>
-        <div class="info-row">
-          <span class="ir-label">Tahun Berakhir</span>
-          <span class="ir-value">
-            {{ asset.tanggal_pembelian.year|add:financial.umur_ekonomis }}
-          </span>
-        </div>
-      </div>
-
-      <!-- METADATA -->
-      <div class="card anim">
-        <div class="card-header">
-          <div class="card-title">
-            <span class="card-dot" style="background:var(--muted);"></span>
-            Metadata
-          </div>
-        </div>
-        <div class="info-row">
-          <span class="ir-label">Diinput Oleh</span>
-          <span class="ir-value" style="font-family:var(--sans);font-size:12px;">
-            {{ financial.created_by.nama|default:"—" }}
-          </span>
-        </div>
-        <div class="info-row">
-          <span class="ir-label">Tanggal Input</span>
-          <span class="ir-value">{{ financial.created_at|date:"d M Y" }}</span>
-        </div>
-        <div class="info-row">
-          <span class="ir-label">Dept Finance</span>
-          <span class="ir-value" style="font-family:var(--sans);font-size:12px;">
-            {{ financial.created_by.department|default:"—" }}
-          </span>
-        </div>
-      </div>
-
-      <!-- QUICK ACTIONS -->
-      <div class="card anim">
-        <div class="card-header">
-          <div class="card-title">
-            <span class="card-dot" style="background:var(--accent);"></span>
-            Aksi
-          </div>
-        </div>
-        <div style="padding:14px;display:flex;flex-direction:column;gap:8px;">
-          {% if request.user.employee.finance_profile %}
-          <a href="{% url 'financial_update' asset.id %}"
-            style="display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:var(--r);
-              border:1.5px solid #E3CF7E;background:var(--warning-tint);text-decoration:none;
-              color:var(--warning);font-size:13px;font-weight:700;transition:all .15s;">
-            <span></span><span>Edit Data Finansial</span>
-          </a>
-          {% endif %}
-          <a href="{% url 'asset_detail' asset.id %}"
-            style="display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:var(--r);
-              border:1.5px solid var(--border);background:var(--surface2);text-decoration:none;
-              color:var(--text-soft);font-size:13px;font-weight:700;transition:all .15s;">
-            <span></span><span>Detail Aset</span>
-          </a>
-          <a href="{% url 'asset_list' %}"
-            style="display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:var(--r);
-              border:1.5px solid var(--border);background:var(--surface2);text-decoration:none;
-              color:var(--text-soft);font-size:13px;font-weight:700;transition:all .15s;">
-            <span></span><span>Daftar Aset</span>
-          </a>
-        </div>
-      </div>
-
-    </div>
+    <aside class="form-side">
+      <section class="panel">
+        <div class="panel-head"><h2>Dicatat</h2></div>
+        <dl class="kv">
+          <div><dt>Oleh</dt><dd>{{ financial.created_by.nama|default:"—" }}</dd></div>
+          <div><dt>Tanggal</dt><dd>{{ financial.created_at|date:"d M Y" }}</dd></div>
+          <div><dt>Kategori</dt><dd>{{ asset.asset_category.name|default:"—" }}</dd></div>
+          <div><dt>Lokasi</dt><dd>{{ asset.lokasi_asset|default:"—" }}</dd></div>
+          <div><dt>Status</dt><dd>{% include "components/_lifecycle.html" with status=asset.lifecycle_status %}</dd></div>
+        </dl>
+      </section>
+      <section class="panel">
+        <ul class="side-links">
+          <li><a href="{% url 'asset_detail' asset.id %}"><i class="fa-solid fa-circle-info" aria-hidden="true"></i>Detail aset</a></li>
+          <li><a href="{% url 'value_dashboard' %}"><i class="fa-solid fa-scale-balanced" aria-hidden="true"></i>Dashboard nilai aset</a></li>
+        </ul>
+      </section>
+    </aside>
   </div>
 </div>
-
-<script>
-  // Book Value progress bar
-  (function() {
-    const na  = parseFloat("{{ financial.nilai_awal_aset|stringformat:'f' }}") || 0;
-    const bv  = parseFloat("{{ financial.book_value|stringformat:'f' }}")      || 0;
-    const nr  = parseFloat("{{ financial.nilai_residual|stringformat:'f' }}")  || 0;
-    const range = na - nr;
-    const pct   = range > 0 ? Math.min(Math.max(((bv - nr) / range) * 100, 0), 100) : 0;
-
-    setTimeout(() => {
-      const fill  = document.getElementById('bvFill');
-      const badge = document.getElementById('bvPctBadge');
-      if (fill)  fill.style.width = pct.toFixed(1) + '%';
-      if (badge) {
-        badge.textContent = pct.toFixed(0) + '%';
-        badge.style.background = pct <= 25 ? 'var(--danger)' : pct <= 60 ? 'var(--warning)' : 'var(--success)';
-      }
-    }, 400);
-  })();
-
-  // Depreciation timeline
-  (function() {
-    const na         = parseFloat("{{ financial.nilai_awal_aset|stringformat:'f' }}") || 0;
-    const nr         = parseFloat("{{ financial.nilai_residual|stringformat:'f' }}")  || 0;
-    const depYear    = parseFloat("{{ financial.depresiasi_tahunan|stringformat:'f' }}") || 0;
-    const umurEkonom = {{ financial.umur_ekonomis }};
-    const umurTerpak = {{ financial.umur_terpakai }};
-    const tahunBeli  = {{ asset.tanggal_pembelian.year }};
-
-    const container = document.getElementById('depTimeline');
-    let html = '';
-
-    for (let i = 0; i <= umurEkonom; i++) {
-      const bv    = Math.max(na - (depYear * i), nr);
-      const pct   = ((bv - nr) / (na - nr)) * 100;
-      const tahun = tahunBeli + i;
-      const isPast    = i < umurTerpak;
-      const isCurrent = i === umurTerpak;
-
-      let yearClass  = '';
-      let barClass   = 'dep-year-bar';
-      let labelClass = 'dep-year-label';
-
-      if (isCurrent) { yearClass = 'current'; barClass += ' current-bar'; labelClass += ' cur'; }
-      else if (isPast) { barClass += ' past'; }
-
-      const label = isCurrent ? `${tahun} ←` : tahun;
-
-      html += `
-        <div class="dep-year-row ${yearClass}">
-          <div class="${labelClass}">${label}</div>
-          <div class="dep-year-bar-wrap">
-            <div class="${barClass}" style="width:${Math.min(pct,100).toFixed(1)}%"></div>
-          </div>
-          <div class="dep-year-val">Rp ${Math.round(bv).toLocaleString('id-ID')}</div>
-        </div>`;
-    }
-
-    container.innerHTML = html;
-  })();
-</script>
-
+{% endwith %}
 {% endblock %}

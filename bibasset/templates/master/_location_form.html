@@ -1,0 +1,25 @@
+{# Isian lokasi — dipakai location_create.html & location_update.html. `l` = lokasi yang diedit. #}
+<section class="fsec">
+  <div class="fsec-body">
+    <div class="field">
+      <label for="locParent">Induk lokasi</label>
+      <select class="input select" id="locParent" name="parent">
+        <option value="">Tidak ada — ini site utama</option>
+        {% for p in parents %}<option value="{{ p.pk }}" data-path="{{ p.full_path }}" {% if l.parent_id == p.pk or preset_parent == p.pk %}selected{% endif %}>{{ p.full_path }}</option>{% endfor %}
+      </select>
+    </div>
+    <div class="field">
+      <label for="locName">Nama lokasi <span class="req" aria-hidden="true">*</span></label>
+      <input class="input" type="text" id="locName" name="name" value="{{ l.name|default:'' }}" maxlength="100" required autofocus placeholder="mis. Ruang Meeting 2">
+    </div>
+    <div class="readonly" aria-live="polite"><i class="fa-solid fa-sitemap" aria-hidden="true" style="color:var(--ink-3)"></i><span>Akan tercatat sebagai <strong id="locPath">—</strong></span></div>
+  </div>
+</section>
+<script>
+  (() => {
+    const p = document.getElementById('locParent'), n = document.getElementById('locName'), out = document.getElementById('locPath');
+    const show = () => { const base = p.selectedOptions[0]?.dataset.path; const name = n.value.trim() || '…'; out.textContent = base ? `${base} > ${name}` : name; };
+    p.addEventListener('change', show); n.addEventListener('input', show);
+    document.addEventListener('DOMContentLoaded', show); show();
+  })();
+</script>

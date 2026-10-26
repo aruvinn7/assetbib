@@ -1,107 +1,28 @@
 {% extends "base.html" %}
-{% load static %}
-{% block title %}Tambah Department{% endblock %}
+{% block legacy_css %}{% endblock %}
+{% block title %}Tambah departemen{% endblock %}
 {% block nav_master %}active{% endblock %}
 
-{% block extra_head %}<link rel="stylesheet" href="{% static 'css/pages/master_department_create.css' %}?v=3">{% endblock %}
-
 {% block content %}
-
-<div class="wrap">
-
-  <!-- BREADCRUMB -->
-  <div class="breadcrumb-wrap anim">
-    <a href="{% url 'dashboard' %}">Dashboard</a>
-    <span class="sep">/</span>
-    <a href="{% url 'department_list' %}">Master Department</a>
-    <span class="sep">/</span>
-    <span class="current">Tambah Department</span>
-  </div>
-
-  <!-- PAGE HEADER -->
-  <div class="page-header anim">
-    <div class="page-header-left">
-      <span class="page-eyebrow">Master Data</span>
-      <h1 class="page-title">Tambah <em>Department</em></h1>
-    </div>
-    <a href="{% url 'department_list' %}" class="btn btn-outline">← Kembali</a>
-  </div>
-
-  <!-- FORM CARD -->
-  <div class="card anim">
-    <div class="card-header">
-      <div class="card-title">
-        <span class="card-dot"></span>
-        Informasi Department
+<div class="page">
+  {% include "components/_master_tabs.html" with current="department" %}
+  <div class="page-head"><div><h1>Tambah departemen</h1></div></div>
+  <form method="post" class="form-layout single">
+    {% csrf_token %}
+    <div class="form-main">
+      <section class="fsec">
+        <div class="fsec-body">
+          <div class="field">
+            <label for="deptName">Nama departemen <span class="req" aria-hidden="true">*</span></label>
+            <input class="input" type="text" id="deptName" name="name" maxlength="100" required autofocus placeholder="mis. HSE Operation">
+          </div>
+        </div>
+      </section>
+      <div class="form-bar">
+        <a href="{% url 'department_list' %}" class="btn outline push">Batal</a>
+        <button type="submit" class="btn">Simpan</button>
       </div>
     </div>
-
-    <form method="POST" id="deptForm">
-      {% csrf_token %}
-
-      <div class="card-body">
-
-        <!-- NAMA DEPARTMENT -->
-        <div class="form-group">
-          <label class="form-label" for="nameInput">
-            Nama Department <span class="req">*</span>
-          </label>
-          <div class="input-wrap">
-            <input
-              type="text"
-              id="nameInput"
-              name="name"
-              class="form-input"
-              placeholder="cth. Human Resources, Finance, Engineering..."
-              autocomplete="off"
-              maxlength="80"
-              oninput="updatePreview()"
-              required
-              style="padding-right:52px;"
-            >
-            <span class="char-count" id="charCount">0/80</span>
-          </div>
-          <span class="form-hint">Nama resmi department sesuai struktur organisasi</span>
-        </div>
-
-        <div class="form-divider"></div>
-
-        <!-- PREVIEW -->
-        <div style="display:flex;flex-direction:column;gap:8px;">
-          <span class="form-label" style="margin:0;">Preview</span>
-          <div>
-            <span class="preview-badge" id="previewBadge">
-              <span id="previewText">nama-department</span>
-            </span>
-          </div>
-          <span class="form-hint">Tampilan department seperti yang akan muncul di sistem</span>
-        </div>
-
-      </div>
-
-      <!-- ACTIONS -->
-      <div class="form-actions">
-        <a href="{% url 'department_list' %}" class="btn btn-outline">Batal</a>
-        <button type="submit" class="btn btn-success">＋ Simpan Department</button>
-      </div>
-
-    </form>
-  </div>
-
+  </form>
 </div>
-
-<script>
-  const nameInput   = document.getElementById('nameInput');
-  const previewText = document.getElementById('previewText');
-  const charCount   = document.getElementById('charCount');
-
-  function updatePreview() {
-    const val = nameInput.value.trim();
-    previewText.textContent = val || 'nama-department';
-    charCount.textContent   = nameInput.value.length + '/80';
-  }
-
-  updatePreview();
-</script>
-
 {% endblock %}

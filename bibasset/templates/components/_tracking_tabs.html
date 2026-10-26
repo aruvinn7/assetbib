@@ -1,0 +1,13 @@
+{# Tab bersama menu Pelacakan: di mana aset berada & siapa pemegangnya. Pakai: include "components/_tracking_tabs.html" with current="location" #}
+{% with emp=request.user.employee %}
+<nav class="track-tabs" aria-label="Pelacakan aset">
+  <span class="track-label"><i class="fa-solid fa-location-crosshairs" aria-hidden="true"></i>Pelacakan</span>
+  <div class="track-list">
+    {% if emp.ga_profile %}
+    <a href="{% url 'location_dashboard' %}" {% if current == 'location' %}aria-current="page"{% endif %}><i class="fa-solid fa-map-location-dot" aria-hidden="true"></i>Per lokasi</a>
+    <a href="{% url 'assignment_list' %}" {% if current == 'holder' %}aria-current="page"{% endif %}><i class="fa-solid fa-handshake" aria-hidden="true"></i>Pemegang aset</a>
+    {% endif %}
+    <a href="{% url 'movement_dashboard' %}" {% if current == 'movement' %}aria-current="page"{% endif %}><i class="fa-solid fa-right-left" aria-hidden="true"></i>Riwayat perpindahan</a>
+  </div>
+</nav>
+{% endwith %}

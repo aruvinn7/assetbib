@@ -1,79 +1,25 @@
 {% extends "base.html" %}
-{% load static %}
-{% block title %}Edit Lokasi — {{ loc.name }}{% endblock %}
+{% block legacy_css %}{% endblock %}
+{% block title %}Edit lokasi · {{ loc.name }}{% endblock %}
 {% block nav_master %}active{% endblock %}
 
-{% block extra_head %}<link rel="stylesheet" href="{% static 'css/pages/master_location_update.css' %}?v=3">{% endblock %}
-
 {% block content %}
-
-<div class="wrap">
-
-  <!-- BREADCRUMB -->
-  <nav class="breadcrumb anim">
-    <a href="{% url 'dashboard' %}">Dashboard</a>
-    <span>/</span>
-    <a href="{% url 'location_list' %}">Master Lokasi</a>
-    <span>/</span>
-    <span>Edit</span>
-  </nav>
-
-  <!-- TITLE -->
-  <div class="anim">
-    <div class="page-eyebrow">Master Data — Lokasi</div>
-    <h1 class="page-title">Edit <em>{{ loc.name }}</em></h1>
-  </div>
-
-  <!-- FORM CARD -->
-  <div class="card anim">
-    <div class="card-header">
-      <span class="card-dot" style="background:var(--warning-ink);"></span>
-      <span class="card-label">Edit Lokasi</span>
-    </div>
-    <div class="card-body">
-
-      <!-- Tampilkan nilai saat ini -->
-      <div class="current-val">
-        <span>Saat ini:</span>
-        <strong>{% if loc.parent %}{{ loc.parent.name }} / {% endif %}{{ loc.name }}</strong>
-        {% if not loc.parent %}<span class="current-arrow">· root</span>{% endif %}
+<div class="page">
+  {% include "components/_master_tabs.html" with current="location" %}
+  <div class="page-head"><div><h1>Edit lokasi</h1><div class="sub">{{ loc.full_path }}</div></div></div>
+  <form method="post" class="form-layout single">
+    {% csrf_token %}
+    <div class="form-main">
+      {% if loc.children.exists %}
+      <div class="note"><i class="fa-solid fa-circle-info" aria-hidden="true"></i><span>Lokasi ini punya {{ loc.children.count }} sub-lokasi. Nama dan induk baru ikut memperbarui jalur semua sub-lokasinya.</span></div>
+      {% endif %}
+      {% include "master/_location_form.html" with l=loc %}
+      <div class="form-bar">
+        <span class="bar-hint"><span class="req">*</span> wajib diisi</span>
+        <a href="{% url 'location_list' %}" class="btn outline">Batal</a>
+        <button type="submit" class="btn">Simpan perubahan</button>
       </div>
-
-      <form method="POST">
-        {% csrf_token %}
-
-        <!-- NAMA LOKASI -->
-        <div class="form-group">
-          <label class="form-label" for="name">
-            Nama Lokasi <span class="req">*</span>
-          </label>
-          <input type="text" id="name" name="name" class="form-input"
-            value="{{ loc.name }}" placeholder="Contoh: BOD Room" required>
-        </div>
-
-        <!-- PARENT LOKASI -->
-        <div class="form-group">
-          <label class="form-label" for="parent">Parent / Induk Lokasi</label>
-          <div class="form-hint">Kosongkan jika ini adalah lokasi root (gedung/kantor utama)</div>
-          <select name="parent" id="parent" class="form-select">
-            <option value="">— Tidak ada (Root)</option>
-            {% for p in parents %}
-            <option value="{{ p.id }}"
-              {% if loc.parent and loc.parent.id == p.id %}selected{% endif %}>
-              {% if p.parent %}{{ p.parent.name }} / {% endif %}{{ p.name }}
-            </option>
-            {% endfor %}
-          </select>
-        </div>
-
-        <!-- ACTIONS -->
-        <div class="form-actions">
-          <button type="submit" class="btn btn-warning">Simpan Perubahan</button>
-          <a href="{% url 'location_list' %}" class="btn btn-outline">← Batal</a>
-        </div>
-      </form>
     </div>
-  </div>
-
+  </form>
 </div>
 {% endblock %}

@@ -5,7 +5,7 @@
 
 {% block content %}
 <div class="page">
-  <div class="crumbs"><a href="{% url 'assetgroup_list' %}">Grup aset</a><i class="fa-solid fa-chevron-right" aria-hidden="true" style="font-size:10px"></i>{{ group.name }}</div>
+  {% include "components/_master_tabs.html" with current="group" %}
 
   <div class="page-head">
     <div>
@@ -14,20 +14,20 @@
     </div>
   </div>
 
-  <form method="post" class="panel" style="max-width:560px">
+  <form method="post" class="form-layout single">
     {% csrf_token %}
-    <div class="panel-body" style="display:grid;gap:16px">
+    <div class="form-main">
+    <section class="fsec"><div class="fsec-body">
       <div class="field">
         <label for="nameInput">Nama grup <span class="req" aria-hidden="true">*</span></label>
         <input class="input" type="text" id="nameInput" name="name" value="{{ posted.name|default:group.name }}" maxlength="100" required autofocus>
         <p class="field-hint">Nama baru langsung berlaku untuk semua kategori dan aset di grup ini.</p>
       </div>
+    </div></section>
+    <div class="form-bar">
+      <a href="{% url 'assetgroup_list' %}" class="btn outline push">Batal</a>
+      <button type="submit" class="btn">Simpan</button>
     </div>
-    <div class="dlg-foot">
-      <div class="dlg-actions">
-        <a href="{% url 'assetgroup_list' %}" class="btn outline">Batal</a>
-        <button type="submit" class="btn">Simpan</button>
-      </div>
     </div>
   </form>
 </div>

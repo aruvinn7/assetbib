@@ -1,324 +1,40 @@
 {% extends "base.html" %}
-{% load static %}
-{% block title %}Tambah Aset Baru{% endblock %}
-
-{% block extra_head %}<link rel="stylesheet" href="{% static 'css/pages/asset_create.css' %}?v=3">{% endblock %}
+{% block legacy_css %}{% endblock %}
+{% block title %}Tambah aset{% endblock %}
+{% block nav_assets %}active{% endblock %}
 
 {% block content %}
-
-<div class="wrap">
-
-  <!-- BREADCRUMB -->
-  <div class="breadcrumb-wrap anim">
-    <a href="{% url 'dashboard' %}">Dashboard</a>
-    <span class="sep">/</span>
-    <a href="{% url 'asset_list' %}">Aset</a>
-    <span class="sep">/</span>
-    <span class="current">Tambah Aset</span>
-  </div>
-
-  <!-- PAGE HEADER -->
-  <div class="page-header anim">
+<div class="page">
+  <div class="crumbs"><a href="{% url 'asset_list' %}">Daftar aset</a><i class="fa-solid fa-chevron-right" aria-hidden="true" style="font-size:10px"></i>Tambah</div>
+  <div class="page-head">
     <div>
-      <div class="page-eyebrow">General Affair — GA</div>
-      <h1 class="page-title">Tambah <em>Aset Baru</em></h1>
+      <h1>Tambah aset</h1>
+      <div class="sub">Setelah disimpan, jadwal maintenance pertama dibuat otomatis dari kategori.</div>
     </div>
-    <a href="{% url 'asset_list' %}" class="btn btn-outline">← Kembali</a>
+    <div class="page-actions"><a href="{% url 'import_asset' %}" class="btn outline"><i class="fa-solid fa-file-arrow-up" aria-hidden="true"></i>Import banyak dari Excel</a></div>
   </div>
 
-  <!-- PROGRESS STEPS -->
-  <div class="steps anim">
-    <div class="step active">
-      <div class="step-num">1</div>
-      <div class="step-label">Identitas Aset</div>
-    </div>
-    <div class="step-sep"></div>
-    <div class="step active">
-      <div class="step-num">2</div>
-      <div class="step-label">Klasifikasi</div>
-    </div>
-    <div class="step-sep"></div>
-    <div class="step active">
-      <div class="step-num">3</div>
-      <div class="step-label">Lokasi &amp; Dept</div>
-    </div>
-    <div class="step-sep"></div>
-    <div class="step">
-      <div class="step-num">4</div>
-      <div class="step-label">Finansial <span style="font-size:12px;color:var(--muted);">(Finance)</span></div>
-    </div>
-  </div>
-
-  <form method="POST" id="assetForm">
+  <form method="post" class="form-layout">
     {% csrf_token %}
-
-    <!-- SECTION 1: IDENTITAS ASET -->
-    <div class="form-section anim">
-      <div class="section-header">
-        <div class="section-label">Identitas Aset</div>
-      </div>
-      <div class="section-body">
-
-        <div class="field-row c2">
-          <div class="field">
-            <label class="field-label">No PO <span class="req">*</span></label>
-            <input type="text" name="no_po" class="form-control"
-              placeholder="e.g. PO-2024-001" required>
-            <span class="field-hint">Nomor Purchase Order dari pengadaan</span>
-          </div>
-          <div class="field">
-            <label class="field-label">Asset Number <span class="req">*</span></label>
-            <input type="text" name="asset_number" id="assetNumberInput" class="form-control"
-              placeholder="e.g. AST-IT-001" required
-              oninput="previewAssetNumber(this.value)">
-            <div class="an-preview" id="anPreview">
-              ID: <span id="anSpan">—</span>
-            </div>
-          </div>
-        </div>
-
-        <div class="field-row c1">
-          <div class="field">
-            <label class="field-label">Nama Aset <span class="req">*</span></label>
-            <input type="text" name="nama_asset" class="form-control"
-              placeholder="e.g. Laptop Dell Latitude 5540" required>
-          </div>
-        </div>
-
-        <div class="field-row c2">
-          <div class="field">
-            <label class="field-label">Tanggal Pembelian <span class="req">*</span></label>
-            <input type="date" name="tanggal_pembelian" id="tglPembelian"
-              class="form-control" required
-              onchange="hitungUmur()">
-            <span class="field-hint">Tanggal aset dibeli / diterima</span>
-          </div>
-          <!-- UMUR ASET — read-only, dihitung otomatis -->
-          <div class="field">
-            <label class="field-label">Umur Aset</label>
-            <div class="umur-display empty" id="umurDisplay">
-              <span class="umur-val" id="umurVal">Pilih tanggal pembelian terlebih dahulu</span>
-            </div>
-            <span class="field-hint">Dihitung otomatis · umur ekonomis diisi Finance</span>
-          </div>
-        </div>
-
+    <div class="form-main">
+      {% include "asset/_form_fields.html" with a=None %}
+      <div class="form-bar">
+        <span class="bar-hint"><span class="req">*</span> wajib diisi</span>
+        <a href="{% url 'asset_list' %}" class="btn outline">Batal</a>
+        <button type="submit" class="btn">Simpan aset</button>
       </div>
     </div>
 
-    <!-- SECTION 2: KLASIFIKASI -->
-    <div class="form-section anim">
-      <div class="section-header">
-        <div class="section-label">Klasifikasi Aset</div>
-      </div>
-      <div class="section-body">
-
-        <div class="field-row c2">
-          <div class="field">
-            <label class="field-label">Asset Group</label>
-            <div class="select-wrap">
-              <select name="asset_group" class="form-select" id="assetGroupSelect"
-                onchange="filterCategories(this.value)">
-                <option value="">— Pilih Group —</option>
-                {% for g in asset_groups %}
-                <option value="{{ g.id }}" data-name="{{ g.name }}">{{ g.name }}</option>
-                {% endfor %}
-              </select>
-            </div>
-            <span class="field-hint">Kategori besar jenis aset</span>
-          </div>
-
-          <div class="field">
-            <label class="field-label">Asset Category</label>
-            <div class="select-wrap">
-              <select name="asset_category" class="form-select" id="assetCategorySelect"
-                onchange="showCategoryInfo(this)">
-                <option value="">— Pilih Category —</option>
-                {% for g in asset_groups %}
-                  {% for c in g.categories.all %}
-                  <option value="{{ c.id }}"
-                    data-group="{{ g.id }}"
-                    data-interval="{{ c.default_interval_in_days|default:'' }}"
-                    data-name="{{ c.name }}">
-                    {{ c.name }}
-                  </option>
-                  {% endfor %}
-                {% endfor %}
-              </select>
-            </div>
-            <div class="category-info" id="categoryInfo">
-              Interval maintenance: <strong id="categoryInterval">—</strong> hari
-            </div>
-          </div>
-        </div>
-
-      </div>
-    </div>
-
-    <!-- SECTION 3: LOKASI & DEPARTMENT -->
-    <div class="form-section anim">
-      <div class="section-header">
-        <div class="section-label">Lokasi &amp; Department</div>
-      </div>
-      <div class="section-body">
-
-        <div class="field-row c2">
-          <div class="field">
-            <label class="field-label">Lokasi Aset</label>
-            <div class="select-wrap">
-              <select name="lokasi_asset" class="form-select">
-                <option value="">— Pilih Lokasi —</option>
-                {% for loc in locations %}
-                <option value="{{ loc.id }}">{{ loc }}</option>
-                {% endfor %}
-              </select>
-            </div>
-            <span class="field-hint">Lokasi fisik aset saat ini</span>
-          </div>
-
-          <div class="field">
-            <label class="field-label">Department Pemilik</label>
-            <div class="select-wrap">
-              <select name="department" class="form-select">
-                <option value="">— Pilih Department —</option>
-                {% for d in departments %}
-                <option value="{{ d.id }}">{{ d.name }}</option>
-                {% endfor %}
-              </select>
-            </div>
-          </div>
-        </div>
-
-      </div>
-    </div>
-
-    <!-- SECTION 4: INFO MAINTENANCE OTOMATIS -->
-    <div class="form-section anim" id="maintenanceInfoSection" style="display:none;">
-      <div class="section-header">
-        <div class="section-label">Info Maintenance Otomatis</div>
-      </div>
-      <div class="section-body">
-        <div class="maint-banner">
-          <div>
-            Setelah aset disimpan, jadwal maintenance akan <strong>di-generate otomatis</strong>
-            berdasarkan kategori yang dipilih. Interval default:
-            <strong id="maintenanceIntervalText" style="font-family:var(--mono);">—</strong>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- FINANCE INFO BANNER -->
-    <div class="form-section anim">
-      <div class="section-header">
-        <div class="section-label">Data Finansial</div>
-      </div>
-      <div class="section-body">
-        <div style="background:var(--mandatory-tint);border:1px solid #A9C4E2;border-radius:var(--r);
-          padding:14px 16px;font-size:13px;color:var(--accent);display:flex;gap:10px;align-items:flex-start;">
-          <div>
-            <strong>Umur ekonomis dan valuasi aset</strong> diisi oleh tim <strong>Finance</strong> setelah aset ini disimpan.
-            GA tidak perlu mengisi data finansial — ini sepenuhnya wewenang Finance.
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- SUBMIT -->
-    <div class="submit-row anim">
-      <button type="submit" class="btn btn-success">Simpan Aset</button>
-      <a href="{% url 'asset_list' %}" class="btn btn-secondary">Batal</a>
-      <span class="submit-hint">* Field wajib diisi</span>
-    </div>
-
+    <aside class="form-side">
+      <section class="panel">
+        <div class="panel-head"><h2>Langkah berikutnya</h2></div>
+        <ul class="tips">
+          <li><i class="fa-solid fa-coins" aria-hidden="true"></i><span><strong>Finance</strong> mengisi nilai perolehan, residual, dan umur ekonomis.</span></li>
+          <li><i class="fa-solid fa-camera" aria-hidden="true"></i><span>Tambahkan foto unit dari halaman detail aset.</span></li>
+          <li><i class="fa-solid fa-gears" aria-hidden="true"></i><span>Daftarkan komponen penting di <strong>BOM</strong> agar penggantian part tercatat.</span></li>
+        </ul>
+      </section>
+    </aside>
   </form>
 </div>
-
-<script>
-  function hitungUmur() {
-    const input = document.getElementById('tglPembelian').value;
-    const display = document.getElementById('umurDisplay');
-    const val = document.getElementById('umurVal');
-
-    if (!input) {
-      display.classList.add('empty');
-      val.textContent = 'Pilih tanggal pembelian terlebih dahulu';
-      return;
-    }
-
-    const tgl = new Date(input);
-    const today = new Date();
-    const diffMs = today - tgl;
-
-    if (diffMs < 0) {
-      display.classList.add('empty');
-      val.textContent = 'Tanggal tidak valid (masa depan)';
-      return;
-    }
-
-    const totalDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-    const years  = Math.floor(totalDays / 365);
-    const months = Math.floor((totalDays % 365) / 30);
-    const days   = totalDays % 30;
-
-    display.classList.remove('empty');
-
-    let text = '';
-    if (years > 0)  text += `${years} tahun `;
-    if (months > 0) text += `${months} bulan `;
-    if (days > 0 && years === 0) text += `${days} hari`;
-    if (!text) text = 'Baru dibeli hari ini';
-
-    val.textContent = text.trim();
-
-    // Tambahkan detail hari
-    const detail = document.getElementById('umurDetail');
-    if (detail) detail.textContent = `(${totalDays} hari total)`;
-  }
-
-  function previewAssetNumber(val) {
-    const preview = document.getElementById('anPreview');
-    const span    = document.getElementById('anSpan');
-    if (val.trim()) {
-      preview.classList.add('show');
-      span.textContent = val.toUpperCase();
-    } else {
-      preview.classList.remove('show');
-    }
-  }
-
-  function filterCategories(groupId) {
-    const catSelect = document.getElementById('assetCategorySelect');
-    catSelect.querySelectorAll('option').forEach(opt => {
-      if (!opt.value) return;
-      opt.style.display = (opt.dataset.group === groupId || !groupId) ? '' : 'none';
-    });
-    catSelect.value = '';
-    document.getElementById('categoryInfo').classList.remove('show');
-    document.getElementById('maintenanceInfoSection').style.display = 'none';
-  }
-
-  function showCategoryInfo(select) {
-    const opt      = select.options[select.selectedIndex];
-    const info     = document.getElementById('categoryInfo');
-    const interval = opt.dataset.interval;
-    const section  = document.getElementById('maintenanceInfoSection');
-
-    if (opt.value && interval) {
-      document.getElementById('categoryInterval').textContent = interval;
-      document.getElementById('maintenanceIntervalText').textContent = `${interval} hari`;
-      info.classList.add('show');
-      section.style.display = 'block';
-    } else {
-      info.classList.remove('show');
-      section.style.display = 'none';
-    }
-  }
-
-  document.getElementById('assetNumberInput').addEventListener('blur', function() {
-    this.value = this.value.toUpperCase();
-    previewAssetNumber(this.value);
-  });
-</script>
-
 {% endblock %}

@@ -262,10 +262,13 @@ class AssetQuerySet(models.QuerySet):
         """
         total_biaya_annot + jumlah_corrective dihitung di SQL,
         lalu compute_health() dipakai per baris tanpa query tambahan.
+        total_biaya_annot = biaya PERBAIKAN saja (corrective). Biaya preventive &
+        inspeksi tidak dihitung: aset yang rajin dirawat tidak boleh terlihat makin "sakit".
         """
         return self.annotate(
             total_biaya_annot=Coalesce(
-                Sum('maintenance_records__biaya'), Value(Decimal('0')),
+                Sum('maintenance_records__biaya', filter=Q(maintenance_records__maintenance_type='corrective')),
+                Value(Decimal('0')),
                 output_field=models.DecimalField(max_digits=15, decimal_places=2),
             ),
             jumlah_corrective=Count(
@@ -416,7 +419,8 @@ class Asset(models.Model):
     # ── Financial / Health Methods ───────────────────────────────
 
     def total_biaya_perbaikan(self):
-        result = self.maintenance_records.aggregate(total=Sum('biaya'))
+        """Biaya perbaikan (corrective) saja — dasar rasio kesehatan."""
+        result = self.maintenance_records.filter(maintenance_type='corrective').aggregate(total=Sum('biaya'))
         return result['total'] or Decimal('0')
 
     def breakdown_count(self):

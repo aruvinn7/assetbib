@@ -229,6 +229,13 @@ class AssetCategoryForm(forms.ModelForm):
         fields = ['group', 'name', 'default_interval_value', 'default_interval_unit', 'maintenance_description']
         labels = {'group': 'Grup', 'name': 'Nama kategori', 'default_interval_value': 'Interval'}
 
+    def clean_maintenance_description(self):
+        """Checklist: satu langkah per baris, dinomori ulang otomatis (1. … 2. …)."""
+        import re
+        lines = [re.sub(r'^\s*\d+\s*[.)]\s*', '', l).strip()
+                 for l in (self.cleaned_data.get('maintenance_description') or '').splitlines()]
+        return '\n'.join(f'{i}. {l}' for i, l in enumerate((l for l in lines if l), 1))
+
 
 class LocationForm(forms.ModelForm):
     class Meta:
