@@ -13,11 +13,14 @@ from django.utils import timezone
 # ================================================================
 
 # Threshold berdasarkan nilai aset: (batas atas nilai, {level: % biaya perbaikan})
+# Dasar: aturan praktis repair-vs-replace "50%" — bila akumulasi biaya PERBAIKAN (corrective)
+# mencapai ±setengah nilai perolehan, penggantian layak ditimbang. Aset murah lebih cepat
+# ditandai (mengganti murah); aset mahal lebih longgar (penggantian = keputusan modal besar).
 REPAIR_THRESHOLD_TIERS = [
-    (2_000_000,  {'warning': 20, 'waspada': 40, 'critical': 60}),
-    (10_000_000, {'warning': 30, 'waspada': 55, 'critical': 75}),
-    (50_000_000, {'warning': 40, 'waspada': 65, 'critical': 85}),
-    (None,       {'warning': 50, 'waspada': 75, 'critical': 100}),  # > 50jt
+    (2_000_000,  {'warning': 15, 'waspada': 30, 'critical': 50}),
+    (10_000_000, {'warning': 20, 'waspada': 35, 'critical': 50}),
+    (50_000_000, {'warning': 25, 'waspada': 40, 'critical': 60}),
+    (None,       {'warning': 30, 'waspada': 50, 'critical': 75}),  # > 50jt
 ]
 BREAKDOWN_WARNING = 5
 
