@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% load static %}
+{% load static waktu %}
 {% block legacy_css %}{% endblock %}
 {% block title %}Daftar aset{% endblock %}
 {% block nav_assets %}{% if financial_filter != 'no' %}active{% endif %}{% endblock %}
@@ -86,7 +86,7 @@
             <td data-label="Kategori">{{ asset.asset_category.name|default:"—" }}<div class="cell-sub">{{ asset.asset_group.name|default:"" }}</div></td>
             <td data-label="Lokasi" class="loc">{% include "components/_location.html" with loc=asset.lokasi_asset %}</td>
             <td data-label="Departemen">{{ asset.owned_by_department|default:"—" }}</td>
-            <td data-label="Umur" class="num">{{ asset.umur_asset }} th<div class="cell-sub">{{ asset.tanggal_pembelian|date:"M Y" }}</div></td>
+            <td data-label="Umur" class="num">{{ asset.umur_asset_detail|umur_singkat }}<div class="cell-sub">{{ asset.tanggal_pembelian|date:"M Y" }}</div></td>
             <td data-label="Status">{% include "components/_lifecycle.html" with status=asset.lifecycle_status %}</td>
             <td data-label="Kesehatan">
               {% include "components/_health.html" with health=asset.health %}
@@ -104,9 +104,6 @@
                 <a href="{% url 'financial_detail' asset.id %}">Finansial</a>
               {% elif emp.finance_profile %}
                 <a href="{% url 'financial_create' asset.id %}">Isi finansial</a>
-              {% endif %}
-              {% if emp.ga_profile %}
-                <a class="del" href="{% url 'asset_delete' asset.id %}{% querystring %}" onclick="return confirm('Hapus aset {{ asset.nama_asset|escapejs }}? Data maintenance & finansialnya ikut terhapus.')">Hapus</a>
               {% endif %}
             </td>
           </tr>

@@ -3,7 +3,7 @@
 {% block legacy_css %}{% endblock %}
 {% block title %}Maintenance{% endblock %}
 {% block nav_maintenance %}active{% endblock %}
-{% block extra_head %}<link rel="stylesheet" href="{% static 'css/pages/maintenance_list.css' %}?v=3">{% endblock %}
+{% block extra_head %}<link rel="stylesheet" href="{% static 'css/pages/maintenance_list.css' %}?v=4">{% endblock %}
 
 {% block content %}
 <div class="page">
@@ -60,7 +60,10 @@
             <td class="actions">
               {% if sch.status == 'upcoming' or sch.status == 'overdue' %}
                 <a class="btn sm" href="{% url 'maintenance_create' sch.asset.id %}" data-quick-maint>Catat</a>
-                <a class="skip" href="{% url 'maintenance_schedule_skip' sch.pk %}" onclick="return confirm('Lewati jadwal {{ sch.asset.nama_asset|escapejs }}? Jadwal ini tidak akan dihitung terlambat lagi.')">Lewati</a>
+                <form method="post" action="{% url 'maintenance_schedule_skip' sch.pk %}" class="skip-form" onsubmit="return confirm('Lewati jadwal {{ sch.asset.nama_asset|escapejs }} ({{ sch.scheduled_date|date:'d M Y' }})? Jadwal ini tidak dihitung terlambat lagi dan tidak bisa dicatat.')">
+                  {% csrf_token %}<input type="hidden" name="next" value="{{ request.get_full_path }}">
+                  <button type="submit" class="skip">Lewati</button>
+                </form>
               {% endif %}
             </td>
           </tr>

@@ -1,241 +1,179 @@
 {% extends "base.html" %}
-{% block title %}Detail Laporan #{{ report.pk }}{% endblock %}
-
-{% block vendor_css %}{% include "components/_bootstrap_css.html" %}{% endblock %}
+{% load static waktu rupiah %}
+{% block legacy_css %}{% endblock %}
+{% block title %}Laporan #{{ report.pk }} · {{ report.title }}{% endblock %}
+{% block nav_damage %}active{% endblock %}
+{% block extra_head %}<link rel="stylesheet" href="{% static 'css/pages/damage_report.css' %}?v=2">{% endblock %}
 
 {% block content %}
-<div class="container-fluid py-4">
+<div class="page">
+  <div class="crumbs">
+    <a href="{% url 'ga_damage_report_list' %}">Laporan kerusakan</a><i class="fa-solid fa-chevron-right" aria-hidden="true" style="font-size:10px"></i>#{{ report.pk }}
+  </div>
 
-  <div class="mb-4">
-    <a href="{% url 'ga_damage_report_list' %}" class="text-decoration-none text-muted">
-      <i class="bi bi-arrow-left me-1"></i>Kembali ke Daftar Laporan
-    </a>
-    <div class="d-flex align-items-center gap-3 mt-2">
-      <h4 class="mb-0">Laporan Kerusakan #{{ report.pk }}</h4>
-      <span class="badge bg-{{ report.severity_color }} fs-6">{{ report.get_severity_display }}</span>
-      <span class="badge bg-{{ report.status_color }}-subtle text-{{ report.status_color }} fs-6">
-        {{ report.get_report_status_display }}
-      </span>
+  <div class="page-head">
+    <div>
+      <h1>{{ report.title }}</h1>
+      <div class="sub">#{{ report.pk }} · dari {{ report.reported_by.nama|default:"—" }}{% if report.reported_by.jabatan %} ({{ report.reported_by.jabatan }}){% endif %} · {{ report.reported_at|sejak }}</div>
+      <div class="head-tags">
+        {% include "components/_severity.html" with severity=report.severity %}
+        {% include "components/_report_status.html" with status=report.report_status %}
+      </div>
+    </div>
+    <div class="page-actions">
+      <a class="btn outline" href="{% url 'asset_detail' report.asset.pk %}"><i class="fa-solid fa-box-archive" aria-hidden="true"></i>Buka aset</a>
     </div>
   </div>
 
-  <div class="row g-4">
-
-    <!-- Detail Laporan -->
-    <div class="col-lg-7">
-
-      <!-- Info Aset -->
-      <div class="card border-0 shadow-sm mb-3">
-        <div class="card-header bg-white border-0 pt-3 pb-0">
-          <h6 class="fw-bold text-muted text-uppercase" style="font-size:0.75rem; letter-spacing:1px">ASET YANG DILAPORKAN</h6>
-        </div>
-        <div class="card-body d-flex align-items-center gap-3">
-          <div class="bg-primary bg-opacity-10 rounded-3 p-3">
-            <i class="bi bi-box-seam fs-3 text-primary"></i>
-          </div>
-          <div>
-            <div class="fw-bold fs-5">{{ report.asset.nama_asset }}</div>
-            <div class="text-muted">
-              {{ report.asset.asset_number }}
-              {% if report.asset.asset_category %} · {{ report.asset.asset_category }}{% endif %}
-              {% if report.asset.lokasi_asset %} · {{ report.asset.lokasi_asset }}{% endif %}
-            </div>
-            <div class="mt-1">
-              {% if report.asset.lifecycle_status == 'maintenance' %}
-                <span class="badge bg-warning text-dark">Aset Sedang Dalam Maintenance</span>
-              {% endif %}
-            </div>
-          </div>
-          <div class="ms-auto">
-            <a href="{% url 'asset_detail' report.asset.pk %}" class="btn btn-sm btn-outline-primary">
-              Detail Aset <i class="bi bi-arrow-right ms-1"></i>
-            </a>
-          </div>
-        </div>
-      </div>
-
-      <!-- Detail Kerusakan -->
-      <div class="card border-0 shadow-sm mb-3">
-        <div class="card-body">
-          <h6 class="fw-bold mb-3">{{ report.title }}</h6>
-          <p class="text-muted">{{ report.description }}</p>
-
+  <div class="rd-grid">
+    <div class="rd-main">
+      <section class="panel">
+        <div class="panel-head"><h2>Keterangan pelapor</h2><span class="meta">{{ report.get_severity_display }}</span></div>
+        <div class="panel-body rd-desc">
+          <p>{{ report.description }}</p>
           {% if report.photo_evidence %}
-          <div class="mt-3">
-            <div class="fw-semibold small mb-2 text-muted">Foto Bukti Kerusakan:</div>
-            <img src="{{ report.photo_evidence.url }}" alt="Foto kerusakan"
-                 class="img-fluid rounded-3 border" style="max-height: 300px; object-fit:cover; width:100%">
-          </div>
+          <a class="rd-photo" href="{{ report.photo_evidence.url }}" target="_blank" rel="noopener">
+            <img src="{{ report.photo_evidence.url }}" alt="Foto bukti kerusakan {{ report.asset.nama_asset }}" loading="lazy">
+            <span><i class="fa-solid fa-up-right-from-square" aria-hidden="true"></i>Buka foto ukuran penuh</span>
+          </a>
+          {% else %}
+          <p class="dim">Pelapor tidak melampirkan foto.</p>
           {% endif %}
+        </div>
+      </section>
 
-          <hr class="my-3">
-          <div class="row g-3 text-sm">
-            <div class="col-md-6">
-              <div class="text-muted small">Dilaporkan oleh</div>
-              <div class="fw-semibold">{{ report.reported_by.nama|default:"—" }}</div>
-              <div class="text-muted small">{{ report.reported_by.jabatan|default:"" }}</div>
+      {% if report.is_active %}
+      <section class="panel act-panel" aria-labelledby="actTitle">
+        <div class="panel-head"><h2 id="actTitle">Tindak lanjut</h2><span class="meta">{% if report.report_status == 'pending' %}Belum ditanggapi{% else %}Diterima, menunggu hasil perbaikan{% endif %}</span></div>
+
+        {% if report.report_status == 'pending' %}
+        <form method="post" action="{% url 'ga_damage_report_acknowledge' report.pk %}" class="act-step">
+          {% csrf_token %}
+          <div class="act-step-head">
+            <span class="step-no" aria-hidden="true">1</span>
+            <div><h3>Terima laporan</h3><p>Pelapor melihat bahwa GA sudah menanggapi. Lewati langkah ini bila perbaikan langsung selesai hari ini.</p></div>
+          </div>
+          <div class="field">
+            <label for="ackNote">Pesan untuk pelapor <span class="opt">opsional</span></label>
+            <input class="input" type="text" id="ackNote" name="ga_notes" placeholder="Mis. teknisi datang besok pagi">
+          </div>
+          <div><button type="submit" class="btn outline">Terima laporan</button></div>
+        </form>
+        {% endif %}
+
+        <form method="post" action="{% url 'ga_damage_report_resolve' report.pk %}" class="act-step">
+          {% csrf_token %}
+          <div class="act-step-head">
+            {% if report.report_status == 'pending' %}<span class="step-no" aria-hidden="true">2</span>{% endif %}
+            <div><h3>Catat perbaikan selesai</h3><p>Tercatat sebagai maintenance corrective. Aset kembali Aktif bila hasilnya bukan Major issue.</p></div>
+          </div>
+
+          <div class="qm-row">
+            <div class="field">
+              <label for="rsDate">Tanggal perbaikan <span class="req" aria-hidden="true">*</span></label>
+              <input class="input" type="date" id="rsDate" name="tanggal_pelaksanaan" value="{% firstof resolve_posted.tanggal_pelaksanaan today|date:'Y-m-d' %}" min="{{ report.reported_at|date:'Y-m-d' }}" max="{{ today|date:'Y-m-d' }}" required>
             </div>
-            <div class="col-md-6">
-              <div class="text-muted small">Waktu Laporan</div>
-              <div class="fw-semibold">{{ report.reported_at|date:"d M Y, H:i" }}</div>
+            <div class="field">
+              <label for="rsCost">Biaya</label>
+              <div class="input-affix">
+                <span aria-hidden="true">Rp</span>
+                <input class="input" type="number" id="rsCost" name="biaya" value="{% firstof resolve_posted.biaya '0' %}" min="0" step="1000" inputmode="numeric">
+              </div>
+              <p class="field-hint">Isi 0 bila dikerjakan internal tanpa biaya.</p>
             </div>
           </div>
-        </div>
-      </div>
 
-      <!-- Schedule Corrective yang dibuat -->
-      {% if corrective_schedule %}
-      <div class="card border-0 shadow-sm mb-3 border-start border-danger border-4">
-        <div class="card-body">
-          <h6 class="fw-bold text-danger"><i class="bi bi-calendar-x me-2"></i>Jadwal Corrective Dibuat</h6>
-          <p class="mb-0 small text-muted">{{ corrective_schedule.notes }}</p>
-          <div class="mt-2">
-            <span class="badge bg-danger">
-              {{ corrective_schedule.get_status_display }} — {{ corrective_schedule.scheduled_date|date:"d M Y" }}
-            </span>
+          <div class="field">
+            <label for="rsDesc">Tindakan perbaikan <span class="req" aria-hidden="true">*</span></label>
+            <textarea class="textarea" id="rsDesc" name="deskripsi_pekerjaan" rows="3" required placeholder="Mis. ganti roller penarik kertas, bersihkan jalur kertas">{{ resolve_posted.deskripsi_pekerjaan|default:'' }}</textarea>
           </div>
-        </div>
-      </div>
+
+          <fieldset class="qm-field">
+            <legend>Hasil <span class="req" aria-hidden="true">*</span></legend>
+            <div class="result-pick">
+              {% firstof resolve_posted.hasil "ok" as cur_hasil %}
+              <label class="rp"><input type="radio" name="hasil" value="ok" {% if cur_hasil == 'ok' %}checked{% endif %}><svg class="sign" aria-hidden="true"><use href="#sign-safe"/></svg><span><strong>Baik</strong>Tidak ada masalah lagi</span></label>
+              <label class="rp"><input type="radio" name="hasil" value="minor_issue" {% if cur_hasil == 'minor_issue' %}checked{% endif %}><svg class="sign" aria-hidden="true"><use href="#sign-warning"/></svg><span><strong>Minor issue</strong>Masih bisa beroperasi</span></label>
+              <label class="rp"><input type="radio" name="hasil" value="major_issue" {% if cur_hasil == 'major_issue' %}checked{% endif %}><svg class="sign" aria-hidden="true"><use href="#sign-danger"/></svg><span><strong>Major issue</strong>Aset tetap Maintenance</span></label>
+              <label class="rp"><input type="radio" name="hasil" value="replaced_component" {% if cur_hasil == 'replaced_component' %}checked{% endif %}><svg class="sign" aria-hidden="true"><use href="#sign-mandatory"/></svg><span><strong>Komponen diganti</strong>Ada penggantian part</span></label>
+            </div>
+          </fieldset>
+
+          <div class="field">
+            <label for="rsNote">Pesan untuk pelapor <span class="opt">opsional</span></label>
+            <textarea class="textarea" id="rsNote" name="ga_notes" rows="2" placeholder="Mis. printer sudah normal, hindari kertas lembap">{% firstof resolve_posted.ga_notes report.ga_notes %}</textarea>
+            <p class="field-hint">Tampil di halaman laporan milik {{ report.reported_by.nama|default:"pelapor" }}.</p>
+          </div>
+
+          <div class="act-foot">
+            <button type="submit" class="btn"><span class="spinner" aria-hidden="true"></span><span class="btn-label">Simpan & tutup laporan</span></button>
+          </div>
+        </form>
+
+        <details class="reject">
+          <summary>Laporan tidak valid atau duplikat? Tolak laporan</summary>
+          <form method="post" action="{% url 'ga_damage_report_reject' report.pk %}" class="reject-body"
+                onsubmit="return confirm('Tolak laporan #{{ report.pk }}? Jadwal corrective dari laporan ini dihapus dan aset kembali Aktif bila tidak ada laporan lain.')">
+            {% csrf_token %}
+            <div class="field">
+              <label for="rjNote">Alasan penolakan <span class="req" aria-hidden="true">*</span></label>
+              <textarea class="textarea" id="rjNote" name="ga_notes" rows="2" required placeholder="Mis. duplikat laporan lain, atau aset berfungsi normal saat dicek"></textarea>
+              <p class="field-hint">Alasan ini dibaca pelapor.</p>
+            </div>
+            <div><button type="submit" class="btn danger">Tolak laporan</button></div>
+          </form>
+        </details>
+      </section>
       {% endif %}
 
-      <!-- Maintenance Record (jika sudah selesai) -->
       {% if report.resolved_maintenance %}
-      <div class="card border-0 shadow-sm border-start border-success border-4">
-        <div class="card-body">
-          <h6 class="fw-bold text-success"><i class="bi bi-check-circle me-2"></i>Maintenance Record</h6>
-          <div class="text-muted small">Dikerjakan oleh: <strong>{{ report.resolved_maintenance.performed_by.nama|default:"—" }}</strong></div>
-          <div class="text-muted small">Tanggal: {{ report.resolved_maintenance.tanggal_pelaksanaan|date:"d M Y" }}</div>
-          <div class="text-muted small">Hasil: {{ report.resolved_maintenance.get_hasil_display }}</div>
-          <div class="text-muted small">Biaya: Rp {{ report.resolved_maintenance.biaya|floatformat:0 }}</div>
-        </div>
-      </div>
+      {% with rec=report.resolved_maintenance %}
+      <section class="panel">
+        <div class="panel-head"><h2>Hasil perbaikan</h2><span class="meta">{{ rec.tanggal_pelaksanaan|date:"d M Y" }}</span></div>
+        <dl class="kv">
+          <div><dt>Hasil</dt><dd>{% if rec.hasil == 'ok' %}{% include "components/_status.html" with kind="safe" label="Baik" %}{% elif rec.hasil == 'minor_issue' %}{% include "components/_status.html" with kind="warning" label="Minor issue" %}{% elif rec.hasil == 'major_issue' %}{% include "components/_status.html" with kind="danger" label="Major issue" %}{% else %}{% include "components/_status.html" with kind="mandatory" label="Komponen diganti" %}{% endif %}</dd></div>
+          <div><dt>Dikerjakan oleh</dt><dd>{{ rec.performed_by.nama|default:"—" }}</dd></div>
+          <div><dt>Biaya</dt><dd>{{ rec.biaya|rupiah }}</dd></div>
+          {% if report.ga_notes %}<div><dt>Pesan ke pelapor</dt><dd class="pre">{{ report.ga_notes }}</dd></div>{% endif %}
+        </dl>
+      </section>
+      {% endwith %}
+      {% elif report.report_status == 'rejected' %}
+      <section class="panel">
+        <div class="panel-head"><h2>Alasan penolakan</h2></div>
+        <div class="panel-body"><p class="pre">{{ report.ga_notes|default:"Tidak ada alasan yang dicatat." }}</p></div>
+      </section>
       {% endif %}
     </div>
 
-    <!-- Action Panel GA -->
-    <div class="col-lg-5">
+    <aside class="rd-side">
+      <section class="panel">
+        <div class="panel-head"><h2>Aset</h2><a href="{% url 'asset_detail' report.asset.pk %}">Detail</a></div>
+        <dl class="kv">
+          <div><dt>Nama</dt><dd><strong class="asset-name">{{ report.asset.nama_asset }}</strong></dd></div>
+          <div><dt>Nomor</dt><dd>{{ report.asset.asset_number }}</dd></div>
+          {% if report.asset.asset_category %}<div><dt>Kategori</dt><dd>{{ report.asset.asset_category.name }}</dd></div>{% endif %}
+          <div><dt>Lokasi</dt><dd>{% if report.asset.lokasi_asset %}{{ report.asset.lokasi_asset }}{% else %}<span class="dim">Belum ditempatkan</span>{% endif %}</dd></div>
+          <div><dt>Status aset</dt><dd>{% include "components/_lifecycle.html" with status=report.asset.lifecycle_status %}</dd></div>
+          {% if corrective_schedule %}<div><dt>Jadwal corrective</dt><dd>{{ corrective_schedule.scheduled_date|date:"d M Y" }} <span class="dim">· {{ corrective_schedule.get_status_display|lower }}</span></dd></div>{% endif %}
+        </dl>
+      </section>
 
-      <!-- Acknowledge (jika masih pending) -->
-      {% if report.report_status == 'pending' %}
-      <div class="card border-0 shadow-sm mb-3 border-top border-warning border-4">
-        <div class="card-body">
-          <h6 class="fw-bold"><i class="bi bi-hand-index me-2 text-warning"></i>Terima & Akui Laporan</h6>
-          <p class="text-muted small">Konfirmasi bahwa laporan ini sudah diterima dan akan segera ditindaklanjuti.</p>
-          <form method="POST" action="{% url 'ga_damage_report_acknowledge' report.pk %}">
-            {% csrf_token %}
-            <textarea name="ga_notes" class="form-control form-control-sm mb-2" rows="2"
-                      placeholder="Catatan awal (opsional)..."></textarea>
-            <button type="submit" class="btn btn-warning w-100">
-              <i class="bi bi-check2 me-2"></i>Akui Laporan Ini
-            </button>
-          </form>
-        </div>
-      </div>
-      {% endif %}
-
-      <!-- Resolve (buat maintenance record + selesaikan) -->
-      {% if report.report_status in 'pending,acknowledged,in_progress' %}
-      {% if report.report_status != 'resolved' and report.report_status != 'rejected' %}
-      <div class="card border-0 shadow-sm mb-3 border-top border-success border-4">
-        <div class="card-header bg-white border-0">
-          <h6 class="fw-bold mb-0"><i class="bi bi-tools me-2 text-success"></i>Selesaikan Perbaikan</h6>
-        </div>
-        <div class="card-body">
-          <form method="POST" action="{% url 'ga_damage_report_resolve' report.pk %}">
-            {% csrf_token %}
-
-            <div class="mb-3">
-              <label class="form-label small fw-semibold">Tanggal Pelaksanaan Perbaikan <span class="text-danger">*</span></label>
-              <input type="date" name="tanggal_pelaksanaan" class="form-control form-control-sm"
-                     value="{{ today|date:'Y-m-d' }}" required>
-            </div>
-
-            <div class="mb-3">
-              <label class="form-label small fw-semibold">Tindakan Perbaikan yang Dilakukan <span class="text-danger">*</span></label>
-              <textarea name="deskripsi_pekerjaan" class="form-control form-control-sm" rows="3" required
-                        placeholder="Jelaskan apa yang sudah dilakukan untuk memperbaiki kerusakan ini..."></textarea>
-            </div>
-
-            <div class="mb-3">
-              <label class="form-label small fw-semibold">Hasil Perbaikan <span class="text-danger">*</span></label>
-              <select name="hasil" class="form-select form-select-sm" required>
-                <option value="ok">Baik — Tidak ada masalah lagi</option>
-                <option value="minor_issue">Minor — Masih ada masalah kecil</option>
-                <option value="major_issue">Major — Perlu tindak lanjut lagi</option>
-                <option value="replaced_component">Komponen diganti</option>
-              </select>
-            </div>
-
-            <div class="mb-3">
-              <label class="form-label small fw-semibold">Biaya Perbaikan (Rp)</label>
-              <input type="number" name="biaya" class="form-control form-control-sm"
-                     placeholder="0" min="0">
-            </div>
-
-            <div class="mb-3">
-              <label class="form-label small fw-semibold">Catatan GA untuk Pelapor</label>
-              <textarea name="ga_notes" class="form-control form-control-sm" rows="2"
-                        placeholder="Feedback untuk karyawan pelapor..."></textarea>
-            </div>
-
-            <button type="submit" class="btn btn-success w-100">
-              <i class="bi bi-check-circle me-2"></i>Selesaikan & Buat Maintenance Record
-            </button>
-          </form>
-        </div>
-      </div>
-
-      <!-- Reject -->
-      <div class="card border-0 shadow-sm">
-        <div class="card-body">
-          <h6 class="fw-bold text-secondary"><i class="bi bi-slash-circle me-2"></i>Tolak Laporan</h6>
-          <p class="text-muted small">Gunakan jika laporan tidak valid, duplikat, atau aset sudah di-writeoff.</p>
-          <form method="POST" action="{% url 'ga_damage_report_reject' report.pk %}">
-            {% csrf_token %}
-            <textarea name="ga_notes" class="form-control form-control-sm mb-2" rows="2"
-                      placeholder="Alasan penolakan..." required></textarea>
-            <button type="submit" class="btn btn-outline-secondary btn-sm w-100"
-                    onclick="return confirm('Yakin menolak laporan ini?')">
-              Tolak Laporan
-            </button>
-          </form>
-        </div>
-      </div>
-      {% endif %}
-      {% endif %}
-
-      <!-- Status Timeline -->
-      <div class="card border-0 shadow-sm mt-3">
-        <div class="card-body">
-          <h6 class="fw-bold mb-3">Timeline Status</h6>
-          <div class="d-flex flex-column gap-2">
-            <div class="d-flex align-items-center gap-2">
-              <i class="bi bi-circle-fill text-warning small"></i>
-              <span class="small">Laporan dikirim — {{ report.reported_at|date:"d M Y, H:i" }}</span>
-            </div>
-            {% if report.report_status in 'acknowledged,in_progress,resolved' %}
-            <div class="d-flex align-items-center gap-2">
-              <i class="bi bi-circle-fill text-info small"></i>
-              <span class="small">Diterima GA{% if report.handled_by %} oleh {{ report.handled_by.nama }}{% endif %}</span>
-            </div>
-            {% endif %}
-            {% if report.resolved_at %}
-            <div class="d-flex align-items-center gap-2">
-              <i class="bi bi-circle-fill text-success small"></i>
-              <span class="small">Diselesaikan — {{ report.resolved_at|date:"d M Y, H:i" }}</span>
-            </div>
-            {% endif %}
-            {% if report.report_status == 'rejected' %}
-            <div class="d-flex align-items-center gap-2">
-              <i class="bi bi-circle-fill text-secondary small"></i>
-              <span class="small">Laporan ditolak</span>
-            </div>
-            {% endif %}
-          </div>
-        </div>
-      </div>
-
-    </div>
+      <section class="panel">
+        <div class="panel-head"><h2>Riwayat laporan</h2></div>
+        {% include "components/_report_timeline.html" with report=report %}
+      </section>
+    </aside>
   </div>
 </div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+  // Cegah kirim ganda saat menyimpan penyelesaian
+  document.querySelectorAll('.act-step').forEach(f => f.addEventListener('submit', () => {
+    const b = f.querySelector('button[type=submit]');
+    if (b) { b.classList.add('is-loading'); }
+  }));
+</script>
 {% endblock %}

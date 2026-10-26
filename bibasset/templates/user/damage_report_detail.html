@@ -1,35 +1,55 @@
 {% extends "base.html" %}
+{% load static waktu %}
 {% block legacy_css %}{% endblock %}
 {% block title %}{{ report.title }}{% endblock %}
+{% block nav_my_reports %}active{% endblock %}
+{% block extra_head %}<link rel="stylesheet" href="{% static 'css/pages/damage_report.css' %}?v=2">{% endblock %}
 
 {% block content %}
-<div class="page" style="max-width:880px">
-  <div class="crumbs"><a href="{% url 'user_damage_report_list' %}">Laporan saya</a><i class="fa-solid fa-chevron-right" aria-hidden="true" style="font-size:10px"></i>Detail</div>
+<div class="page">
+  <div class="crumbs"><a href="{% url 'user_damage_report_list' %}">Laporan saya</a><i class="fa-solid fa-chevron-right" aria-hidden="true" style="font-size:10px"></i>#{{ report.pk }}</div>
   <div class="page-head">
     <div>
       <h1>{{ report.title }}</h1>
-      <div class="sub">{{ report.asset.nama_asset }} · dilaporkan {{ report.reported_at|date:"d M Y H:i" }}</div>
+      <div class="sub">{{ report.asset.nama_asset }} · {{ report.asset.asset_number }} · dilaporkan {{ report.reported_at|sejak }}</div>
+      <div class="head-tags">
+        {% include "components/_severity.html" with severity=report.severity %}
+        {% include "components/_report_status.html" with status=report.report_status %}
+      </div>
     </div>
-    {% include "components/_report_status.html" with status=report.report_status %}
   </div>
 
-  <section class="panel">
-    <div class="panel-head"><h2>Keterangan</h2><span class="meta">Tingkat: {{ report.get_severity_display }}</span></div>
-    <div class="panel-body">
-      <p style="margin:0;white-space:pre-line">{{ report.description }}</p>
-      {% if report.photo_evidence %}
-      <a href="{{ report.photo_evidence.url }}" target="_blank" rel="noopener">
-        <img src="{{ report.photo_evidence.url }}" alt="Foto bukti kerusakan" style="display:block;margin-top:16px;max-width:100%;max-height:360px;border-radius:12px;border:1px solid var(--rule)">
-      </a>
-      {% endif %}
-    </div>
-  </section>
+  <div class="rd-grid">
+    <div class="rd-main">
+      <section class="panel">
+        <div class="panel-head"><h2>Tanggapan GA</h2>{% if report.handled_by %}<span class="meta">{{ report.handled_by.nama }}</span>{% endif %}</div>
+        <div class="panel-body">
+          {% if report.ga_notes %}<p class="pre">{{ report.ga_notes }}</p>
+          {% elif report.report_status == 'pending' %}<p class="dim">GA belum menanggapi. Anda tidak perlu melapor ulang; laporan ini sudah masuk antrean.</p>
+          {% else %}<p class="dim">GA tidak menuliskan pesan.</p>{% endif %}
+        </div>
+      </section>
 
-  <section class="panel" style="margin-top:20px">
-    <div class="panel-head"><h2>Tanggapan GA</h2></div>
-    <div class="panel-body">
-      {% if report.ga_notes %}<p style="margin:0;white-space:pre-line">{{ report.ga_notes }}</p>{% else %}<p style="margin:0;color:var(--ink-3)">Belum ada tanggapan dari GA.</p>{% endif %}
+      <section class="panel">
+        <div class="panel-head"><h2>Laporan Anda</h2><span class="meta">{{ report.get_severity_display }}</span></div>
+        <div class="panel-body rd-desc">
+          <p>{{ report.description }}</p>
+          {% if report.photo_evidence %}
+          <a class="rd-photo" href="{{ report.photo_evidence.url }}" target="_blank" rel="noopener">
+            <img src="{{ report.photo_evidence.url }}" alt="Foto bukti kerusakan {{ report.asset.nama_asset }}" loading="lazy">
+            <span><i class="fa-solid fa-up-right-from-square" aria-hidden="true"></i>Buka foto ukuran penuh</span>
+          </a>
+          {% endif %}
+        </div>
+      </section>
     </div>
-  </section>
+
+    <aside class="rd-side">
+      <section class="panel">
+        <div class="panel-head"><h2>Riwayat laporan</h2></div>
+        {% include "components/_report_timeline.html" with report=report %}
+      </section>
+    </aside>
+  </div>
 </div>
 {% endblock %}

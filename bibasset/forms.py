@@ -17,11 +17,20 @@ MAX_UPLOAD_SIZE = 5 * 1024 * 1024
 
 
 def flash_form_errors(request, form):
-    """Tampilkan error form sebagai flash message (template belum render error per field)."""
+    """
+    Kirim error form lewat messages. Error per field diberi extra_tags
+    "field:<nama input HTML>|<label>" supaya base.html bisa menempelkannya
+    tepat di bawah isiannya; error tanpa isian tampil sebagai pesan biasa.
+    """
+    html_names = {field: html for html, field in getattr(form, 'aliases', {}).items()}
     for name, errors in form.errors.items():
-        label = form.fields[name].label if name in form.fields else ''
+        if name not in form.fields:
+            for err in errors:
+                messages.error(request, err)
+            continue
+        tag = f"field:{html_names.get(name, name)}|{form[name].label}"
         for err in errors:
-            messages.error(request, f"{label}: {err}" if label else err)
+            messages.error(request, err, extra_tags=tag)
 
 
 class AliasModelForm(forms.ModelForm):
@@ -52,6 +61,10 @@ class AssetForm(AliasModelForm):
             'tanggal_pembelian': 'Tanggal pembelian', 'lokasi_asset': 'Lokasi',
             'owned_by_department': 'Departemen', 'asset_group': 'Grup aset',
             'asset_category': 'Kategori aset',
+        }
+        # LANGUAGE_CODE masih en-us, jadi pesan bawaan Django ditulis ulang di sini
+        error_messages = {
+            'asset_number': {'unique': 'Nomor aset ini sudah dipakai aset lain.'},
         }
 
     def clean(self):

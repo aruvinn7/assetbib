@@ -104,20 +104,14 @@
                   {{ assignment.asset.lokasi_asset|default:"—" }}
                 </td>
                 <td>
-                  {% if assignment.asset.lifecycle_status == 'active' %}
-                    <span class="badge active">Active</span>
-                  {% elif assignment.asset.lifecycle_status == 'maintenance' %}
-                    <span class="badge maint">Maint.</span>
-                  {% else %}
-                    <span class="badge writeoff">W/O</span>
-                  {% endif %}
+                  {% include "components/_lifecycle.html" with status=assignment.asset.lifecycle_status %}
                 </td>
                 <td>
                   {% if assignment.asset.lifecycle_status == 'active' %}
                     <a href="{% url 'damage_report_create_for_asset' assignment.asset.id %}"
                        class="action-btn danger">Lapor</a>
                   {% else %}
-                    <span style="font-size:12px;color:var(--muted);font-family:var(--mono);">diproses</span>
+                    <span style="font-size:12px;color:var(--muted);">{% if assignment.asset.lifecycle_status == 'maintenance' %}Sudah dilaporkan{% else %}—{% endif %}</span>
                   {% endif %}
                 </td>
               </tr>
@@ -254,7 +248,7 @@
             <div class="db-info-label">Aset Dipegang</div>
             <div style="display:flex;align-items:center;gap:6px;">
               <span class="db-info-val">{{ total_held }}</span>
-              <span class="badge active">Active</span>
+              {% include "components/_status.html" with kind="safe" label="Aktif" %}
             </div>
           </div>
           <div class="db-info-item">

@@ -2,7 +2,7 @@
 {% load static %}
 {% block title %}Aset per lokasi · Pelacakan{% endblock %}
 
-{% block extra_head %}<link rel="stylesheet" href="{% static 'css/pages/dashboard_location.css' %}?v=3">{% endblock %}
+{% block extra_head %}<link rel="stylesheet" href="{% static 'css/pages/dashboard_location.css' %}?v=6">{% endblock %}
 
 {% block nav_tracking %}active{% endblock %}
 
@@ -113,11 +113,11 @@
             </div>
             <div class="sstrip">
               <div class="sstrip-num" style="color:var(--accent);">{{ selected_node.total_maint }}</div>
-              <div class="sstrip-label">Maint.</div>
+              <div class="sstrip-label">Maintenance</div>
             </div>
             <div class="sstrip">
               <div class="sstrip-num" style="color:var(--text-soft);">{{ selected_node.total_writeoff }}</div>
-              <div class="sstrip-label">W/O</div>
+              <div class="sstrip-label">Write off</div>
             </div>
           </div>
 
@@ -159,8 +159,8 @@
             <div class="ap-filters">
               <button class="ap-tab active" onclick="filterAssets('all',this)">Semua ({{ selected_assets|length }})</button>
               <button class="ap-tab g" onclick="filterAssets('active',this)">Aktif</button>
-              <button class="ap-tab a" onclick="filterAssets('maintenance',this)">Maint.</button>
-              <button class="ap-tab r" onclick="filterAssets('writeoff',this)">W/O</button>
+              <button class="ap-tab a" onclick="filterAssets('maintenance',this)">Maintenance</button>
+              <button class="ap-tab r" onclick="filterAssets('writeoff',this)">Write off</button>
             </div>
           </div>
           <div style="overflow-x:auto;">
@@ -197,21 +197,13 @@
                       border:1px solid var(--border);">{{ asset.owned_by_department|default:"—" }}</span>
                   </td>
                   <td>
-                    {% if asset.lifecycle_status == 'active' %}<span class="pill active">Active</span>
-                    {% elif asset.lifecycle_status == 'maintenance' %}<span class="pill maintenance">Maint.</span>
-                    {% else %}<span class="pill writeoff">W/O</span>{% endif %}
+                    {% include "components/_lifecycle.html" with status=asset.lifecycle_status %}
                   </td>
                   <td onclick="event.stopPropagation()">
-                   <a href="{% url 'maintenance_create' asset.id %}"  
-                      style="padding:4px 10px;border-radius:var(--r);font-size:12px;font-weight:700;
-                      text-decoration:none;border:1.5px solid #16a34a;
-                      background:var(--safe-tint);color:#166534;display:inline-block;">
-                      + Input
-                    </a>
-                    <a href="{% url 'asset_detail' asset.pk %}"
-                      style="padding:4px 10px;border-radius:var(--r);font-size:12px;font-weight:700;
-                        text-decoration:none;border:1.5px solid var(--border);
-                        background:var(--surface2);color:var(--text-soft);display:inline-block;">Detail</a>
+                    <div class="loc-row-acts">
+                      {% if asset.lifecycle_status != 'writeoff' %}<a class="btn sm" href="{% url 'maintenance_create' asset.id %}" data-quick-maint>Catat</a>{% endif %}
+                      <a class="btn sm outline" href="{% url 'asset_detail' asset.pk %}">Detail</a>
+                    </div>
                   </td>
                 </tr>
                 {% endfor %}

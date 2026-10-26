@@ -28,7 +28,7 @@
     <div class="stat"><span class="stat-label">Nilai perolehan</span><strong class="stat-value">{{ financial.nilai_awal_aset|rupiah }}</strong><span class="stat-note">residual {{ financial.nilai_residual|rupiah }}</span></div>
     <div class="stat"><span class="stat-label">Nilai buku {% if asset.lifecycle_status == 'writeoff' %}saat write off{% else %}hari ini{% endif %}</span><strong class="stat-value">{{ book|rupiah }}</strong><span class="stat-note">{{ book_pct }}% dari nilai perolehan</span></div>
     <div class="stat"><span class="stat-label">Penyusutan per tahun</span><strong class="stat-value">{{ financial.depresiasi_tahunan|rupiah }}</strong><span class="stat-note">garis lurus · {{ financial.umur_ekonomis }} tahun</span></div>
-    <div class="stat"><span class="stat-label">Sisa umur ekonomis</span><strong class="stat-value">{{ financial.sisa_umur_ekonomis }} <small>tahun</small></strong><span class="stat-note">terpakai {{ financial.umur_terpakai }} th · berakhir {{ end_date|date:"M Y" }}</span></div>
+    <div class="stat"><span class="stat-label">Sisa umur ekonomis</span><strong class="stat-value">{{ financial.sisa_umur_ekonomis }} <small>tahun</small></strong><span class="stat-note">terpakai {{ financial.umur_terpakai }} tahun · berakhir {{ end_date|date:"M Y" }}</span></div>
   </div>
 
   <div class="form-layout" style="max-width:none">
@@ -50,7 +50,7 @@
           </tbody>
         </table>
       </div>
-      <p class="panel-note" style="padding:12px 20px 16px;font-size:13px;color:var(--ink-3);border-top:1px solid var(--rule-soft)">Tahun pertama dihitung sejak tanggal beli. Umur terpakai dibulatkan ke 0,1 tahun, sama seperti perhitungan di seluruh aplikasi.</p>
+      <p class="panel-note">Tahun pertama dihitung sejak tanggal beli. Umur terpakai dibulatkan ke 0,1 tahun, sama seperti perhitungan di seluruh aplikasi.</p>
     </section>
 
     <aside class="form-side">

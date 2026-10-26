@@ -5,7 +5,7 @@
 {% block nav_dashboard %}active{% endblock %}
 
 {% block extra_head %}
-<link rel="stylesheet" href="{% static 'css/pages/dashboard.css' %}?v=3">
+<link rel="stylesheet" href="{% static 'css/pages/dashboard.css' %}?v=4">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js" defer></script>
 {% endblock %}
 
@@ -20,33 +20,33 @@
     </div>
     {% if is_ga %}
     <div class="page-actions">
-      <a href="{% url 'import_asset' %}" class="btn outline"><i class="fa-solid fa-file-arrow-up" aria-hidden="true"></i>Import Excel</a>
+      <a href="{% url 'import_asset' %}" class="btn outline wide-only"><i class="fa-solid fa-file-arrow-up" aria-hidden="true"></i>Import Excel</a>
       <a href="{% url 'asset_create' %}" class="btn"><i class="fa-solid fa-plus" aria-hidden="true"></i>Tambah aset</a>
     </div>
     {% endif %}
   </div>
 
   {# ── Papan status: bentuk rambu = arti ── #}
-  <div class="boards" id="dashBoards" data-refresh aria-label="Status aset">
-    <a class="board safe" href="{% url 'asset_list' %}?status=active">
+  <div class="boards dash-boards" id="dashBoards" data-refresh aria-label="Status aset">
+    <a class="board safe calm" href="{% url 'asset_list' %}?status=active">
       <span class="board-sign"><svg class="sign" aria-hidden="true"><use href="#sign-safe-rev"/></svg></span>
       <span class="board-body"><span class="board-num">{{ active_count }}</span><span class="board-label">Aktif</span><span class="board-note">dari {{ total_asset }} aset</span></span>
     </a>
-    <a class="board mandatory" href="{% url 'asset_list' %}?status=maintenance">
+    <a class="board mandatory calm" href="{% url 'asset_list' %}?status=maintenance">
       <span class="board-sign"><svg class="sign" aria-hidden="true"><use href="#sign-mandatory-rev"/></svg></span>
-      <span class="board-body"><span class="board-num">{{ maintenance_status_count }}</span><span class="board-label">Sedang maintenance</span><span class="board-note">{{ writeoff_count }} sudah write off</span></span>
+      <span class="board-body"><span class="board-num">{{ maintenance_status_count }}</span><span class="board-label">Maintenance</span><span class="board-note">{{ writeoff_count }} sudah write off</span></span>
     </a>
-    <a class="board warning" href="{% if is_ga %}{% url 'maintenance_list' %}?status=overdue{% else %}{% url 'asset_list' %}{% endif %}">
+    <a class="board warning urgent" href="{% if is_ga %}{% url 'maintenance_list' %}?status=overdue{% else %}{% url 'asset_list' %}{% endif %}">
       <span class="board-sign"><svg class="sign" aria-hidden="true"><use href="#sign-warning"/></svg></span>
       <span class="board-body"><span class="board-num">{{ overdue_count }}</span><span class="board-label">Jadwal terlambat</span><span class="board-note">{{ upcoming_soon_count }} jatuh tempo ≤ 7 hari</span></span>
     </a>
-    <a class="board danger" href="{% url 'asset_list' %}?health=critical">
+    <a class="board danger urgent" href="{% url 'asset_list' %}?health=critical">
       <span class="board-sign"><svg class="sign" aria-hidden="true"><use href="#sign-danger"/></svg></span>
       <span class="board-body"><span class="board-num">{{ critical_health_count }}</span><span class="board-label">Aset critical</span><span class="board-note">biaya perbaikan &gt; ambang</span></span>
     </a>
-    <a class="board {% if pending_damage_count %}danger{% else %}safe{% endif %}" href="{% if is_ga %}{% url 'ga_damage_report_list' %}{% else %}{% url 'asset_list' %}{% endif %}">
-      <span class="board-sign"><svg class="sign" aria-hidden="true"><use href="#sign-{% if pending_damage_count %}danger{% else %}safe-rev{% endif %}"/></svg></span>
-      <span class="board-body"><span class="board-num">{{ pending_damage_count }}</span><span class="board-label">Laporan kerusakan baru</span><span class="board-note">{{ critical_damage_count }} berstatus kritis</span></span>
+    <a class="board urgent {% if pending_damage_count %}danger{% else %}safe{% endif %}" href="{% if is_ga %}{% url 'ga_damage_report_list' %}{% else %}{% url 'asset_list' %}{% endif %}">
+      <span class="board-sign"><svg class="sign" aria-hidden="true"><use href="#sign-{% if pending_damage_count %}report{% else %}safe-rev{% endif %}"/></svg></span>
+      <span class="board-body"><span class="board-num">{{ pending_damage_count }}</span><span class="board-label">Laporan kerusakan baru</span><span class="board-label-short" aria-hidden="true">Laporan baru</span><span class="board-note">{{ critical_damage_count }} berstatus kritis</span></span>
     </a>
   </div>
 
@@ -93,11 +93,11 @@
             <tbody>
             {% for report in pending_damage_reports %}
               <tr>
-                <td>{% if report.severity == 'critical' %}{% include "components/_status.html" with kind="danger" label="Kritis" %}{% elif report.severity == 'high' %}{% include "components/_status.html" with kind="danger" label="Parah" %}{% elif report.severity == 'medium' %}{% include "components/_status.html" with kind="warning" label="Sedang" %}{% else %}{% include "components/_status.html" with kind="warning" label="Ringan" %}{% endif %}</td>
-                <td>{% if is_ga %}<a class="row-link" href="{% url 'ga_damage_report_detail' report.pk %}">{{ report.asset.nama_asset }}</a>{% else %}{{ report.asset.nama_asset }}{% endif %}<div class="cell-sub">{{ report.asset.asset_number }}</div></td>
-                <td>{{ report.title|truncatechars:48 }}</td>
-                <td>{{ report.reported_by.nama|default:"—" }}</td>
-                <td class="num">{{ report.reported_at|date:"d M Y" }}</td>
+                <td class="r-sev">{% include "components/_severity.html" with severity=report.severity %}</td>
+                <td class="r-asset">{% if is_ga %}<a class="row-link" href="{% url 'ga_damage_report_detail' report.pk %}">{{ report.asset.nama_asset }}</a>{% else %}{{ report.asset.nama_asset }}{% endif %}<div class="cell-sub">{{ report.asset.asset_number }}</div></td>
+                <td class="r-title">{{ report.title|truncatechars:48 }}</td>
+                <td class="r-who">{{ report.reported_by.nama|default:"—" }}</td>
+                <td class="num r-when">{{ report.reported_at|date:"d M Y" }}</td>
               </tr>
             {% endfor %}
             </tbody>

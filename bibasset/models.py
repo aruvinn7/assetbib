@@ -1061,8 +1061,8 @@ class AssetMovement(models.Model):
         days  = delta.days
         if days == 0:    return "Hari ini"
         if days < 30:    return f"{days} hari"
-        if days < 365:   return f"{days // 30} bln"
-        return f"{days // 365} thn {(days % 365) // 30} bln"
+        if days < 365:   return f"{days // 30} bulan"
+        return f"{days // 365} tahun {(days % 365) // 30} bulan"
 
 
 # ── Helper: buat movement baru & tutup yang lama ─────────────────

@@ -26,7 +26,7 @@
     text-transform:uppercase;letter-spacing:.4px;margin-top:3px;}
 
   /* LAYOUT */
-  .loc-layout{display:grid;grid-template-columns:320px 1fr;gap:14px;align-items:start;}
+  .loc-layout{display:grid;grid-template-columns:320px minmax(0,1fr);gap:14px;align-items:start;}
 
   /* TREE PANEL */
   .tree-panel{background:var(--surface);border:1px solid var(--border);
@@ -64,7 +64,7 @@
   .tree-node-count{font-size:12px;font-weight:700;font-family:var(--mono);
     background:var(--surface2);border:1px solid var(--border);color:var(--text-soft);
     padding:1px 6px;border-radius:var(--r);margin-right:10px;flex-shrink:0;}
-  .tree-node-count.has{background:var(--mandatory-tint);border-color:#A9C4E2;color:var(--accent);}
+  .tree-node-count.has{background:var(--mandatory-tint);border-color:var(--mandatory-line);color:var(--accent);}
   .tree-children{display:none;}
   .tree-children.open{display:block;}
 
@@ -95,7 +95,7 @@
   .detail-icon{width:44px;height:44px;border-radius:var(--r);flex-shrink:0;
     background:linear-gradient(135deg,var(--mandatory-tint),var(--mandatory-tint));
     display:flex;align-items:center;justify-content:center;font-size:22px;
-    border:1px solid #A9C4E2;}
+    border:1px solid var(--mandatory-line);}
   .detail-name{font-size:18px;font-weight:900;letter-spacing:-.3px;}
   .detail-sub{font-size:12px;color:var(--muted);font-family:var(--mono);margin-top:2px;}
   .detail-link{margin-left:auto;padding:6px 12px;border-radius:var(--r);
@@ -145,9 +145,9 @@
     border:1.5px solid var(--border);background:var(--surface2);color:var(--text-soft);
     cursor:pointer;transition:all .12s;font-family:var(--sans);}
   .ap-tab:hover,.ap-tab.active{border-color:var(--accent);color:var(--accent);background:var(--mandatory-tint);}
-  .ap-tab.g.active{background:var(--safe-tint);border-color:#A9CDB4;color:var(--success);}
-  .ap-tab.a.active{background:var(--warning-tint);border-color:#E3CF7E;color:var(--warning);}
-  .ap-tab.r.active{background:var(--danger-tint);border-color:#E7A5AF;color:var(--danger);}
+  .ap-tab.g.active{background:var(--safe-tint);border-color:var(--safe-line);color:var(--safe-ink);}
+  .ap-tab.a.active{background:var(--mandatory-tint);border-color:var(--mandatory-line);color:var(--mandatory-ink);}
+  .ap-tab.r.active{background:var(--off-tint);border-color:var(--field);color:var(--ink-2);}
 
   .loc-tbl{width:100%;border-collapse:collapse;}
   .loc-tbl th{padding:8px 12px;font-size:12px;font-weight:700;text-transform:uppercase;
@@ -157,11 +157,6 @@
     vertical-align:middle;}
   .loc-tbl tr:last-child td{border-bottom:none;}
   .loc-tbl tr:hover td{background:var(--surface2);cursor:pointer;}
-  .pill{display:inline-flex;align-items:center;padding:2px 8px;border-radius:var(--r);
-    font-size:12px;font-weight:700;font-family:var(--mono);}
-  .pill.active{background:var(--safe-tint);color:var(--success);}
-  .pill.maintenance{background:var(--mandatory-tint);color:var(--accent);}
-  .pill.writeoff{background:var(--off-tint);color:var(--ink-3);}
 
   /* Empty / prompt */
   .loc-empty{padding:48px 24px;text-align:center;}
@@ -177,7 +172,7 @@
 
   /* Responsive */
   @media(max-width:900px){
-    .loc-layout{grid-template-columns:1fr;}
+    .loc-layout{grid-template-columns:minmax(0,1fr);}
     .tree-panel{position:static;}
     .tree-body{max-height:260px;}
   }
@@ -186,4 +181,14 @@
     .loc-stats{gap:6px;}
     .subloc-grid{grid-template-columns:repeat(2,1fr);}
     .hm{display:none!important;}
+  }
+
+  /* Aksi baris aset: pakai tombol komponen (.btn sm) */
+  .loc-row-acts{display:flex;gap:6px;justify-content:flex-end;flex-wrap:wrap;}
+
+  /* Panel kanan menyempit karena pohon lokasi di kiri: sembunyikan kolom sekunder
+     menurut lebar panel (bukan layar) supaya tombol Catat/Detail tetap terlihat */
+  .content-panel{container-type:inline-size;min-width:0;}
+  @container (max-width: 760px){
+    .loc-tbl .hm, .loc-tbl th:first-child, .loc-tbl td:first-child{display:none;}
   }

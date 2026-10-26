@@ -8,6 +8,7 @@ from django.db import transaction
 from django.db.models import Count, Q
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
+from django.views.decorators.http import require_POST
 
 from ..decorators import role_required
 from ..forms import MaintenanceConfigForm, MaintenanceRecordForm, flash_form_errors
@@ -213,9 +214,14 @@ def maintenance_list(request):
     return render(request, 'maintenance/list.html', context)
 
 @role_required(is_ga)
+@require_POST
 def maintenance_schedule_skip(request, pk):
-    MaintenanceSchedule.objects.active().filter(pk=pk).update(status='skipped')
-    return redirect("maintenance_list")
+    sch = MaintenanceSchedule.objects.active().select_related('asset').filter(pk=pk).first()
+    if sch:
+        MaintenanceSchedule.objects.filter(pk=pk).update(status='skipped')
+        messages.success(request, f"Jadwal {sch.asset.nama_asset} ({sch.scheduled_date:%d %b %Y}) dilewati.")
+    next_url = request.POST.get('next', '')
+    return redirect(next_url if next_url.startswith('/maintenance/') else 'maintenance_list')
 
 
 @role_required(is_ga)

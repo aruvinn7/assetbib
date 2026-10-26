@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% load static rupiah math_filter %}
+{% load static rupiah math_filter waktu %}
 {% block legacy_css %}{% endblock %}
 {% block title %}{{ asset.nama_asset }} · {{ asset.asset_number }}{% endblock %}
 {% block nav_assets %}active{% endblock %}
@@ -96,7 +96,7 @@
       <div><dt><i class="fa-solid fa-building" aria-hidden="true"></i>Departemen</dt><dd>{{ asset.owned_by_department|default:"—" }}</dd></div>
       <div><dt><i class="fa-solid fa-receipt" aria-hidden="true"></i>No. PO</dt><dd>{{ asset.no_po|default:"—" }}</dd></div>
       <div><dt><i class="fa-solid fa-calendar" aria-hidden="true"></i>Tanggal beli</dt><dd>{{ asset.tanggal_pembelian|date:"d M Y" }}</dd></div>
-      <div><dt><i class="fa-solid fa-hourglass-half" aria-hidden="true"></i>Umur</dt><dd>{{ asset.umur_asset_detail.years }} th {{ asset.umur_asset_detail.months }} bln</dd></div>
+      <div><dt><i class="fa-solid fa-hourglass-half" aria-hidden="true"></i>Umur</dt><dd>{{ asset.umur_asset_detail|umur }}</dd></div>
       <div><dt><i class="fa-solid fa-user-pen" aria-hidden="true"></i>Dicatat oleh</dt><dd>{{ asset.created_by.nama|default:"—" }}<span class="dd-sub">{{ asset.created_at|date:"d M Y" }}</span></dd></div>
       <div><dt><i class="fa-solid fa-gears" aria-hidden="true"></i>Komponen</dt><dd>{{ components|length }} part</dd></div>
       <div><dt><i class="fa-solid fa-coins" aria-hidden="true"></i>Nilai buku</dt><dd>{% if asset.has_financial %}{{ book_value|rupiah }}{% else %}Belum dinilai{% endif %}</dd></div>
@@ -291,7 +291,7 @@
             <div><dt>Nilai buku</dt><dd><strong>{{ book_value|rupiah }}</strong></dd></div>
             <div><dt>Nilai residual</dt><dd>{{ asset.financial.nilai_residual|rupiah }}</dd></div>
             <div><dt>Depresiasi / tahun</dt><dd>{{ asset.financial.depresiasi_tahunan|rupiah }}</dd></div>
-            <div><dt>Umur ekonomis</dt><dd>{{ asset.financial.umur_ekonomis }} th · sisa {{ asset.financial.sisa_umur_ekonomis }} th</dd></div>
+            <div><dt>Umur ekonomis</dt><dd>{{ asset.financial.umur_ekonomis }} tahun · sisa {{ asset.financial.sisa_umur_ekonomis }} tahun</dd></div>
           </dl>
           <div class="bv">
             <div class="bv-track" role="img" aria-label="Nilai buku tersisa {{ book_value_pct }} persen"><span style="width:{{ book_value_pct }}%"></span></div>

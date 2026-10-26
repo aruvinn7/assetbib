@@ -1,13 +1,16 @@
 {% extends "base.html" %}
+{% load static waktu %}
 {% block legacy_css %}{% endblock %}
 {% block title %}Laporan saya{% endblock %}
+{% block nav_my_reports %}active{% endblock %}
+{% block extra_head %}<link rel="stylesheet" href="{% static 'css/pages/damage_report.css' %}?v=2">{% endblock %}
 
 {% block content %}
 <div class="page">
   <div class="page-head">
     <div>
-      <h1>Laporan kerusakan saya</h1>
-      <div class="sub">{{ reports|length }} laporan · {{ pending_count }} menunggu GA · {{ resolved_count }} selesai</div>
+      <h1>Laporan saya</h1>
+      <div class="sub">{{ active_count }} sedang ditangani GA · {{ resolved_count }} selesai</div>
     </div>
     <div class="page-actions">
       <a href="{% url 'damage_report_create' %}" class="btn"><i class="fa-solid fa-plus" aria-hidden="true"></i>Lapor kerusakan</a>
@@ -17,16 +20,16 @@
   <section class="panel" aria-label="Daftar laporan">
     {% if reports %}
     <div class="table-wrap">
-      <table class="table">
-        <thead><tr><th>Laporan</th><th>Aset</th><th>Tingkat</th><th>Status</th><th class="num">Dilaporkan</th></tr></thead>
+      <table class="table report-table mine">
+        <thead><tr><th>Tingkat</th><th>Laporan</th><th>Aset</th><th>Status</th><th class="num">Dilaporkan</th></tr></thead>
         <tbody>
         {% for r in reports %}
           <tr>
-            <td><a class="row-link" href="{% url 'user_damage_report_detail' r.pk %}">{{ r.title }}</a></td>
-            <td>{{ r.asset.nama_asset }}</td>
-            <td>{{ r.get_severity_display }}</td>
-            <td>{% include "components/_report_status.html" with status=r.report_status %}</td>
-            <td class="num">{{ r.reported_at|date:"d M Y" }}</td>
+            <td data-label="Tingkat" class="sev-cell">{% include "components/_severity.html" with severity=r.severity %}</td>
+            <td data-label="Laporan" class="report-cell"><a class="row-link" href="{% url 'user_damage_report_detail' r.pk %}">{{ r.title }}</a></td>
+            <td data-label="Aset" class="asset-col">{{ r.asset.nama_asset }}</td>
+            <td data-label="Status" class="status-col">{% include "components/_report_status.html" with status=r.report_status %}</td>
+            <td data-label="Dilaporkan" class="num when-col"><span title="{{ r.reported_at|date:'d M Y, H:i' }}">{{ r.reported_at|date:"d M Y" }}</span><div class="cell-sub">{{ r.reported_at|sejak }}</div></td>
           </tr>
         {% endfor %}
         </tbody>

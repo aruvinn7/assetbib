@@ -1,158 +1,97 @@
 {% extends "base.html" %}
-{% block title %}Laporan Kerusakan — GA{% endblock %}
-
-{% block vendor_css %}{% include "components/_bootstrap_css.html" %}{% endblock %}
+{% load static waktu %}
+{% block legacy_css %}{% endblock %}
+{% block title %}Laporan kerusakan{% endblock %}
+{% block nav_damage %}active{% endblock %}
+{% block extra_head %}<link rel="stylesheet" href="{% static 'css/pages/damage_report.css' %}?v=2">{% endblock %}
 
 {% block content %}
-<div class="container-fluid py-4">
+<div class="page">
 
-  <div class="d-flex justify-content-between align-items-center mb-4">
+  <div class="page-head">
     <div>
-      <h4 class="mb-0">Laporan Kerusakan Aset</h4>
-      <p class="text-muted mb-0">Kelola semua laporan kerusakan yang masuk dari karyawan</p>
+      <h1>Laporan kerusakan</h1>
+      <div class="sub">{{ active_count }} laporan aktif · {{ pending_count }} belum ditanggapi · {{ resolved_count }} sudah selesai</div>
     </div>
   </div>
 
-  <!-- Summary Badges -->
-  <div class="row g-3 mb-4">
-    <div class="col-6 col-md-3">
-      <a href="?status=pending" class="text-decoration-none">
-        <div class="card border-0 shadow-sm {% if status_filter == 'pending' %}border-warning border-2{% endif %}">
-          <div class="card-body text-center py-3">
-            <div class="fs-3 fw-bold text-warning">{{ pending_count }}</div>
-            <div class="small text-muted">Menunggu Tindak Lanjut</div>
-          </div>
-        </div>
-      </a>
-    </div>
-    <div class="col-6 col-md-3">
-      <a href="?status=acknowledged" class="text-decoration-none">
-        <div class="card border-0 shadow-sm">
-          <div class="card-body text-center py-3">
-            <div class="fs-3 fw-bold text-info">{{ acknowledged_count }}</div>
-            <div class="small text-muted">Diterima GA</div>
-          </div>
-        </div>
-      </a>
-    </div>
-    <div class="col-6 col-md-3">
-      <a href="?status=in_progress" class="text-decoration-none">
-        <div class="card border-0 shadow-sm">
-          <div class="card-body text-center py-3">
-            <div class="fs-3 fw-bold text-primary">{{ in_progress_count }}</div>
-            <div class="small text-muted">Sedang Diperbaiki</div>
-          </div>
-        </div>
-      </a>
-    </div>
-    <div class="col-6 col-md-3">
-      {% if critical_count > 0 %}
-      <div class="card border-0 shadow-sm border-danger border-2">
-        <div class="card-body text-center py-3">
-          <div class="fs-3 fw-bold text-danger">{{ critical_count }}</div>
-          <div class="small text-danger fw-semibold">Laporan Kritis!</div>
-        </div>
-      </div>
-      {% else %}
-      <a href="?status=resolved" class="text-decoration-none">
-        <div class="card border-0 shadow-sm">
-          <div class="card-body text-center py-3">
-            <div class="fs-3 fw-bold text-success">{{ resolved_count }}</div>
-            <div class="small text-muted">Selesai Diperbaiki</div>
-          </div>
-        </div>
-      </a>
+  {% if critical_count and severity_filter != 'critical' %}
+  <div class="note danger crit-note" role="status">
+    <svg class="sign" aria-hidden="true"><use href="#sign-danger"/></svg>
+    <span><strong>{{ critical_count }} laporan kritis masih aktif.</strong> Aset ini bisa membahayakan orang, tangani lebih dulu.</span>
+    <a href="{% querystring status=None severity='critical' page=None %}">Lihat laporan kritis</a>
+  </div>
+  {% endif %}
+
+  <div class="toolbar">
+    <nav class="filters" aria-label="Saring status laporan">
+      <a class="chip {% if not status_filter %}active{% endif %}" href="{% querystring status=None page=None %}" {% if not status_filter %}aria-current="true"{% endif %}>Aktif <span class="count">{{ active_count }}</span></a>
+      <a class="chip {% if status_filter == 'pending' %}active{% endif %}" href="{% querystring status='pending' page=None %}" {% if status_filter == 'pending' %}aria-current="true"{% endif %}><svg class="sign" aria-hidden="true"><use href="#sign-warning"/></svg>Menunggu GA <span class="count">{{ pending_count }}</span></a>
+      <a class="chip {% if status_filter == 'acknowledged' %}active{% endif %}" href="{% querystring status='acknowledged' page=None %}" {% if status_filter == 'acknowledged' %}aria-current="true"{% endif %}><svg class="sign" aria-hidden="true"><use href="#sign-mandatory"/></svg>Diterima GA <span class="count">{{ acknowledged_count }}</span></a>
+      {% if in_progress_count or status_filter == 'in_progress' %}
+      <a class="chip {% if status_filter == 'in_progress' %}active{% endif %}" href="{% querystring status='in_progress' page=None %}" {% if status_filter == 'in_progress' %}aria-current="true"{% endif %}><svg class="sign" aria-hidden="true"><use href="#sign-mandatory"/></svg>Sedang diperbaiki <span class="count">{{ in_progress_count }}</span></a>
       {% endif %}
-    </div>
+      <a class="chip {% if status_filter == 'resolved' %}active{% endif %}" href="{% querystring status='resolved' page=None %}" {% if status_filter == 'resolved' %}aria-current="true"{% endif %}><svg class="sign" aria-hidden="true"><use href="#sign-safe"/></svg>Selesai <span class="count">{{ resolved_count }}</span></a>
+      <a class="chip {% if status_filter == 'rejected' %}active{% endif %}" href="{% querystring status='rejected' page=None %}" {% if status_filter == 'rejected' %}aria-current="true"{% endif %}><svg class="sign" aria-hidden="true"><use href="#sign-off"/></svg>Ditolak <span class="count">{{ rejected_count }}</span></a>
+    </nav>
+    <form method="get" class="sev-filter" id="sevForm">
+      {% if status_filter %}<input type="hidden" name="status" value="{{ status_filter }}">{% endif %}
+      <label for="sevSelect">Tingkat</label>
+      <select class="select" id="sevSelect" name="severity">
+        <option value="">Semua tingkat</option>
+        <option value="critical" {% if severity_filter == 'critical' %}selected{% endif %}>Kritis</option>
+        <option value="high" {% if severity_filter == 'high' %}selected{% endif %}>Parah</option>
+        <option value="medium" {% if severity_filter == 'medium' %}selected{% endif %}>Sedang</option>
+        <option value="low" {% if severity_filter == 'low' %}selected{% endif %}>Ringan</option>
+      </select>
+      <noscript><button type="submit" class="btn outline sm">Terapkan</button></noscript>
+    </form>
   </div>
 
-  <!-- Filter Bar -->
-  <div class="card border-0 shadow-sm mb-3">
-    <div class="card-body py-2">
-      <form method="GET" class="d-flex gap-2 align-items-center flex-wrap">
-        <select name="status" class="form-select form-select-sm" style="width:auto">
-          <option value="">Semua Status Aktif</option>
-          <option value="pending"      {% if status_filter == 'pending'      %}selected{% endif %}>Menunggu</option>
-          <option value="acknowledged" {% if status_filter == 'acknowledged' %}selected{% endif %}>Diterima</option>
-          <option value="in_progress"  {% if status_filter == 'in_progress'  %}selected{% endif %}>Sedang Diperbaiki</option>
-          <option value="resolved"     {% if status_filter == 'resolved'     %}selected{% endif %}>Selesai</option>
-          <option value="rejected"     {% if status_filter == 'rejected'     %}selected{% endif %}>Ditolak</option>
-        </select>
-        <select name="severity" class="form-select form-select-sm" style="width:auto">
-          <option value="">Semua Severity</option>
-          <option value="critical" {% if severity_filter == 'critical' %}selected{% endif %}>Kritis</option>
-          <option value="high"     {% if severity_filter == 'high'     %}selected{% endif %}>Parah</option>
-          <option value="medium"   {% if severity_filter == 'medium'   %}selected{% endif %}>Sedang</option>
-          <option value="low"      {% if severity_filter == 'low'      %}selected{% endif %}>Ringan</option>
-        </select>
-        <button class="btn btn-sm btn-primary">Filter</button>
-        <a href="{% url 'ga_damage_report_list' %}" class="btn btn-sm btn-outline-secondary">Reset</a>
-      </form>
+  <section class="panel {% if not status_filter and pending_count %}hazard{% endif %}" aria-label="Daftar laporan">
+    {% if reports %}
+    <div class="table-wrap">
+      <table class="table report-table">
+        <thead><tr><th>Tingkat</th><th>Laporan</th><th>Aset</th><th>Pelapor</th><th>Status</th><th class="num">Masuk</th><th><span class="visually-hidden">Aksi</span></th></tr></thead>
+        <tbody>
+        {% for r in reports %}
+          <tr>
+            <td data-label="Tingkat" class="sev-cell">{% include "components/_severity.html" with severity=r.severity %}</td>
+            <td data-label="Laporan" class="report-cell">
+              <a class="row-link" href="{% url 'ga_damage_report_detail' r.pk %}">{{ r.title }}</a>
+              <div class="cell-sub clamp">{{ r.description }}</div>
+            </td>
+            <td data-label="Aset" class="asset-col">
+              <a class="asset-link" href="{% url 'asset_detail' r.asset.id %}">{{ r.asset.nama_asset }}</a>
+              <div class="cell-sub">{{ r.asset.asset_number }}{% if r.asset.lokasi_asset %} · {{ r.asset.lokasi_asset.name }}{% endif %}</div>
+            </td>
+            <td data-label="Pelapor" class="who-col">{{ r.reported_by.nama|default:"—" }}{% if r.reported_by.department %}<div class="cell-sub">{{ r.reported_by.department.name }}</div>{% endif %}</td>
+            <td data-label="Status" class="status-col">{% include "components/_report_status.html" with status=r.report_status %}</td>
+            <td data-label="Masuk" class="num when-col"><span title="{{ r.reported_at|date:'d M Y, H:i' }}">{{ r.reported_at|sejak }}</span><div class="cell-sub">{{ r.reported_at|date:"d M Y" }}</div></td>
+            <td class="actions">
+              {% if r.report_status == 'pending' %}<a class="btn sm" href="{% url 'ga_damage_report_detail' r.pk %}">Tanggapi</a>
+              {% elif r.is_active %}<a class="btn sm" href="{% url 'ga_damage_report_detail' r.pk %}">Selesaikan</a>
+              {% else %}<a class="btn sm outline" href="{% url 'ga_damage_report_detail' r.pk %}">Lihat</a>{% endif %}
+            </td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
     </div>
-  </div>
-
-  <!-- Tabel Laporan -->
-  <div class="card border-0 shadow-sm">
-    <div class="card-body p-0">
-      {% if reports %}
-      <div class="table-responsive">
-        <table class="table table-hover align-middle mb-0">
-          <thead class="table-light">
-            <tr>
-              <th class="ps-4">#</th>
-              <th>Aset</th>
-              <th>Judul Kerusakan</th>
-              <th>Dilaporkan Oleh</th>
-              <th>Severity</th>
-              <th>Status</th>
-              <th>Waktu</th>
-              <th></th>
-            </tr>
-          </thead>
-          <tbody>
-            {% for report in reports %}
-            <tr class="{% if report.severity == 'critical' %}table-danger{% elif report.report_status == 'pending' %}table-warning bg-opacity-25{% endif %}">
-              <td class="ps-4 text-muted small">#{{ report.pk }}</td>
-              <td>
-                <div class="fw-semibold small">{{ report.asset.nama_asset }}</div>
-                <div class="text-muted" style="font-size:0.75rem">{{ report.asset.asset_number }}</div>
-              </td>
-              <td>
-                <div class="fw-semibold">{{ report.title|truncatechars:50 }}</div>
-                <div class="text-muted small">{{ report.description|truncatechars:60 }}</div>
-              </td>
-              <td>
-                <div class="small">{{ report.reported_by.nama|default:"—" }}</div>
-                <div class="text-muted" style="font-size:0.75rem">{{ report.reported_by.department|default:"" }}</div>
-              </td>
-              <td>
-                <span class="badge bg-{{ report.severity_color }}">
-                  {{ report.get_severity_display }}
-                </span>
-              </td>
-              <td>
-                <span class="badge bg-{{ report.status_color }}-subtle text-{{ report.status_color }}">
-                  {{ report.get_report_status_display }}
-                </span>
-              </td>
-              <td class="text-muted small">{{ report.reported_at|timesince }} lalu</td>
-              <td>
-                <a href="{% url 'ga_damage_report_detail' report.pk %}"
-                   class="btn btn-sm btn-primary">Tangani</a>
-              </td>
-            </tr>
-            {% endfor %}
-          </tbody>
-        </table>
-      </div>
-      {% else %}
-      <div class="text-center py-5 text-muted">
-        <i class="bi bi-check-circle fs-1 d-block mb-2 text-success"></i>
-        Tidak ada laporan kerusakan aktif saat ini 
-      </div>
-      {% endif %}
+    {% include "components/_pagination.html" with label="laporan" %}
+    {% else %}
+    <div class="empty">
+      {% if severity_filter %}<strong>Tidak ada laporan dengan tingkat ini</strong><a href="{% querystring severity=None page=None %}">Tampilkan semua tingkat</a>
+      {% elif not status_filter %}<strong>Tidak ada laporan kerusakan aktif</strong>Semua laporan dari karyawan sudah ditangani.
+      {% else %}<strong>Belum ada laporan dengan status ini</strong>{% endif %}
     </div>
-  </div>
-
+    {% endif %}
+  </section>
 </div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+  document.getElementById('sevSelect').addEventListener('change', e => e.target.form.submit());
+</script>
 {% endblock %}

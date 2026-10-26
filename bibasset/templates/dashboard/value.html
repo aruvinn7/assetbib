@@ -69,7 +69,7 @@
       <div class="panel-head sub-head"><h2>Aset bernilai buku terbesar</h2></div>
       <ul class="rank">
         {% for r in top_book %}
-        <li><a href="{% url 'asset_detail' r.asset.pk %}"><span><strong>{{ r.asset.nama_asset }}</strong><small>{{ r.asset.asset_number }} · sisa {{ r.sisa }} th</small></span><b>{{ r.book|rupiah }}</b></a></li>
+        <li><a href="{% url 'asset_detail' r.asset.pk %}"><span><strong>{{ r.asset.nama_asset }}</strong><small>{{ r.asset.asset_number }} · sisa {{ r.sisa }} tahun</small></span><b>{{ r.book|rupiah }}</b></a></li>
         {% endfor %}
       </ul>
     </section>
@@ -85,7 +85,7 @@
           <tbody>
           {% for r in expired %}
             <tr><td><a class="row-link" href="{% url 'asset_detail' r.asset.pk %}">{{ r.asset.nama_asset }}</a><div class="cell-sub">{{ r.asset.asset_number }} · {{ r.asset.asset_category.name|default:"—" }}</div></td>
-                <td class="num">{{ r.umur }} th</td><td class="num">{{ r.end|date:"M Y" }}</td><td class="num">{{ r.cost|rupiah }}</td></tr>
+                <td class="num">{{ r.umur }} tahun</td><td class="num">{{ r.end|date:"M Y" }}</td><td class="num">{{ r.cost|rupiah }}</td></tr>
           {% endfor %}
           </tbody>
         </table>
@@ -102,7 +102,7 @@
           <thead><tr><th>Aset</th><th class="num">Berakhir</th><th class="num">Nilai buku</th></tr></thead>
           <tbody>
           {% for r in expiring %}
-            <tr><td><a class="row-link" href="{% url 'asset_detail' r.asset.pk %}">{{ r.asset.nama_asset }}</a><div class="cell-sub">{{ r.asset.asset_number }} · sisa {{ r.sisa }} th</div></td>
+            <tr><td><a class="row-link" href="{% url 'asset_detail' r.asset.pk %}">{{ r.asset.nama_asset }}</a><div class="cell-sub">{{ r.asset.asset_number }} · sisa {{ r.sisa }} tahun</div></td>
                 <td class="num">{{ r.end|date:"M Y" }}</td><td class="num">{{ r.book|rupiah }}</td></tr>
           {% endfor %}
           </tbody>

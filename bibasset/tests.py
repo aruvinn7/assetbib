@@ -118,3 +118,26 @@ class AccessAndFlowTest(TestCase):
         self.assertEqual(report.report_status, 'resolved')
         self.assertEqual(self.asset.lifecycle_status, 'active')
         self.assertEqual(report.corrective_schedules.get().status, 'done')
+
+    def test_destructive_actions_need_post(self):
+        self.client.force_login(self.ga_user)
+        sch = self.asset.schedules.create(scheduled_date=date.today(), status='upcoming')
+        # Link GET (prefetch browser, tautan yang dibagikan) tidak boleh mengubah data
+        self.assertEqual(self.client.get(f'/asset/{self.asset.pk}/delete/').status_code, 405)
+        self.assertEqual(self.client.get(f'/maintenance/schedule/{sch.pk}/skip/').status_code, 405)
+        self.assertTrue(Asset.objects.filter(pk=self.asset.pk).exists())
+        sch.refresh_from_db()
+        self.assertEqual(sch.status, 'upcoming')
+
+        self.client.post(f'/maintenance/schedule/{sch.pk}/skip/')
+        sch.refresh_from_db()
+        self.assertEqual(sch.status, 'skipped')
+        self.client.post(f'/asset/{self.asset.pk}/delete/')
+        self.assertFalse(Asset.objects.filter(pk=self.asset.pk).exists())
+
+    def test_form_errors_are_tagged_per_field(self):
+        self.client.force_login(self.ga_user)
+        r = self.client.post('/asset/create/', {'no_po': 'PO', 'nama_asset': 'X',
+                                                'asset_number': 'AC-1', 'tanggal_pembelian': '2025-01-01'})
+        tags = [m.extra_tags for m in r.context['messages']]
+        self.assertIn('field:asset_number|', ' '.join(tags))   # ditempel di bawah isian nomor aset

@@ -1,5 +1,38 @@
 /* Dashboard — Ringkasan aset */
 .boards { margin-bottom: 20px; }
+.board-label-short { display: none; }
+
+/* Ponsel: papan status diringkas supaya Antrean kerja masuk layar pertama.
+   Yang butuh tindakan (terlambat, critical, laporan baru) di baris atas, tiga sejajar;
+   Aktif & Maintenance jadi dua baris ringkas di bawahnya. */
+@media (max-width: 640px) {
+  .page-actions .wide-only { display: none; }
+  .page-head { margin-bottom: 16px; }
+  .boards.dash-boards { grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 8px; margin-bottom: 16px; }
+  .dash-boards .board { gap: 6px; padding: 10px 12px; border-radius: 12px; }
+  .dash-boards .board-sign { width: auto; height: auto; background: none !important; border-radius: 0; }
+  .dash-boards .board-sign .sign { width: 18px; height: 18px; }
+  .dash-boards .board-body { gap: 0; }
+  .dash-boards .board-num { order: 0; margin: 0; font-size: 22px; line-height: 26px; }
+  .dash-boards .board-label { order: 1; font-size: 12px; line-height: 16px; }
+  .dash-boards .board-note { display: none; }
+
+  /* Rambu dan angka satu baris, label di bawahnya */
+  .dash-boards .urgent { grid-column: span 2; display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: 2px 8px; }
+  .dash-boards .urgent .board-body { display: contents; }
+  .dash-boards .urgent .board-label, .dash-boards .urgent .board-label-short { grid-column: 1 / -1; }
+  .dash-boards .urgent:nth-child(3) { order: 1; }
+  .dash-boards .urgent:nth-child(4) { order: 2; }
+  .dash-boards .urgent:nth-child(5) { order: 3; }
+  /* Label panjang tetap dibaca pembaca layar; yang tampil versi pendek */
+  .dash-boards .board:has(.board-label-short) .board-label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  .dash-boards .board-label-short { display: block; order: 1; font-size: 12px; line-height: 16px; color: var(--ink-3); }
+
+  .dash-boards .calm { grid-column: span 3; order: 4; flex-direction: row; align-items: center; gap: 8px; padding: 8px 12px; }
+  .dash-boards .calm .board-body { flex-direction: row; align-items: baseline; gap: 6px; min-width: 0; }
+  .dash-boards .calm .board-num { font-size: 16px; line-height: 22px; }
+  .dash-boards .calm .board-label, .dash-boards .calm .board-label-short { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--ink-3); }
+}
 
 .dash-grid { display: grid; grid-template-columns: minmax(0, 2fr) minmax(300px, 1fr); gap: 20px; margin-bottom: 20px; align-items: start; }
 .dash-grid.trend { grid-template-columns: 1fr 1fr; }
@@ -55,21 +88,24 @@ tbody.open .expand i { transform: rotate(90deg); }
   .dash-grid, .dash-grid.trend { grid-template-columns: minmax(0, 1fr); }
 }
 @media (max-width: 640px) {
-  /* Antrean di ponsel: baris bertumpuk — status + aset, lalu keterlambatan, lalu tombol Catat penuh */
+  /* Antrean di ponsel: nama aset di atas, lalu satu baris status · keterlambatan · tombol Catat */
   .queue .table thead { display: none; }
   .queue .table, .queue .table tbody, .queue .table tr, .queue .table td { display: block; width: 100%; }
-  .queue .table tr { padding: 14px 16px; border-bottom: 1px solid var(--rule-soft); display: grid; grid-template-columns: 1fr; gap: 6px; }
+  .queue .table tr { padding: 12px 16px; border-bottom: 1px solid var(--rule-soft); display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 6px 10px; }
   .queue .table tbody tr:last-child { border-bottom: 0; }
-  .queue .table td { padding: 0; border: 0; text-align: left; }
-  .queue .q-status { order: 1; }
-  .queue .q-asset { order: 0; }
-  .queue .q-when { order: 2; display: flex; gap: 8px; align-items: baseline; }
+  .queue .table td { padding: 0; border: 0; text-align: left; width: auto; }
+  .queue .q-asset { grid-column: 1 / -1; order: -1; }
+  .queue .q-when { display: flex; flex-direction: column; font-size: 13px; line-height: 1.3; }
   .queue .q-when .cell-sub { margin: 0; }
-  .queue .q-act { order: 3; }
-  .queue .q-act .btn { width: 100%; min-height: 40px; }
+  .queue .q-act .btn { min-height: 40px; padding: 0 16px; }
   .queue .table td.loc { display: none; }
-  /* Tabel laporan kerusakan: sembunyikan kolom sekunder */
-  .queue-sub .table th:nth-child(4), .queue-sub .table td:nth-child(4) { display: none; }
+
+  /* Laporan kerusakan aktif: tingkat + tanggal, lalu aset, lalu masalahnya */
+  .queue-sub .table tr { grid-template-columns: auto minmax(0, 1fr); }
+  .queue-sub .r-asset { grid-column: 1 / -1; order: 2; }
+  .queue-sub .r-title { grid-column: 1 / -1; order: 3; font-size: 13px; color: var(--ink-3); }
+  .queue-sub .r-when { order: 1; text-align: right; font-size: 13px; color: var(--ink-3); }
+  .queue-sub .r-who { display: none !important; }
   .chart-box { height: 220px; }
   .chart-empty { min-height: 140px; }
 }

@@ -5,7 +5,8 @@
 .sched-table .late { color: var(--danger); font-weight: 600; }
 .sched-table td:first-child { white-space: nowrap; }
 .actions { white-space: nowrap; text-align: right; }
-.actions .skip { margin-left: 8px; font-size: 13px; color: var(--ink-3); text-decoration: none; padding: 6px 8px; border-radius: 8px; }
+.actions .skip-form { display: inline; margin: 0; }
+.actions .skip { margin-left: 12px; font: inherit; font-size: 13px; color: var(--ink-3); background: none; border: 0; cursor: pointer; text-decoration: none; padding: 6px 8px; border-radius: 8px; }
 .actions .skip:hover { color: var(--ink); background: var(--off-tint); }
 
 /* Dialog pilih aset */

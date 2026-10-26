@@ -1,5 +1,5 @@
 {# Panel ringkas satu aset di daftar aset (dimuat lewat fetch oleh static/js/asset_list.js) #}
-{% load rupiah %}
+{% load rupiah waktu %}
 {% with emp=request.user.employee %}
 <header class="dlg-head qv-head">
   <div class="qv-nav">
@@ -39,7 +39,7 @@
     <div><dt>Pemegang</dt><dd>{% if holder %}{{ holder.nama }}{% else %}<span class="dim">Tidak ada (aset bersama)</span>{% endif %}</dd></div>
     <div><dt>Departemen</dt><dd>{{ asset.owned_by_department|default:"—" }}</dd></div>
     <div><dt>Kategori</dt><dd>{{ asset.asset_category.name|default:"—" }}</dd></div>
-    <div><dt>Umur</dt><dd>{{ asset.umur_asset_detail.years }} th {{ asset.umur_asset_detail.months }} bln <span class="dim">· beli {{ asset.tanggal_pembelian|date:"d M Y" }}</span></dd></div>
+    <div><dt>Umur</dt><dd>{{ asset.umur_asset_detail|umur }} <span class="dim">· beli {{ asset.tanggal_pembelian|date:"d M Y" }}</span></dd></div>
     <div><dt>Nilai buku</dt><dd>{% if book_value is not None %}{{ book_value|rupiah }}{% else %}<span class="dim">Belum dinilai</span>{% endif %}</dd></div>
     <div>
       <dt>Jadwal berikutnya</dt>

@@ -6,6 +6,13 @@
       "runtimeExecutable": "python",
       "runtimeArgs": ["manage.py", "runserver", "8001"],
       "port": 8001
+    },
+    {
+      "name": "django-preview",
+      "runtimeExecutable": "python",
+      "runtimeArgs": ["manage.py", "runserver", "8003"],
+      "port": 8003,
+      "autoPort": false
     }
   ]
 }

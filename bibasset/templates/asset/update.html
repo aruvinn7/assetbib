@@ -37,9 +37,6 @@
       </section>
 
       <div class="form-bar">
-        {% if emp.ga_profile %}
-        <a href="{% url 'asset_delete' asset.id %}" class="btn danger" onclick="return confirm('Hapus aset {{ asset.nama_asset|escapejs }}? Semua riwayat maintenance, foto, BOM, dan data finansialnya ikut terhapus permanen. Untuk aset yang sudah tidak dipakai, gunakan write off.')"><i class="fa-regular fa-trash-can" aria-hidden="true"></i>Hapus</a>
-        {% endif %}
         <span class="bar-hint"><span class="req">*</span> wajib diisi</span>
         <a href="{% url 'asset_detail' asset.id %}" class="btn outline">Batal</a>
         <button type="submit" class="btn">Simpan perubahan</button>
@@ -72,8 +69,27 @@
           {% endif %}
         </ul>
       </section>
+
+      {% if emp.ga_profile %}
+      <section class="panel danger-zone" aria-labelledby="delTitle">
+        <div class="panel-head"><h2 id="delTitle">Hapus permanen</h2></div>
+        <div class="panel-body">
+          <p>Hanya untuk aset yang salah input. Riwayat maintenance, foto, BOM, dan data finansialnya ikut hilang dan tidak bisa dikembalikan.</p>
+          {% if asset.lifecycle_status != 'writeoff' %}<p>Aset yang sudah tidak dipakai sebaiknya <a href="{% url 'asset_write_off' asset.id %}">di-write off</a>, supaya riwayatnya tetap tersimpan.</p>{% endif %}
+          <button type="submit" form="assetDeleteForm" class="btn danger full"><i class="fa-regular fa-trash-can" aria-hidden="true"></i>Hapus aset ini</button>
+        </div>
+      </section>
+      {% endif %}
     </aside>
   </form>
+
+  {% if emp.ga_profile %}
+  {# Form terpisah (bukan di dalam form edit) supaya Hapus tidak ikut menyimpan perubahan #}
+  <form id="assetDeleteForm" method="post" action="{% url 'asset_delete' asset.id %}" hidden
+        onsubmit="return confirm('Hapus permanen {{ asset.nama_asset|escapejs }} ({{ asset.asset_number|escapejs }})? Semua riwayat maintenance, foto, BOM, dan data finansialnya ikut terhapus dan tidak bisa dikembalikan.')">
+    {% csrf_token %}
+  </form>
+  {% endif %}
 </div>
 {% endwith %}
 {% endblock %}

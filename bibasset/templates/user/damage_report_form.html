@@ -1,135 +1,148 @@
 {% extends "base.html" %}
-{% block title %}Laporkan Kerusakan Aset{% endblock %}
-
-{% block vendor_css %}{% include "components/_bootstrap_css.html" %}{% endblock %}
+{% load static %}
+{% block legacy_css %}{% endblock %}
+{% block title %}Lapor kerusakan{% endblock %}
+{% block nav_report_create %}active{% endblock %}
+{% block extra_head %}<link rel="stylesheet" href="{% static 'css/pages/damage_report.css' %}?v=2">{% endblock %}
 
 {% block content %}
-<div class="container py-4" style="max-width: 720px;">
-
-  <div class="mb-4">
-    <a href="{% url 'user_dashboard' %}" class="text-decoration-none text-muted">
-      <i class="bi bi-arrow-left me-1"></i>Kembali ke Dashboard
-    </a>
-    <h4 class="mt-2 mb-0">Laporkan Kerusakan Aset</h4>
-    <p class="text-muted">Isi form berikut dengan detail kondisi kerusakan yang Anda temukan.</p>
+{% firstof posted.severity "medium" as cur_sev %}
+<div class="page">
+  <div class="crumbs">
+    <a href="{% url 'user_damage_report_list' %}">Laporan saya</a><i class="fa-solid fa-chevron-right" aria-hidden="true" style="font-size:10px"></i>Lapor kerusakan
   </div>
-
-  <div class="card border-0 shadow-sm">
-    <div class="card-body p-4">
-      <form method="POST" enctype="multipart/form-data">
-        {% csrf_token %}
-
-        <!-- Pilih Aset -->
-        <div class="mb-4">
-          <label class="form-label fw-semibold">Aset yang Rusak <span class="text-danger">*</span></label>
-          {% if selected_asset %}
-            <input type="hidden" name="asset_id" value="{{ selected_asset.id }}">
-            <div class="border rounded-3 p-3 bg-light">
-              <div class="fw-semibold">{{ selected_asset.nama_asset }}</div>
-              <div class="text-muted small">{{ selected_asset.asset_number }}
-                {% if selected_asset.asset_category %} · {{ selected_asset.asset_category }}{% endif %}
-                {% if selected_asset.lokasi_asset %} · {{ selected_asset.lokasi_asset }}{% endif %}
-              </div>
-            </div>
-          {% else %}
-            <select name="asset_id" class="form-select" required>
-              <option value="">— Pilih aset yang bermasalah —</option>
-              {% for asset in held_assets %}
-              <option value="{{ asset.id }}">
-                {{ asset.nama_asset }} ({{ asset.asset_number }})
-                {% if asset.lokasi_asset %} — {{ asset.lokasi_asset }}{% endif %}
-              </option>
-              {% endfor %}
-            </select>
-            {% if not held_assets %}
-            <div class="form-text text-warning">
-              <i class="bi bi-exclamation-triangle me-1"></i>
-              Anda tidak memegang aset aktif yang bisa dilaporkan.
-            </div>
-            {% endif %}
-          {% endif %}
-        </div>
-
-        <!-- Judul -->
-        <div class="mb-3">
-          <label class="form-label fw-semibold">Judul Kerusakan <span class="text-danger">*</span></label>
-          <input type="text" name="title" class="form-control" required
-                 placeholder="Contoh: AC tidak mendingin, Layar laptop retak, Printer paper jam terus-menerus">
-          <div class="form-text">Tuliskan ringkasan singkat masalah yang dialami.</div>
-        </div>
-
-        <!-- Severity -->
-        <div class="mb-3">
-          <label class="form-label fw-semibold">Tingkat Keparahan <span class="text-danger">*</span></label>
-          <div class="row g-2">
-            <div class="col-6 col-md-3">
-              <input type="radio" class="btn-check" name="severity" id="sev_low" value="low">
-              <label class="btn btn-outline-success w-100" for="sev_low">
-                <i class="bi bi-check-circle d-block fs-5 mb-1"></i>
-                <span class="small">Ringan</span><br>
-                <span style="font-size:0.7rem" class="text-muted">Masih bisa dipakai</span>
-              </label>
-            </div>
-            <div class="col-6 col-md-3">
-              <input type="radio" class="btn-check" name="severity" id="sev_medium" value="medium" checked>
-              <label class="btn btn-outline-warning w-100" for="sev_medium">
-                <i class="bi bi-exclamation-circle d-block fs-5 mb-1"></i>
-                <span class="small">Sedang</span><br>
-                <span style="font-size:0.7rem" class="text-muted">Fungsi terganggu</span>
-              </label>
-            </div>
-            <div class="col-6 col-md-3">
-              <input type="radio" class="btn-check" name="severity" id="sev_high" value="high">
-              <label class="btn btn-outline-danger w-100" for="sev_high">
-                <i class="bi bi-x-circle d-block fs-5 mb-1"></i>
-                <span class="small">Parah</span><br>
-                <span style="font-size:0.7rem" class="text-muted">Tidak bisa dipakai</span>
-              </label>
-            </div>
-            <div class="col-6 col-md-3">
-              <input type="radio" class="btn-check" name="severity" id="sev_critical" value="critical">
-              <label class="btn btn-outline-dark w-100" for="sev_critical">
-                <i class="bi bi-lightning-fill d-block fs-5 mb-1"></i>
-                <span class="small">Kritis</span><br>
-                <span style="font-size:0.7rem" class="text-muted">Darurat/berbahaya</span>
-              </label>
-            </div>
-          </div>
-        </div>
-
-        <!-- Deskripsi -->
-        <div class="mb-3">
-          <label class="form-label fw-semibold">Deskripsi Detail <span class="text-danger">*</span></label>
-          <textarea name="description" class="form-control" rows="4" required
-                    placeholder="Jelaskan detail kondisi kerusakan:&#10;- Kapan pertama kali terjadi?&#10;- Gejala / tanda-tanda yang terlihat?&#10;- Apakah sudah pernah terjadi sebelumnya?"></textarea>
-        </div>
-
-        <!-- Foto Bukti -->
-        <div class="mb-4">
-          <label class="form-label fw-semibold">Foto Bukti Kerusakan</label>
-          <input type="file" name="photo_evidence" class="form-control" accept="image/*">
-          <div class="form-text">Opsional, tapi sangat membantu GA untuk menilai kondisi. Maks. 5MB.</div>
-        </div>
-
-        <!-- Info Box -->
-        <div class="alert alert-info d-flex gap-2 align-items-start mb-4">
-          <i class="bi bi-info-circle-fill mt-1 flex-shrink-0"></i>
-          <div class="small">
-            <strong>Setelah laporan dikirim:</strong><br>
-            Status aset akan otomatis berubah ke <strong>Dalam Perbaikan</strong> dan tim GA akan mendapat
-            notifikasi untuk menindaklanjuti. Anda bisa memantau progress perbaikan di halaman laporan Anda.
-          </div>
-        </div>
-
-        <div class="d-flex gap-2">
-          <button type="submit" class="btn btn-danger px-4" {% if not held_assets and not selected_asset %}disabled{% endif %}>
-            <i class="bi bi-send-fill me-2"></i>Kirim Laporan
-          </button>
-          <a href="{% url 'user_dashboard' %}" class="btn btn-outline-secondary">Batal</a>
-        </div>
-      </form>
+  <div class="page-head">
+    <div>
+      <h1>Lapor kerusakan</h1>
+      <div class="sub">Laporan langsung masuk ke GA. Aset ditandai Maintenance sampai selesai diperbaiki.</div>
     </div>
   </div>
 
+  <form method="post" enctype="multipart/form-data" class="form-layout single" novalidate>
+    {% csrf_token %}
+    <div class="form-main">
+
+      <section class="fsec">
+        <div class="fsec-head"><h2>Aset yang rusak</h2><p>Hanya aset yang sedang Anda pegang.</p></div>
+        <div class="fsec-body">
+          {% if selected_asset %}
+            <input type="hidden" name="asset_id" value="{{ selected_asset.id }}">
+            <div class="picked-asset">
+              <i class="fa-solid fa-box-archive" aria-hidden="true"></i>
+              <div>
+                <strong>{{ selected_asset.nama_asset }}</strong>
+                <span>{{ selected_asset.asset_number }}{% if selected_asset.asset_category %} · {{ selected_asset.asset_category.name }}{% endif %}{% if selected_asset.lokasi_asset %} · {{ selected_asset.lokasi_asset.name }}{% endif %}</span>
+              </div>
+            </div>
+          {% elif held_assets %}
+            <div class="field">
+              <label for="rpAsset">Aset <span class="req" aria-hidden="true">*</span></label>
+              <select class="select" id="rpAsset" name="asset_id" required>
+                <option value="">Pilih aset…</option>
+                {% for a in held_assets %}
+                <option value="{{ a.id }}" {% if posted.asset_id == a.id|stringformat:"s" %}selected{% endif %}>{{ a.nama_asset }} · {{ a.asset_number }}{% if a.lokasi_asset %} · {{ a.lokasi_asset.name }}{% endif %}</option>
+                {% endfor %}
+              </select>
+            </div>
+          {% else %}
+            <div class="note warn">
+              <svg class="sign" aria-hidden="true"><use href="#sign-warning"/></svg>
+              <span>Anda belum memegang aset aktif yang bisa dilaporkan. Aset berstatus Maintenance sedang ditangani GA, jadi tidak perlu dilaporkan lagi. Hubungi GA bila aset Anda belum terdaftar.</span>
+            </div>
+          {% endif %}
+        </div>
+      </section>
+
+      <section class="fsec">
+        <div class="fsec-head"><h2>Kerusakan</h2><p>Semakin jelas, semakin cepat GA bisa menilai dan memperbaiki.</p></div>
+        <div class="fsec-body">
+          <div class="field">
+            <label for="rpTitle">Masalahnya apa? <span class="req" aria-hidden="true">*</span></label>
+            <input class="input" type="text" id="rpTitle" name="title" maxlength="200" required value="{{ posted.title|default:'' }}"
+                   placeholder="Mis. AC tidak dingin, printer sering macet" {% if form.title.errors %}aria-invalid="true" aria-describedby="rpTitleErr"{% endif %}>
+            {% if form.title.errors %}<p class="field-error" id="rpTitleErr">Tulis ringkasan masalahnya.</p>{% endif %}
+          </div>
+
+          <fieldset class="qm-field">
+            <legend>Seberapa parah? <span class="req" aria-hidden="true">*</span></legend>
+            <div class="result-pick sev-pick">
+              <label class="rp"><input type="radio" name="severity" value="low" {% if cur_sev == 'low' %}checked{% endif %}><svg class="sign" aria-hidden="true"><use href="#sign-none"/></svg><span><strong>Ringan</strong>Masih bisa dipakai</span></label>
+              <label class="rp"><input type="radio" name="severity" value="medium" {% if cur_sev == 'medium' %}checked{% endif %}><svg class="sign" aria-hidden="true"><use href="#sign-warning"/></svg><span><strong>Sedang</strong>Sebagian fungsi terganggu</span></label>
+              <label class="rp"><input type="radio" name="severity" value="high" {% if cur_sev == 'high' %}checked{% endif %}><svg class="sign" aria-hidden="true"><use href="#sign-danger"/></svg><span><strong>Parah</strong>Tidak bisa dipakai sama sekali</span></label>
+              <label class="rp is-critical"><input type="radio" name="severity" value="critical" {% if cur_sev == 'critical' %}checked{% endif %}><svg class="sign" aria-hidden="true"><use href="#sign-danger"/></svg><span><strong>Kritis</strong>Membahayakan orang, perlu segera</span></label>
+            </div>
+            <p class="field-hint" id="critHint" {% if cur_sev != 'critical' %}hidden{% endif %}>Bila ada bahaya langsung (korsleting, asap, kebocoran gas), jauhkan orang dari aset dan hubungi GA atau HSE lewat telepon juga.</p>
+          </fieldset>
+
+          <div class="field">
+            <label for="rpDesc">Ceritakan detailnya <span class="req" aria-hidden="true">*</span></label>
+            <textarea class="textarea" id="rpDesc" name="description" rows="4" required
+                      placeholder="Kapan mulai terjadi? Apa yang terlihat atau terdengar? Sudah pernah terjadi sebelumnya?"
+                      {% if form.description.errors %}aria-invalid="true" aria-describedby="rpDescErr"{% endif %}>{{ posted.description|default:'' }}</textarea>
+            {% if form.description.errors %}<p class="field-error" id="rpDescErr">Jelaskan kondisi kerusakannya.</p>{% endif %}
+          </div>
+
+          <div class="field">
+            <label for="rpPhoto">Foto kerusakan <span class="opt">opsional</span></label>
+            <label class="photo-drop" for="rpPhoto" id="rpDrop">
+              <span class="photo-drop-text" id="rpPhotoText"><i class="fa-solid fa-camera" aria-hidden="true"></i><strong>Ambil atau pilih foto</strong><small>JPG/PNG, maksimal 5 MB</small></span>
+            </label>
+            <input class="visually-hidden" type="file" id="rpPhoto" name="photo_evidence" accept="image/*" {% if form.photo_evidence.errors %}aria-invalid="true" aria-describedby="rpPhotoErr"{% endif %}>
+            {% if form.photo_evidence.errors %}<p class="field-error" id="rpPhotoErr">{{ form.photo_evidence.errors.0 }}</p>{% endif %}
+            <p class="field-error" id="rpPhotoSize" hidden>Foto lebih dari 5 MB. Pilih foto lain atau kecilkan dulu.</p>
+          </div>
+        </div>
+      </section>
+
+      <div class="form-bar">
+        <span class="bar-hint"><span class="req">*</span> wajib diisi</span>
+        <a href="{% url 'user_dashboard' %}" class="btn outline">Batal</a>
+        <button type="submit" class="btn" {% if not held_assets and not selected_asset %}disabled{% endif %}><span class="spinner" aria-hidden="true"></span><span class="btn-label">Kirim laporan</span></button>
+      </div>
+    </div>
+  </form>
 </div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+  (() => {
+    const form = document.querySelector('form.form-layout');
+    const photo = document.getElementById('rpPhoto');
+    const drop = document.getElementById('rpDrop');
+    const sizeErr = document.getElementById('rpPhotoSize');
+    const text = document.getElementById('rpPhotoText');
+
+    photo.addEventListener('change', () => {
+      const f = photo.files[0];
+      const tooBig = f && f.size > 5 * 1024 * 1024;
+      sizeErr.hidden = !tooBig;
+      photo.setAttribute('aria-invalid', tooBig ? 'true' : 'false');
+      drop.querySelector('img')?.remove();
+      if (!f || tooBig) { text.hidden = false; if (tooBig) photo.value = ''; return; }
+      const img = new Image();
+      img.src = URL.createObjectURL(f);
+      img.alt = 'Pratinjau foto ' + f.name;
+      drop.prepend(img);
+      text.hidden = true;
+    });
+
+    document.querySelectorAll('input[name=severity]').forEach(r => r.addEventListener('change', () => {
+      document.getElementById('critHint').hidden = r.value !== 'critical';
+    }));
+
+    // Validasi ringan sebelum kirim: tandai isian kosong di tempatnya, bukan lewat toast
+    form.addEventListener('submit', e => {
+      let first = null;
+      form.querySelectorAll('[required]').forEach(el => {
+        const empty = !el.value.trim();
+        el.setAttribute('aria-invalid', empty ? 'true' : 'false');
+        if (empty && !first) first = el;
+      });
+      if (first) { e.preventDefault(); first.focus(); return; }
+      form.querySelector('[type=submit]').classList.add('is-loading');
+    });
+    form.addEventListener('input', e => { if (e.target.value?.trim()) e.target.setAttribute('aria-invalid', 'false'); });
+  })();
+</script>
 {% endblock %}

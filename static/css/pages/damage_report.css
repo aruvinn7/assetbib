@@ -1,0 +1,123 @@
+/* Laporan kerusakan — daftar & detail GA, form & laporan milik karyawan */
+
+/* ── Daftar ── */
+.crit-note { align-items: center; margin-bottom: 16px; }
+.crit-note .sign { width: 20px; height: 20px; flex: none; }
+.crit-note span { flex: 1; }
+.crit-note strong { color: var(--danger-ink); font-weight: 600; }
+.crit-note a { font-weight: 500; white-space: nowrap; color: var(--danger-ink); }
+
+.sev-filter { display: flex; align-items: center; gap: 10px; margin: 0; }
+.sev-filter label { font-size: 14px; color: var(--ink-3); }
+.sev-filter .select { width: auto; min-width: 170px; }
+
+.report-table td { vertical-align: top; }
+.report-table .sev-cell, .report-table .status-col { white-space: nowrap; }
+.report-table .report-cell { min-width: 240px; max-width: 420px; }
+.report-table .clamp { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; max-width: 60ch; }
+.report-table .asset-col { min-width: 180px; max-width: 280px; }
+.report-table .asset-link { color: var(--ink-2); text-decoration: none; }
+.report-table .asset-link:hover { color: var(--brand-500); text-decoration: underline; }
+.report-table .who-col { white-space: nowrap; }
+.report-table .when-col { color: var(--ink-2); }
+.report-table .actions { white-space: nowrap; text-align: right; vertical-align: middle; }
+
+@media (max-width: 860px) {
+  .toolbar .sev-filter { width: 100%; }
+  .sev-filter .select { flex: 1; }
+  .report-table thead { display: none; }
+  .report-table, .report-table tbody, .report-table tr, .report-table td { display: block; width: 100%; }
+  .report-table tr { display: grid; grid-template-columns: auto 1fr; align-items: center; gap: 8px 10px; padding: 14px 16px; border-bottom: 1px solid var(--rule-soft); }
+  .report-table tbody tr:last-child { border-bottom: 0; }
+  .report-table td { padding: 0; border: 0; min-width: 0; max-width: none; }
+  .report-table .sev-cell { order: 0; }
+  .report-table .status-col { order: 1; }
+  .report-table .report-cell, .report-table .asset-col, .report-table .who-col { grid-column: 1 / -1; }
+  .report-table .report-cell { order: 2; }
+  .report-table .asset-col { order: 3; }
+  .report-table .who-col { order: 4; white-space: normal; font-size: 13px; color: var(--ink-3); }
+  .report-table .who-col .cell-sub { display: inline; }
+  .report-table .who-col .cell-sub::before { content: " · "; }
+  .report-table .when-col { order: 5; text-align: left; font-size: 13px; }
+  .report-table .when-col .cell-sub { display: none; }
+  .report-table .actions { order: 6; text-align: right; }
+  .report-table.mine .asset-col { font-size: 13px; color: var(--ink-3); }
+  .report-table.mine .when-col { grid-column: 1 / -1; }
+}
+
+/* ── Detail ── */
+.head-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.rd-grid { display: grid; grid-template-columns: minmax(0, 1fr) 360px; gap: 20px; align-items: start; }
+.rd-main, .rd-side { display: grid; gap: 20px; min-width: 0; }
+.rd-side { position: sticky; top: calc(var(--header-h) + 20px); }
+
+.rd-desc { display: grid; gap: 16px; }
+.rd-desc p, .pre { margin: 0; white-space: pre-line; color: var(--ink); max-width: 72ch; }
+.dim { margin: 0; color: var(--ink-3); }
+.rd-photo { position: relative; display: block; width: max-content; max-width: 100%; border-radius: 12px; overflow: hidden; border: 1px solid var(--rule); }
+.rd-photo img { display: block; max-width: 100%; max-height: 360px; object-fit: contain; background: var(--ground); }
+.rd-photo span { position: absolute; left: 10px; bottom: 10px; display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 999px; background: rgba(16, 24, 40, .72); color: #fff; font-size: 12px; font-weight: 500; opacity: 0; transition: opacity .15s; }
+.rd-photo:hover span, .rd-photo:focus-visible span { opacity: 1; }
+.kv .asset-name { font-weight: 500; }
+
+/* Panel tindak lanjut: langkah bernomor, tolak di bawah sebagai jalan keluar */
+.act-panel { border-color: var(--brand-200); }
+.act-step { display: grid; gap: 16px; padding: 20px; border-bottom: 1px solid var(--rule-soft); }
+.act-step-head { display: flex; gap: 12px; align-items: flex-start; }
+.act-step-head h3 { font-size: 15px; font-weight: 600; color: var(--ink); }
+.act-step-head p { margin: 2px 0 0; font-size: 13px; color: var(--ink-3); max-width: 64ch; }
+.step-no { width: 26px; height: 26px; flex: none; display: grid; place-items: center; border-radius: 999px; background: var(--brand-50); color: var(--brand-600); font-size: 13px; font-weight: 600; }
+.act-foot { display: flex; justify-content: flex-end; }
+.reject { padding: 14px 20px 16px; }
+.reject summary { cursor: pointer; width: max-content; max-width: 100%; font-size: 14px; color: var(--ink-3); }
+.reject summary:hover { color: var(--danger-ink); }
+.reject[open] summary { margin-bottom: 14px; color: var(--ink-2); }
+.reject-body { display: grid; gap: 12px; }
+
+/* Jejak status */
+.steps { list-style: none; margin: 0; padding: 18px 20px 20px; }
+.steps li { position: relative; display: flex; gap: 12px; padding-bottom: 18px; }
+.steps li:last-child { padding-bottom: 0; }
+.steps li:not(:last-child)::before { content: ""; position: absolute; left: 10px; top: 26px; bottom: 4px; width: 2px; border-radius: 2px; background: var(--rule); }
+.steps li.done:not(:last-child)::before { background: var(--safe-line); }
+.steps .sign { width: 22px; height: 22px; margin-top: 1px; }
+.steps strong { display: block; font-size: 14px; font-weight: 500; color: var(--ink); }
+.steps span { font-size: 13px; color: var(--ink-3); }
+.steps li.todo strong { font-weight: 400; color: var(--ink-3); }
+
+/* ── Form karyawan ── */
+.picked-asset { display: flex; align-items: center; gap: 14px; padding: 14px 16px; border: 1px solid var(--rule); border-radius: 12px; background: var(--ground); }
+.picked-asset > i { width: 40px; height: 40px; flex: none; display: grid; place-items: center; border-radius: 10px; background: var(--panel); border: 1px solid var(--rule); color: var(--ink-3); }
+.picked-asset strong { display: block; color: var(--ink); font-weight: 500; }
+.picked-asset span { font-size: 13px; color: var(--ink-3); }
+
+.sev-pick .rp { padding: 12px 14px; }
+.sev-pick .rp.is-critical:has(input:checked) { border-color: var(--danger); background: var(--danger-tint); box-shadow: 0 0 0 1px var(--danger); }
+.sev-pick .rp.is-critical:has(input:checked) strong { color: var(--danger-ink); }
+
+.photo-drop {
+  display: grid; place-items: center; min-height: 132px; padding: 16px; cursor: pointer; overflow: hidden;
+  border: 1px dashed var(--field); border-radius: 12px; background: var(--ground); transition: border-color .15s, background .15s;
+}
+.photo-drop:hover { border-color: var(--brand-300); background: var(--brand-25); }
+.photo-drop img { max-width: 100%; max-height: 240px; border-radius: 8px; object-fit: contain; }
+.photo-drop-text { display: grid; justify-items: center; gap: 4px; text-align: center; }
+.photo-drop-text i { font-size: 22px; color: var(--ink-3); margin-bottom: 4px; }
+.photo-drop-text strong { font-weight: 500; color: var(--brand-600); }
+.photo-drop-text small { font-size: 12px; color: var(--ink-3); }
+.photo-drop:has(+ input:focus-visible) { outline: 2px solid var(--brand-500); outline-offset: 2px; }
+
+@media (max-width: 1100px) {
+  .rd-grid { grid-template-columns: minmax(0, 1fr); }
+  .rd-side { position: static; }
+}
+@media (max-width: 640px) {
+  /* Chip status satu baris yang bisa digeser, supaya daftar tetap di layar pertama */
+  .toolbar .filters { flex-wrap: nowrap; overflow-x: auto; width: calc(100% + 2 * var(--gutter)); margin: 0 calc(-1 * var(--gutter)); padding: 2px var(--gutter) 4px; scrollbar-width: none; }
+  .toolbar .filters::-webkit-scrollbar { display: none; }
+  .toolbar .chip { flex: none; }
+  .act-step { padding: 16px; }
+  .act-foot .btn { width: 100%; }
+  .reject { padding: 12px 16px 16px; }
+  .crit-note { flex-wrap: wrap; }
+}

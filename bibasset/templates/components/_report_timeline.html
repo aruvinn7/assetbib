@@ -1,0 +1,42 @@
+{% load waktu %}
+{# Jejak status laporan kerusakan. Pakai: {% include "components/_report_timeline.html" with report=report %} #}
+<ol class="steps">
+  <li class="done">
+    <svg class="sign" aria-hidden="true"><use href="#sign-safe"/></svg>
+    <div><strong>Laporan dikirim</strong><span>{{ report.reported_at|date:"d M Y, H:i" }}{% if report.reported_by %} · {{ report.reported_by.nama }}{% endif %}</span></div>
+  </li>
+  {% if report.report_status == 'rejected' %}
+  <li class="done">
+    <svg class="sign" aria-hidden="true"><use href="#sign-off"/></svg>
+    <div><strong>Ditolak GA</strong><span>{% if report.handled_by %}oleh {{ report.handled_by.nama }}{% else %}Laporan ditutup tanpa perbaikan{% endif %}</span></div>
+  </li>
+  {% else %}
+    {% if report.report_status == 'pending' %}
+    <li class="now">
+      <svg class="sign" aria-hidden="true"><use href="#sign-warning"/></svg>
+      <div><strong>Menunggu ditanggapi GA</strong><span>sejak {{ report.reported_at|sejak }}</span></div>
+    </li>
+    {% else %}
+    <li class="done">
+      <svg class="sign" aria-hidden="true"><use href="#sign-safe"/></svg>
+      <div><strong>Diterima GA</strong><span>{% if report.handled_by %}oleh {{ report.handled_by.nama }}{% else %}Sudah ditanggapi{% endif %}</span></div>
+    </li>
+    {% endif %}
+    {% if report.report_status == 'resolved' %}
+    <li class="done">
+      <svg class="sign" aria-hidden="true"><use href="#sign-safe"/></svg>
+      <div><strong>Selesai diperbaiki</strong><span>{{ report.resolved_at|date:"d M Y, H:i" }}</span></div>
+    </li>
+    {% elif report.report_status == 'pending' %}
+    <li class="todo">
+      <svg class="sign" aria-hidden="true"><use href="#sign-none"/></svg>
+      <div><strong>Perbaikan</strong><span>Belum dimulai</span></div>
+    </li>
+    {% else %}
+    <li class="now">
+      <svg class="sign" aria-hidden="true"><use href="#sign-mandatory"/></svg>
+      <div><strong>Sedang diperbaiki</strong><span>Selesai setelah GA mencatat hasil perbaikan</span></div>
+    </li>
+    {% endif %}
+  {% endif %}
+</ol>

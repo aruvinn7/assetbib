@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% load static %}
 {% block title %}Hasil Import — AssetMS{% endblock %}
-{% block extra_head %}<link rel="stylesheet" href="{% static 'css/pages/asset_import_result.css' %}?v=3">{% endblock %}
+{% block extra_head %}<link rel="stylesheet" href="{% static 'css/pages/asset_import_result.css' %}?v=4">{% endblock %}
 
 {% block content %}
 
@@ -41,12 +41,11 @@
   </div>
 
   {% if rejected_count > 0 %}
-  <div style="display:flex;align-items:center;gap:10px;padding:10px 14px;
-    background:var(--danger-tint);border:1.5px solid #E7A5AF;border-radius:var(--r);margin-bottom:12px;
-    font-size:12px;color:var(--danger);" class="anim">
+  <div class="note danger reject-note">
+    <svg class="sign" aria-hidden="true"><use href="#sign-danger"/></svg>
     <div>
       <strong>{{ rejected_count }} baris tertolak</strong> — perbaiki data di Excel sesuai keterangan merah, lalu upload ulang hanya baris yang bermasalah.
-      <button onclick="showFilter('rejected')" style="background:none;border:none;color:var(--danger);font-weight:800;cursor:pointer;margin-left:4px;font-family:var(--sans);font-size:12px;">Tampilkan saja yang tertolak →</button>
+      <button type="button" class="link-btn" onclick="showFilter('rejected')">Tampilkan yang tertolak saja</button>
     </div>
   </div>
   {% endif %}
@@ -201,9 +200,7 @@
 
           <!-- LIFECYCLE -->
           <td>
-            {% if row.lifecycle_status == 'active' %}<span class="pill active">Active</span>
-            {% elif row.lifecycle_status == 'maintenance' %}<span class="pill maintenance">Maintenance</span>
-            {% elif row.lifecycle_status == 'writeoff' %}<span class="pill writeoff">Write Off</span>
+            {% if row.lifecycle_status %}{% include "components/_lifecycle.html" with status=row.lifecycle_status %}
             {% else %}<span class="val-empty">—</span>{% endif %}
           </td>
 
@@ -255,9 +252,7 @@
               <span class="badge-ok">✓ OK</span>
             {% endif %}
 
-            {% if row.lifecycle_status == 'active' %}<span class="pill active">Active</span>
-            {% elif row.lifecycle_status == 'maintenance' %}<span class="pill maintenance">Maintenance</span>
-            {% elif row.lifecycle_status == 'writeoff' %}<span class="pill writeoff">Write Off</span>{% endif %}
+            {% if row.lifecycle_status %}{% include "components/_lifecycle.html" with status=row.lifecycle_status %}{% endif %}
 
             {% if row.tanggal_pembelian %}
               <span style="font-size:12px;color:var(--muted);font-family:var(--mono);">{{ row.tanggal_pembelian|date:"d M Y" }}</span>
@@ -287,17 +282,10 @@
     </div>
 
     <!-- EMPTY STATE (saat filter tidak ada hasil) -->
-    <div id="filterEmpty" style="display:none;padding:48px 24px;text-align:center;">
-      <div style="font-size:36px;margin-bottom:10px;"></div>
-      <div style="font-size:14px;font-weight:800;color:var(--text-soft);">Tidak ada data untuk filter ini</div>
-    </div>
+    <div id="filterEmpty" class="empty" style="display:none;"><strong>Tidak ada baris untuk filter ini</strong>Pilih filter lain di atas.</div>
 
     {% else %}
-    <div style="padding:48px 24px;text-align:center;">
-      <div style="font-size:36px;margin-bottom:10px;"></div>
-      <div style="font-size:14px;font-weight:800;color:var(--text-soft);">Tidak ada data yang diproses</div>
-      <div style="font-size:12px;color:var(--muted);font-family:var(--mono);">Pastikan file tidak kosong</div>
-    </div>
+    <div class="empty"><strong>Tidak ada data yang diproses</strong>Pastikan file Excel berisi data di bawah baris judul kolom.</div>
     {% endif %}
   </div>
 

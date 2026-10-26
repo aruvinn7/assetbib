@@ -46,7 +46,7 @@ main p { margin: 0; }
 }
 .btn-warning { background: var(--panel); border: 1px solid #FEC84B; color: var(--warning-ink); }
 .btn-warning:hover { background: var(--warning-tint); border-color: var(--warning-fill); color: var(--warning-ink); }
-.btn-danger { background: var(--panel); border: 1px solid #FDA29B; color: var(--danger-ink); }
+.btn-danger { background: var(--panel); border: 1px solid var(--danger-line-strong); color: var(--danger-ink); }
 .btn-danger:hover { background: var(--danger); border-color: var(--danger); color: #fff; }
 .btn-sm { min-height: 34px; padding: 0 12px; font-size: 13px; }
 .btn-submit, .btn-save { min-height: 44px; }
@@ -156,7 +156,7 @@ main input[type="checkbox"], main input[type="radio"] { accent-color: var(--bran
 .act-btn.edit { background: var(--panel); border-color: var(--rule); color: var(--ink-2); }
 .act-btn.edit:hover { background: var(--off-tint); color: var(--brand-500); }
 .act-btn.del { background: var(--panel); border-color: var(--rule); color: var(--danger-ink); }
-.act-btn.del:hover { background: var(--danger-tint); border-color: #FECDCA; color: var(--danger-ink); }
+.act-btn.del:hover { background: var(--danger-tint); border-color: var(--danger-line); color: var(--danger-ink); }
 .tbl tbody tr:hover td { background: var(--hover); }
 
 /* Halaman bermarkup Bootstrap (laporan kerusakan, assignment): netralkan .btn dari base.css

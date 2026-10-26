@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% load static rupiah %}
+{% load static rupiah waktu %}
 {% block legacy_css %}{% endblock %}
 {% block title %}Write off · {{ asset.nama_asset }}{% endblock %}
 {% block nav_assets %}active{% endblock %}
@@ -82,7 +82,7 @@
           <div><dt>Status</dt><dd>{% include "components/_lifecycle.html" with status=asset.lifecycle_status %}</dd></div>
           <div><dt>Kesehatan</dt><dd>{% include "components/_health.html" with health=health %}{% if ratio is not None %}<span class="dim">{{ ratio|floatformat:0 }}% biaya</span>{% endif %}</dd></div>
           <div><dt>Kerusakan</dt><dd>{{ asset.jumlah_corrective }}× tercatat</dd></div>
-          <div><dt>Umur</dt><dd>{{ asset.umur_asset_detail.years }} th {{ asset.umur_asset_detail.months }} bln{% if fin %} <span class="dim">dari {{ fin.umur_ekonomis }} th umur ekonomis</span>{% endif %}</dd></div>
+          <div><dt>Umur</dt><dd>{{ asset.umur_asset_detail|umur }}{% if fin %} <span class="dim">dari {{ fin.umur_ekonomis }} tahun umur ekonomis</span>{% endif %}</dd></div>
           <div><dt>Nilai perolehan</dt><dd>{% if fin %}{{ fin.nilai_awal_aset|rupiah }}{% else %}<span class="dim">Belum dinilai</span>{% endif %}</dd></div>
           <div class="em"><dt>Nilai buku dihapus</dt>
             <dd>{% if fin %}<strong id="bookAt">{{ book_today|rupiah }}</strong><span class="dim" id="bookAtNote">per {{ today|date:"d M Y" }}</span>{% else %}<span class="dim">Isi data finansial dulu agar nilai buku tercatat</span>{% endif %}</dd></div>

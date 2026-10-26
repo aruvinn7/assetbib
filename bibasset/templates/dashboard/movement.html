@@ -2,7 +2,7 @@
 {% load static %}
 {% block title %}Riwayat perpindahan · Pelacakan{% endblock %}
 
-{% block extra_head %}<link rel="stylesheet" href="{% static 'css/pages/dashboard_movement.css' %}?v=3">{% endblock %}
+{% block extra_head %}<link rel="stylesheet" href="{% static 'css/pages/dashboard_movement.css' %}?v=4">{% endblock %}
 
 {% block nav_tracking %}active{% endblock %}
 
@@ -46,25 +46,12 @@
     </form>
     <a href="{% querystring status=None page=None %}"          class="mv-filter-btn {% if not status_filter %}active{% endif %}">Semua</a>
     <a href="{% querystring status='active' page=None %}"      class="mv-filter-btn {% if status_filter == 'active' %}active{% endif %}">Aktif</a>
-    <a href="{% querystring status='maintenance' page=None %}" class="mv-filter-btn {% if status_filter == 'maintenance' %}active{% endif %}">Maint.</a>
-    <a href="{% querystring status='writeoff' page=None %}"    class="mv-filter-btn {% if status_filter == 'writeoff' %}active{% endif %}">W/O</a>
+    <a href="{% querystring status='maintenance' page=None %}" class="mv-filter-btn {% if status_filter == 'maintenance' %}active{% endif %}">Maintenance</a>
+    <a href="{% querystring status='writeoff' page=None %}"    class="mv-filter-btn {% if status_filter == 'writeoff' %}active{% endif %}">Write off</a>
     <button type="button" onclick="expandAll()"   class="mv-filter-btn">⊞ Buka Semua</button>
     <button type="button" onclick="collapseAll()" class="mv-filter-btn">⊟ Tutup Semua</button>
   </div>
 
-  <!-- FLASH MESSAGES -->
-  {% if messages %}
-  <div style="margin-bottom:12px;display:flex;flex-direction:column;gap:6px;">
-    {% for msg in messages %}
-    <div style="padding:10px 14px;border-radius:var(--r);font-size:12px;font-weight:700;
-      background:{% if msg.tags == 'success' %}var(--safe-tint){% else %}var(--danger-tint){% endif %};
-      border:1px solid {% if msg.tags == 'success' %}#A9CDB4{% else %}#E7A5AF{% endif %};
-      color:{% if msg.tags == 'success' %}var(--success){% else %}var(--danger){% endif %};">
-      {{ msg }}
-    </div>
-    {% endfor %}
-  </div>
-  {% endif %}
 
   <!-- ASSET LIST -->
   <div class="mv-asset-list anim" id="mvAssetList">
@@ -83,11 +70,7 @@
           <span class="mv-toggle-icon {% if asset.movement_count > 0 %}open{% endif %}"
                 id="mvarrow-{{ asset.pk }}"><i class="fa-solid fa-chevron-right" aria-hidden="true"></i></span>
 
-          <span class="st-badge {{ asset.lifecycle_status }}">
-            {% if asset.lifecycle_status == 'active' %}Active
-            {% elif asset.lifecycle_status == 'maintenance' %}Maint.
-            {% else %}W/O{% endif %}
-          </span>
+          {% include "components/_lifecycle.html" with status=asset.lifecycle_status %}
 
           <span class="mv-asset-num">{{ asset.asset_number }}</span>
           <span class="mv-asset-name" title="{{ asset.nama_asset }}">{{ asset.nama_asset }}</span>
@@ -110,7 +93,7 @@
           <button type="button" onclick="openAddForm({{ asset.pk }}, '{{ asset.nama_asset|escapejs }}')" class="mv-btn primary">＋ Catat</button>
           {% elif asset.lifecycle_status == 'writeoff' %}
           <span class="mv-btn outline" style="opacity:.4;cursor:not-allowed;pointer-events:none;"
-            title="Aset write-off tidak dapat dicatat movement">W/O</span>
+            title="Aset write off tidak dapat dicatat movement">Write off</span>
           {% endif %}
         </div>
       </div>

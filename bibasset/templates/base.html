@@ -13,14 +13,14 @@
 
   {# CSS library per halaman (mis. Bootstrap) — dimuat sebelum base.css supaya tema tetap menang #}
   {% block vendor_css %}{% endblock %}
-  <link rel="stylesheet" href="{% static 'css/base.css' %}?v=10">
+  <link rel="stylesheet" href="{% static 'css/base.css' %}?v=13">
 
   {# Pulihkan sidebar ringkas sebelum render supaya tidak berkedip #}
   <script>try { if (localStorage.getItem('sbMini') === '1') document.documentElement.classList.add('sb-mini-pending'); } catch (e) {}</script>
 
   {% block extra_head %}{% endblock %}
   {# Penyelaras gaya untuk halaman berkelas lama; halaman yang sudah dibangun ulang mengosongkan block ini #}
-  {% block legacy_css %}<link rel="stylesheet" href="{% static 'css/legacy.css' %}?v=4">{% endblock %}
+  {% block legacy_css %}<link rel="stylesheet" href="{% static 'css/legacy.css' %}?v=5">{% endblock %}
 </head>
 
 <body>
@@ -32,6 +32,8 @@
   <symbol id="sign-warning" viewBox="0 0 24 24"><path d="M12 2.2L22.8 21H1.2z" fill="var(--warning-fill)" stroke="var(--warning-fill)" stroke-width="1.6" stroke-linejoin="round"/><path d="M12 8.5v6.2" stroke="#fff" stroke-width="2.4" stroke-linecap="round"/><circle cx="12" cy="17.6" r="1.3" fill="#fff"/></symbol>
   <symbol id="sign-danger" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9.6" fill="#fff" stroke="var(--danger)" stroke-width="2.8"/><path d="M5.3 5.3l13.4 13.4" stroke="var(--danger)" stroke-width="2.8"/></symbol>
   <symbol id="sign-off" viewBox="0 0 24 24"><rect x="1" y="1" width="22" height="22" rx="5" fill="var(--off)"/><path d="M6 12h12" stroke="#fff" stroke-width="2.6" stroke-linecap="round"/></symbol>
+  {# Laporan kerusakan dari karyawan: kotak merah (ISO 7010 seri F, informasi darurat) berisi dokumen bertanda seru — beda bentuk dari "critical" (lingkaran bergaris) #}
+  <symbol id="sign-report" viewBox="0 0 24 24"><rect x="1" y="1" width="22" height="22" rx="5" fill="var(--danger)"/><path d="M7.5 5h6l3 3v11h-9z" fill="none" stroke="#fff" stroke-width="1.8" stroke-linejoin="round"/><path d="M12 9.6v4.2" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/><circle cx="12" cy="16.4" r="1.2" fill="#fff"/></symbol>
   {# Varian terbalik (dulu untuk blok warna penuh) — kini sama dengan versi biasa #}
   <symbol id="sign-safe-rev" viewBox="0 0 24 24"><use href="#sign-safe"/></symbol>
   <symbol id="sign-mandatory-rev" viewBox="0 0 24 24"><use href="#sign-mandatory"/></symbol>
@@ -100,8 +102,8 @@
     <h2 class="menu-label">Karyawan</h2>
     <ul class="menu">
       <li><a href="{% url 'user_dashboard' %}" class="menu-item"><i class="mi-icon fa-solid fa-laptop" aria-hidden="true"></i><span class="mi-text">Aset saya</span></a></li>
-      <li><a href="{% url 'damage_report_create' %}" class="menu-item"><i class="mi-icon fa-solid fa-circle-exclamation" aria-hidden="true"></i><span class="mi-text">Lapor kerusakan</span></a></li>
-      <li><a href="{% url 'user_damage_report_list' %}" class="menu-item"><i class="mi-icon fa-solid fa-clipboard-list" aria-hidden="true"></i><span class="mi-text">Laporan saya</span></a></li>
+      <li><a href="{% url 'damage_report_create' %}" class="menu-item {% block nav_report_create %}{% endblock %}"><i class="mi-icon fa-solid fa-circle-exclamation" aria-hidden="true"></i><span class="mi-text">Lapor kerusakan</span></a></li>
+      <li><a href="{% url 'user_damage_report_list' %}" class="menu-item {% block nav_my_reports %}{% endblock %}"><i class="mi-icon fa-solid fa-clipboard-list" aria-hidden="true"></i><span class="mi-text">Laporan saya</span></a></li>
     </ul>
     {% endif %}
   </nav>
@@ -194,14 +196,16 @@
   {% endif %}
 
   {% if messages %}
+  {# Error per isian (extra_tags "field:…", dari forms.flash_form_errors) ditempel di samping isiannya oleh skrip di bawah #}
+  <template id="fieldErrors">{% for message in messages %}{% if message.extra_tags|slice:":6" == "field:" %}<i data-f="{{ message.extra_tags }}">{{ message }}</i>{% endif %}{% endfor %}</template>
   <div class="flash-stack" role="status">
-    {% for message in messages %}
+    {% for message in messages %}{% if message.extra_tags|slice:":6" != "field:" %}
     <div class="flash {{ message.tags }}">
       <svg class="sign" aria-hidden="true"><use href="#{% if message.tags == 'success' %}sign-safe{% elif message.tags == 'error' %}sign-danger{% elif message.tags == 'warning' %}sign-warning{% else %}sign-mandatory{% endif %}"/></svg>
       <span>{{ message }}</span>
       <button type="button" class="flash-close" aria-label="Tutup pesan" onclick="this.parentElement.remove()"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button>
     </div>
-    {% endfor %}
+    {% endif %}{% endfor %}
   </div>
   {% endif %}
 
@@ -307,6 +311,58 @@
   })();
 </script>
 {% endif %}
+
+<script>
+  // Error validasi per isian: tampil di bawah isiannya, isian ditandai, fokus ke yang pertama.
+  // Error yang isiannya tidak ada di halaman ini tetap muncul sebagai pesan di atas.
+  (() => {
+    const tpl = document.getElementById('fieldErrors');
+    const items = tpl ? [...tpl.content.querySelectorAll('[data-f]')] : [];
+    if (!items.length) return;
+    const stack = document.querySelector('.flash-stack');
+    const flash = text => {
+      const el = document.createElement('div');
+      el.className = 'flash error';
+      el.innerHTML = '<svg class="sign" aria-hidden="true"><use href="#sign-danger"/></svg><span></span>' +
+        '<button type="button" class="flash-close" aria-label="Tutup pesan"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button>';
+      el.querySelector('span').textContent = text;
+      el.querySelector('button').addEventListener('click', () => el.remove());
+      stack.prepend(el);
+    };
+    const leftovers = [];
+    let first = null, count = 0;
+    items.forEach((m, i) => {
+      const [name, label] = m.dataset.f.slice(6).split('|');
+      const text = m.textContent.trim();
+      const fields = [...document.querySelectorAll(`main [name="${CSS.escape(name)}"]`)].filter(el => el.type !== 'hidden');
+      if (!fields.length) { leftovers.push(`${label}: ${text}`); return; }
+      const box = fields[0].closest('.field, fieldset') || fields[0].parentElement;
+      let p = box.querySelector(':scope > .field-error.from-server');
+      if (p) { p.textContent += ' ' + text; return; }
+      p = document.createElement('p');
+      p.className = 'field-error from-server';
+      p.id = `fieldErr${i}`;
+      p.textContent = text;
+      // Tepat di bawah isiannya (sebelum petunjuk); grup radio/centang: di akhir grupnya
+      const grouped = ['radio', 'checkbox'].includes(fields[0].type);
+      if (grouped) box.append(p);
+      else (fields[0].closest('.input-affix') || fields[0]).after(p);
+      fields.forEach(el => { el.setAttribute('aria-invalid', 'true'); el.setAttribute('aria-describedby', p.id); });
+      const clear = () => { p.remove(); fields.forEach(el => { el.removeAttribute('aria-invalid'); el.removeAttribute('aria-describedby'); }); };
+      fields.forEach(el => { el.addEventListener('input', clear, { once: true }); el.addEventListener('change', clear, { once: true }); });
+      first ??= { field: fields[0], label: box };
+      count++;
+    });
+    leftovers.reverse().forEach(flash);
+    if (count) {
+      flash(count === 1 ? 'Ada 1 isian yang perlu diperbaiki.' : `Ada ${count} isian yang perlu diperbaiki.`);
+      // Gulir ke awal kotak isian (label + isian + pesan), jauh dari bilah aksi yang menempel di bawah
+      first.label.scrollIntoView({ block: 'start' });
+      window.scrollBy(0, -96);
+      first.field.focus({ preventScroll: true });
+    }
+  })();
+</script>
 
 {% if request.user.is_authenticated %}
 {# ── Palet perintah (Ctrl+K / "/") ── #}

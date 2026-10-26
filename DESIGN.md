@@ -20,6 +20,11 @@ colors:
   danger-ink: "#B42318"
   off: "#667085"
   off-tint: "#F2F4F7"
+  safe-line: "#A6F4C5"
+  mandatory-line: "#B9E6FE"
+  warning-line: "#FEDF89"
+  danger-line: "#FECDCA"
+  danger-line-strong: "#FDA29B"
   ink: "#101828"
   ink-2: "#344054"
   ink-3: "#667085"
@@ -111,6 +116,9 @@ Yang dipertahankan dari sistem lama adalah **arti warna status (kode K3/ISO 7010
 - Oranye (warning) = waspada / terlambat
 - Merah (danger) = critical / kerusakan / hapus
 - Abu (off) = write off / dilewati / netral
+- Kotak merah berisi dokumen bertanda seru (`#sign-report`) = laporan kerusakan baru dari karyawan. Masih merah (bahaya), tapi bentuknya beda dari lingkaran bergaris (`#sign-danger`, aset critical) supaya dua hal ini tidak tertukar.
+
+Istilah status aset selalu **Aktif / Maintenance / Write off** (lewat `components/_lifecycle.html`), tanpa singkatan atau sinonim ("Dalam perbaikan", "Maint.", "W/O"). "Sedang diperbaiki" hanya dipakai untuk status *laporan* kerusakan. Umur ditulis lengkap ("5 tahun 4 bulan") lewat filter `umur` / `umur_singkat` di `templatetags/waktu.py`.
 
 Warna merek `brand-500` hanya untuk interaksi (tombol utama, menu aktif, tautan, fokus, grafik non-status). Jangan dipakai sebagai arti status.
 
@@ -142,6 +150,8 @@ Logika ada di `static/js/app.js` (global) dan `static/js/asset_list.js`. Semua t
 - **Dialog catat maintenance:** setiap tautan `data-quick-maint` membuka `maintenance/_quick_form.html` di `dialog.sheet` (lembar bawah di ponsel). Dialog meminta konfirmasi sebelum menutup isian yang sudah diubah. Setelah berhasil, muncul toast dan bagian halaman bertanda `[data-refresh][id]` dimuat ulang; halaman tanpa bagian itu dimuat ulang penuh.
 - **Daftar aset:** chip filter, kepala kolom (bisa diurutkan, `aria-sort`), paginasi, dan pencarian mengganti hasil tanpa muat ulang, dengan URL ikut diperbarui. Klik baris atau tombol "Ringkas" membuka `dialog.drawer` (laci kanan, lembar bawah di ponsel). Di laci, ↑/↓ berpindah aset.
 - **Toast:** pojok kanan bawah. Sukses hilang setelah 5,5 detik, error setelah 9 detik.
+- **Error validasi:** view memanggil `flash_form_errors()`; tiap error field ditandai `extra_tags="field:<name>|<label>"` dan `base.html` menempelkannya tepat di bawah isian ber-`name` sama (`aria-invalid`, fokus ke isian pertama, satu ringkasan di atas). Error tanpa isian di halaman tetap tampil sebagai flash. Error hilang begitu isiannya diubah.
+- **Aksi permanen** (hapus aset, lewati jadwal, terima/selesaikan/tolak laporan) hanya menerima POST. Hapus aset tidak ada di baris daftar; tempatnya panel "Hapus permanen" di halaman edit, terpisah dari tombol Simpan.
 - **Write off:** status tidak diubah dari form edit. GA memakai tombol "Write off" di detail aset (`asset/write_off.html`): alasan, tanggal, keterangan, konfirmasi, dan nilai buku pada tanggal itu dihitung langsung. `write_off_asset()` menyimpan `AssetWriteOff` (snapshot nilai), menghentikan jadwal, mengembalikan pemegang, menutup laporan aktif, dan mencatat movement. Nilai buku berhenti menyusut di tanggal write off. Pembatalan lewat banner di detail aset (`cancel_write_off()`).
 - **Kesehatan aset:** rasio = biaya perbaikan (corrective) ÷ nilai perolehan. Preventive & inspeksi tidak dihitung, supaya aset yang rajin dirawat tidak terlihat makin "sakit".
 - **Gerak:** satu ease-out eksponensial (`--ease-out`) untuk dialog, laci, palet, dan toast. Dimatikan oleh `prefers-reduced-motion`.

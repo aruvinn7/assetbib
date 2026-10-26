@@ -14,6 +14,8 @@
   --warning-fill: #F79009;  --warning-tint: #FFFAEB;   --warning-ink: #B54708;
   --danger: #D92D20;        --danger-tint: #FEF3F2;    --danger-ink: #B42318;
   --off: #667085;           --off-tint: #F2F4F7;
+  /* Garis tepi berwarna status (flash, toast, panel hazard, isian error) */
+  --safe-line: #A6F4C5; --mandatory-line: #B9E6FE; --warning-line: #FEDF89; --danger-line: #FECDCA; --danger-line-strong: #FDA29B;
 
   /* Permukaan & tinta (skala gray TailAdmin) */
   --ink: #101828;
@@ -252,6 +254,10 @@ main .card-title, main .panel-title { text-transform: none; letter-spacing: 0; f
 .user-menu-link.logout i { color: var(--danger-ink); }
 .user-menu-link.logout:hover { background: var(--danger-tint); }
 
+/* Layar sempit: menu notifikasi & akun selebar layar (dengan jarak tepi), tidak terpotong di kiri */
+@media (max-width: 640px) {
+  .dd-menu { position: fixed; top: calc(var(--header-h) + 8px); left: 12px; right: 12px; width: auto; min-width: 0; max-height: calc(100dvh - var(--header-h) - 24px); overflow-y: auto; }
+}
 @media (max-width: 1023px) {
   .topbar-brand { display: flex; }
   .topbar-brand .brand-text small { display: none; }
@@ -268,10 +274,10 @@ main .card-title, main .panel-title { text-transform: none; letter-spacing: 0; f
   display: flex; align-items: center; gap: 12px; padding: 12px 16px;
   background: var(--panel); border: 1px solid var(--rule); border-radius: 12px; font-size: 14px; color: var(--ink-2);
 }
-.flash.success { background: var(--safe-tint); border-color: #A6F4C5; }
-.flash.error   { background: var(--danger-tint); border-color: #FECDCA; }
-.flash.warning { background: var(--warning-tint); border-color: #FEDF89; }
-.flash.info    { background: var(--mandatory-tint); border-color: #B9E6FE; }
+.flash.success { background: var(--safe-tint); border-color: var(--safe-line); }
+.flash.error   { background: var(--danger-tint); border-color: var(--danger-line); }
+.flash.warning { background: var(--warning-tint); border-color: var(--warning-line); }
+.flash.info    { background: var(--mandatory-tint); border-color: var(--mandatory-line); }
 .flash-close { margin-left: auto; background: none; border: 0; cursor: pointer; color: var(--ink-3); padding: 4px; border-radius: 6px; }
 .flash-close:hover { color: var(--ink); background: rgba(16, 24, 40, .05); }
 
@@ -296,7 +302,7 @@ main .card-title, main .panel-title { text-transform: none; letter-spacing: 0; f
 .btn:hover { background: var(--brand-600); border-color: var(--brand-600); }
 .btn.outline { background: var(--panel); color: var(--ink-2); border-color: var(--field); }
 .btn.outline:hover { background: var(--ground); color: var(--ink); }
-.btn.danger { background: var(--panel); color: var(--danger-ink); border-color: #FDA29B; }
+.btn.danger { background: var(--panel); color: var(--danger-ink); border-color: var(--danger-line-strong); }
 .btn.danger:hover { background: var(--danger); border-color: var(--danger); color: #fff; }
 .btn.sm { min-height: 34px; padding: 0 12px; font-size: 13px; }
 .btn:disabled, .btn[aria-disabled="true"] { opacity: .5; cursor: not-allowed; }
@@ -314,7 +320,7 @@ main .card-title, main .panel-title { text-transform: none; letter-spacing: 0; f
 .panel-head a:hover { text-decoration: underline; }
 .panel-body { padding: 20px; }
 /* Panel yang memuat item terlambat/critical: garis atas oranye */
-.panel.hazard { border-color: #FEDF89; box-shadow: inset 0 4px 0 var(--warning-fill); overflow: hidden; }
+.panel.hazard { border-color: var(--warning-line); box-shadow: inset 0 4px 0 var(--warning-fill); overflow: hidden; }
 .panel.hazard::before { content: none; }
 
 /* ── Tabel ─────────────────────────────────────────────── */
@@ -353,6 +359,8 @@ main .card-title, main .panel-title { text-transform: none; letter-spacing: 0; f
 .tag.danger    { background: var(--danger-tint); color: var(--danger-ink); }
 .tag.off       { background: var(--off-tint); color: var(--ink-2); }
 .tag.none      { background: transparent; color: var(--ink-3); border-color: var(--rule); }
+/* Kritis (laporan kerusakan): merah penuh, lebih tegas dari Parah */
+.tag.danger.is-critical { background: var(--danger); color: #fff; font-weight: 600; }
 
 /* ── Kartu metrik (papan status) ───────────────────────── */
 .boards { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; }
@@ -477,8 +485,8 @@ kbd {
 .toast span { flex: 1; }
 .toast-close { border: 0; background: none; color: var(--ink-3); cursor: pointer; padding: 2px 4px; border-radius: 6px; }
 .toast-close:hover { background: var(--off-tint); color: var(--ink); }
-.toast.success { border-color: #A6F4C5; }
-.toast.error { border-color: #FECDCA; }
+.toast.success { border-color: var(--safe-line); }
+.toast.error { border-color: var(--danger-line); }
 .toast.is-leaving { opacity: 0; transform: translateY(6px); transition: opacity .18s, transform .18s; }
 @keyframes toast-in { from { opacity: 0; transform: translateY(12px); } }
 @media (max-width: 640px) { .toasts { left: 16px; right: 16px; bottom: 16px; width: auto; } }
@@ -511,7 +519,8 @@ dialog[open]::backdrop { animation: fade-in .2s ease-out; }
 .field-hint { font-size: 12px; color: var(--ink-3); }
 .req { color: var(--danger); }
 .opt { font-weight: 400; color: var(--ink-3); font-size: 13px; }
-.input[aria-invalid="true"], .textarea[aria-invalid="true"] { border-color: #FDA29B; }
+.input[aria-invalid="true"], .textarea[aria-invalid="true"], .select[aria-invalid="true"] { border-color: var(--danger-line-strong); }
+.input[aria-invalid="true"]:focus, .textarea[aria-invalid="true"]:focus, .select[aria-invalid="true"]:focus { box-shadow: 0 0 0 4px rgba(217, 45, 32, .12); }
 .textarea { resize: vertical; line-height: 1.5; }
 .input-affix { position: relative; }
 .input-affix span { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: var(--ink-3); font-size: 14px; pointer-events: none; }
@@ -679,6 +688,11 @@ dialog.palette[open] { display: flex; flex-direction: column; max-height: min(56
   .form-bar .btn { flex: 1; }
   .kv > div { grid-template-columns: 104px 1fr; }
 }
+
+/* Panel aksi permanen (hapus) di kolom samping form edit */
+.danger-zone { border-color: var(--danger-line); }
+.danger-zone .panel-body { display: grid; gap: 12px; }
+.danger-zone p { margin: 0; font-size: 13px; line-height: 1.5; color: var(--ink-2); }
 
 /* Daftar petunjuk singkat di kartu samping */
 .tips { list-style: none; margin: 0; padding: 14px 20px 18px; display: grid; gap: 12px; }

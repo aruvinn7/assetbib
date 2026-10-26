@@ -1,10 +1,14 @@
 # views/damage_reports.py  [OPTIMIZED]
 
+from datetime import date
+
 from django.contrib import messages
+from django.core.paginator import Paginator
 from django.db import transaction
-from django.db.models import Count, Q
+from django.db.models import Case, Count, Q, When
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
+from django.views.decorators.http import require_POST
 
 from ..decorators import role_required
 from ..forms import DamageReportForm, ResolveDamageForm, flash_form_errors
@@ -15,6 +19,7 @@ from ..models import (
 from ..roles import is_ga, is_user_role
 
 ACTIVE_REPORT_STATUS = ['pending', 'acknowledged', 'in_progress']
+SEVERITY_ORDER = ['critical', 'high', 'medium', 'low']
 
 
 # ================================================
@@ -65,13 +70,21 @@ def damage_report_create(request, asset_id=None):
         assignments__assigned_to=employee,
         assignments__status='active',
         lifecycle_status='active',
-    ).only('id', 'nama_asset').distinct()
+    ).select_related('lokasi_asset').only(
+        'id', 'nama_asset', 'asset_number', 'lokasi_asset__name',
+    ).distinct()
 
     selected_asset = None
+    form = None
     if asset_id:
-        selected_asset = get_object_or_404(Asset.objects.only('id', 'nama_asset'), id=asset_id)
+        selected_asset = get_object_or_404(
+            Asset.objects.select_related('asset_category', 'lokasi_asset').only(
+                'id', 'nama_asset', 'asset_number', 'asset_category__name', 'lokasi_asset__name',
+            ),
+            id=asset_id,
+        )
         if not held_assets.filter(id=asset_id).exists():
-            messages.error(request, "Anda tidak memegang aset ini atau aset sedang dalam perbaikan.")
+            messages.error(request, "Aset ini tidak bisa dilaporkan: bukan aset yang Anda pegang, atau sudah berstatus Maintenance.")
             return redirect('user_dashboard')
 
     if request.method == 'POST':
@@ -80,7 +93,7 @@ def damage_report_create(request, asset_id=None):
 
         # User hanya boleh melapor aset yang sedang ia pegang
         if not held_assets.filter(id=asset.id).exists():
-            messages.error(request, "Anda tidak memegang aset ini atau aset sedang dalam perbaikan.")
+            messages.error(request, "Aset ini tidak bisa dilaporkan: bukan aset yang Anda pegang, atau sudah berstatus Maintenance.")
             return redirect('user_dashboard')
 
         active_report = DamageReport.objects.filter(
@@ -100,24 +113,27 @@ def damage_report_create(request, asset_id=None):
             report.asset       = asset
             report.reported_by = employee
             report.save()   # atomic: ubah status aset + jadwal corrective sekaligus
-            messages.success(request, f"✅ Laporan kerusakan '{asset.nama_asset}' berhasil dikirim.")
+            messages.success(request, f"Laporan kerusakan '{asset.nama_asset}' terkirim ke GA.")
             return redirect('user_damage_report_detail', pk=report.pk)
-        flash_form_errors(request, form)
+        messages.error(request, "Laporan belum terkirim. Periksa isian yang ditandai.")
 
     return render(request, 'user/damage_report_form.html', {
         'held_assets':    held_assets,
         'selected_asset': selected_asset,
+        'form':           form,
         'posted':         request.POST.dict() if request.method == 'POST' else None,
+        'severities':     DamageReport.SEVERITY,
     })
 
 
 @role_required(is_user_role)
 def user_damage_report_detail(request, pk):
     report = get_object_or_404(
-        DamageReport.objects.select_related('asset').only(
+        DamageReport.objects.select_related('asset', 'asset__lokasi_asset', 'reported_by', 'handled_by').only(
             'id', 'title', 'description', 'severity', 'report_status',
-            'reported_at', 'ga_notes', 'photo_evidence',
-            'asset__nama_asset',
+            'reported_at', 'resolved_at', 'ga_notes', 'photo_evidence',
+            'asset__nama_asset', 'asset__asset_number', 'asset__lokasi_asset__name',
+            'reported_by__nama', 'handled_by__nama',
         ),
         pk=pk, reported_by=request.user.employee
     )
@@ -134,13 +150,13 @@ def user_damage_report_list(request):
 
     # TEKNIK 3: 1 query agregat untuk summary counts
     counts = reports.aggregate(
-        pending=Count('id', filter=Q(report_status='pending')),
+        active=Count('id', filter=Q(report_status__in=ACTIVE_REPORT_STATUS)),
         resolved=Count('id', filter=Q(report_status='resolved')),
     )
 
     return render(request, 'user/damage_report_list.html', {
         'reports':        reports,
-        'pending_count':  counts['pending'],
+        'active_count':   counts['active'],
         'resolved_count': counts['resolved'],
     })
 
@@ -156,17 +172,23 @@ def ga_damage_report_list(request):
 
     reports = DamageReport.objects.select_related(
         'asset', 'asset__asset_category', 'asset__lokasi_asset',
-        'reported_by', 'handled_by'
+        'reported_by', 'reported_by__department', 'handled_by'
     ).only(
-        'id', 'title', 'severity', 'report_status', 'reported_at',
-        'asset__nama_asset', 'asset__asset_category__name', 'asset__lokasi_asset__name',
-        'reported_by__nama', 'handled_by__nama',
-    ).order_by('-reported_at')
+        'id', 'title', 'description', 'severity', 'report_status', 'reported_at',
+        'asset__id', 'asset__nama_asset', 'asset__asset_number',
+        'asset__asset_category__name', 'asset__lokasi_asset__name',
+        'reported_by__nama', 'reported_by__department__name', 'handled_by__nama',
+    )
 
     if status_filter:
-        reports = reports.filter(report_status=status_filter)
+        # Arsip (selesai/ditolak) dibaca dari yang terbaru
+        reports = reports.filter(report_status=status_filter).order_by('-reported_at')
     else:
-        reports = reports.filter(report_status__in=ACTIVE_REPORT_STATUS)
+        # Antrean aktif: yang paling berbahaya dan belum disentuh GA tampil duluan
+        reports = reports.filter(report_status__in=ACTIVE_REPORT_STATUS).annotate(
+            sev_rank=Case(*[When(severity=s, then=i) for i, s in enumerate(SEVERITY_ORDER)], default=9),
+            pending_first=Case(When(report_status='pending', then=0), default=1),
+        ).order_by('sev_rank', 'pending_first', '-reported_at')
 
     if severity_filter:
         reports = reports.filter(severity=severity_filter)
@@ -177,31 +199,35 @@ def ga_damage_report_list(request):
         acknowledged=Count('id', filter=Q(report_status='acknowledged')),
         in_progress=Count('id', filter=Q(report_status='in_progress')),
         resolved=Count('id', filter=Q(report_status='resolved')),
+        rejected=Count('id', filter=Q(report_status='rejected')),
         critical=Count('id', filter=Q(
             severity='critical',
             report_status__in=ACTIVE_REPORT_STATUS
         )),
     )
 
+    page_obj = Paginator(reports, 25).get_page(request.GET.get('page'))
     context = {
-        'reports':            reports,
+        'reports':            page_obj,
+        'page_obj':           page_obj,
         'status_filter':      status_filter,
         'severity_filter':    severity_filter,
+        'active_count':       all_counts['pending'] + all_counts['acknowledged'] + all_counts['in_progress'],
         'pending_count':      all_counts['pending'],
         'acknowledged_count': all_counts['acknowledged'],
         'in_progress_count':  all_counts['in_progress'],
         'resolved_count':     all_counts['resolved'],
+        'rejected_count':     all_counts['rejected'],
         'critical_count':     all_counts['critical'],
     }
     return render(request, 'ga/damage_report_list.html', context)
 
 
-@role_required(is_ga)
-def ga_damage_report_detail(request, pk):
+def _render_ga_detail(request, pk, resolve_posted=None, status=200):
     report = get_object_or_404(
         DamageReport.objects.select_related(
-            'asset', 'asset__asset_category', 'reported_by',
-            'handled_by', 'resolved_maintenance'
+            'asset', 'asset__asset_category', 'asset__lokasi_asset', 'reported_by',
+            'handled_by', 'resolved_maintenance', 'resolved_maintenance__performed_by'
         ),
         pk=pk,
     )
@@ -213,10 +239,19 @@ def ga_damage_report_detail(request, pk):
         'report':              report,
         'corrective_schedule': corrective_schedule,
         'asset':               report.asset,
-    })
+        'today':               date.today(),
+        # Isian form "Catat perbaikan selesai" yang gagal validasi, diisi ulang di template
+        'resolve_posted':      resolve_posted or {},
+    }, status=status)
 
 
 @role_required(is_ga)
+def ga_damage_report_detail(request, pk):
+    return _render_ga_detail(request, pk)
+
+
+@role_required(is_ga)
+@require_POST
 def ga_damage_report_acknowledge(request, pk):
     # TEKNIK 9: update() langsung tanpa fetch + save
     updated = DamageReport.objects.filter(pk=pk, report_status='pending').update(
@@ -230,50 +265,51 @@ def ga_damage_report_acknowledge(request, pk):
 
 
 @role_required(is_ga)
+@require_POST
 def ga_damage_report_resolve(request, pk):
     report = get_object_or_404(
         DamageReport.objects.select_related('asset'),
         pk=pk
     )
-    if request.method == 'POST':
-        if report.report_status not in ACTIVE_REPORT_STATUS:
-            messages.warning(request, f"Laporan #{pk} sudah {report.get_report_status_display().lower()}.")
-            return redirect('ga_damage_report_detail', pk=pk)
+    if report.report_status not in ACTIVE_REPORT_STATUS:
+        messages.warning(request, f"Laporan #{pk} sudah {report.get_report_status_display().lower()}.")
+        return redirect('ga_damage_report_detail', pk=pk)
 
-        form = ResolveDamageForm(request.POST)
-        if form.is_valid():
-            with transaction.atomic():
-                record = form.save(commit=False)
-                record.asset            = report.asset
-                record.maintenance_type = 'corrective'
-                record.performed_by     = request.user.employee
-                record.deskripsi_pekerjaan = (
-                    f"[Dari Laporan Kerusakan #{report.pk}]\n"
-                    f"Judul: {report.title}\n"
-                    f"Deskripsi awal: {report.description}\n\n"
-                    f"Tindakan perbaikan: {record.deskripsi_pekerjaan}"
-                )
-                record.save()
+    form = ResolveDamageForm(request.POST)
+    if form.is_valid():
+        with transaction.atomic():
+            record = form.save(commit=False)
+            record.asset            = report.asset
+            record.maintenance_type = 'corrective'
+            record.performed_by     = request.user.employee
+            record.deskripsi_pekerjaan = (
+                f"[Dari Laporan Kerusakan #{report.pk}]\n"
+                f"Judul: {report.title}\n"
+                f"Deskripsi awal: {report.description}\n\n"
+                f"Tindakan perbaikan: {record.deskripsi_pekerjaan}"
+            )
+            record.save()
 
-                DamageReport.objects.filter(pk=pk).update(
-                    report_status='resolved',
-                    handled_by=request.user.employee,
-                    ga_notes=request.POST.get('ga_notes', ''),
-                    resolved_maintenance=record,
-                    resolved_at=timezone.now(),
-                )
-                report.corrective_schedules.filter(status='overdue').update(
-                    status='done', maintenance_record=record,
-                )
-            messages.success(request, f"✅ Laporan #{pk} diselesaikan.")
-            return redirect('ga_damage_report_detail', pk=pk)
-        flash_form_errors(request, form)
+            DamageReport.objects.filter(pk=pk).update(
+                report_status='resolved',
+                handled_by=request.user.employee,
+                ga_notes=request.POST.get('ga_notes', ''),
+                resolved_maintenance=record,
+                resolved_at=timezone.now(),
+            )
+            report.corrective_schedules.filter(status='overdue').update(
+                status='done', maintenance_record=record,
+            )
+        messages.success(request, f"Laporan #{pk} diselesaikan dan tercatat sebagai maintenance corrective.")
+        return redirect('ga_damage_report_detail', pk=pk)
 
-    # Form penyelesaian ada di halaman detail laporan; kesalahan ditampilkan di sana
-    return redirect('ga_damage_report_detail', pk=pk)
+    # Tampilkan lagi halaman detail dengan isian yang sudah diketik; error ditempel di samping isiannya
+    flash_form_errors(request, form)
+    return _render_ga_detail(request, pk, resolve_posted=request.POST.dict(), status=422)
 
 
 @role_required(is_ga)
+@require_POST
 def ga_damage_report_reject(request, pk):
     report = get_object_or_404(
         DamageReport.objects.select_related('asset').only(

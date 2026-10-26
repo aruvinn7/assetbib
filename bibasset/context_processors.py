@@ -47,7 +47,7 @@ def _build_notifications(role):
                           'sub': 'Perlu dikerjakan segera', 'url': f'{maint_url}?status=overdue'})
         if damage['pending']:
             sub = f"{damage['critical']} di antaranya kritis" if damage['critical'] else 'Menunggu tindak lanjut GA'
-            items.append({'kind': 'danger', 'text': f"{damage['pending']} laporan kerusakan baru",
+            items.append({'kind': 'report', 'text': f"{damage['pending']} laporan kerusakan baru",
                           'sub': sub, 'url': reverse('ga_damage_report_list')})
         if sched['soon']:
             items.append({'kind': 'mandatory', 'text': f"{sched['soon']} maintenance jatuh tempo ≤ 7 hari",

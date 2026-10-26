@@ -435,10 +435,14 @@ def asset_detail(request, pk):
 
 
 @role_required(is_ga)
+@require_POST
 def asset_delete(request, pk):
+    # POST saja: link GET bisa terpicu prefetch browser atau tautan yang dibagikan
     asset = get_object_or_404(Asset, pk=pk)
+    name = asset.nama_asset
     back_params = request.GET.urlencode()  # otomatis berisi page, q, status, dll
     asset.delete()
+    messages.success(request, f"Aset {name} dihapus permanen.")
     redirect_url = reverse('asset_list')
     if back_params:
         redirect_url += '?' + back_params
