@@ -134,6 +134,16 @@ Warna merek `brand-500` hanya untuk interaksi (tombol utama, menu aktif, tautan,
 - **Dialog:** sudut 16px, bayangan xl, backdrop gelap 50% blur ringan.
 - **Foto aset:** di detail aset, foto utama tampil besar di kartu kiri atas (klik untuk perbesar), thumbnail foto lain di bawahnya, galeri lengkap dengan aksi "Jadikan utama/Hapus" di kolom utama.
 
+## Interaksi
+
+Logika ada di `static/js/app.js` (global) dan `static/js/asset_list.js`. Semua tautan tetap berfungsi tanpa JS.
+
+- **Palet perintah:** dibuka dengan `Ctrl+K`, `/`, mengklik kolom cari di header, atau tombol kaca pembesar di ponsel. Isinya: aset dari `/asset/cari/` (beberapa kata digabung dengan DAN), aksi sesuai peran, halaman dari menu sidebar, dan aset yang terakhir dibuka (disimpan di localStorage). Aksi "Catat maintenance" mengubah palet ke mode pilih aset.
+- **Dialog catat maintenance:** setiap tautan `data-quick-maint` membuka `maintenance/_quick_form.html` di `dialog.sheet` (lembar bawah di ponsel). Dialog meminta konfirmasi sebelum menutup isian yang sudah diubah. Setelah berhasil, muncul toast dan bagian halaman bertanda `[data-refresh][id]` dimuat ulang; halaman tanpa bagian itu dimuat ulang penuh.
+- **Daftar aset:** chip filter, kepala kolom (bisa diurutkan, `aria-sort`), paginasi, dan pencarian mengganti hasil tanpa muat ulang, dengan URL ikut diperbarui. Klik baris atau tombol "Ringkas" membuka `dialog.drawer` (laci kanan, lembar bawah di ponsel). Di laci, ↑/↓ berpindah aset.
+- **Toast:** pojok kanan bawah. Sukses hilang setelah 5,5 detik, error setelah 9 detik.
+- **Gerak:** satu ease-out eksponensial (`--ease-out`) untuk dialog, laci, palet, dan toast. Dimatikan oleh `prefers-reduced-motion`.
+
 ## Halaman berkelas lama
 
 Halaman yang belum dibangun ulang (form aset/maintenance/finansial, master data, BOM, import, movement, serah terima, laporan kerusakan, dashboard karyawan) masih memakai kosakata kelas lama di `static/css/pages/*.css`. `static/css/legacy.css` dimuat **setelah** CSS halaman dan menyelaraskan tampilannya (tombol, kartu, field, tabel, badge, tombol Bootstrap) ke sistem ini tanpa mengubah tata letak. Link CSS halaman harus berada di `{% block extra_head %}` agar urutan ini benar. Halaman yang sudah dibangun ulang mengosongkan `{% block legacy_css %}`.

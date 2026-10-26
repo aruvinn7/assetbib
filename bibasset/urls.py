@@ -22,6 +22,8 @@ urlpatterns = [
     path('asset/', views.asset_list, name='asset_list'),
     path('asset/create/', views.asset_create, name='asset_create'),
     path('asset/<int:pk>/detail/', views.asset_detail, name='asset_detail'),
+    path('asset/<int:pk>/ringkas/', views.asset_quickview, name='asset_quickview'),
+    path('asset/cari/', views.asset_search, name='asset_search'),
     path('asset/<int:pk>/update/', views.asset_update, name='asset_update'),
     path('asset/<int:pk>/delete/', views.asset_delete, name='asset_delete'),
     

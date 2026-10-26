@@ -5,7 +5,7 @@
 {% block nav_assets %}{% if financial_filter != 'no' %}active{% endif %}{% endblock %}
 {% block nav_financial %}{% if financial_filter == 'no' %}active{% endif %}{% endblock %}
 
-{% block extra_head %}<link rel="stylesheet" href="{% static 'css/pages/asset_list.css' %}?v=3">{% endblock %}
+{% block extra_head %}<link rel="stylesheet" href="{% static 'css/pages/asset_list.css' %}?v=5">{% endblock %}
 
 {% block content %}
 {% with emp=request.user.employee %}
@@ -14,7 +14,7 @@
   <div class="page-head">
     <div>
       <h1>Daftar aset</h1>
-      <div class="sub">{{ filtered_count }} dari {{ total_asset }} aset ditampilkan</div>
+      <div class="sub" id="assetCount" data-refresh aria-live="polite">{{ filtered_count }} dari {{ total_asset }} aset ditampilkan</div>
     </div>
     {% if emp.ga_profile %}
     <div class="page-actions">
@@ -25,25 +25,27 @@
   </div>
 
   <div class="toolbar">
-    <nav class="filters" aria-label="Saring status">
+    <nav class="filters" id="assetFilters" data-refresh aria-label="Saring status">
       {% with none_active=status_filter|default:health_filter|default:financial_filter %}
-      <a class="chip {% if not none_active %}active{% endif %}" href="{% querystring status=None health=None financial=None page=None %}">Semua <span class="count">{{ total_asset }}</span></a>
+      <a class="chip {% if not none_active %}active{% endif %}" href="{% querystring status=None health=None financial=None page=None %}" {% if not none_active %}aria-current="true"{% endif %}>Semua <span class="count">{{ total_asset }}</span></a>
       {% endwith %}
-      <a class="chip {% if status_filter == 'active' %}active{% endif %}" href="{% querystring status='active' health=None financial=None page=None %}"><svg class="sign" aria-hidden="true"><use href="#sign-safe"/></svg>Aktif <span class="count">{{ active_count }}</span></a>
-      <a class="chip {% if status_filter == 'maintenance' %}active{% endif %}" href="{% querystring status='maintenance' health=None financial=None page=None %}"><svg class="sign" aria-hidden="true"><use href="#sign-mandatory"/></svg>Maintenance <span class="count">{{ maintenance_count }}</span></a>
-      <a class="chip {% if status_filter == 'writeoff' %}active{% endif %}" href="{% querystring status='writeoff' health=None financial=None page=None %}"><svg class="sign" aria-hidden="true"><use href="#sign-off"/></svg>Write off <span class="count">{{ writeoff_count }}</span></a>
-      <a class="chip {% if health_filter == 'critical' %}active{% endif %}" href="{% querystring health='critical' status=None financial=None page=None %}"><svg class="sign" aria-hidden="true"><use href="#sign-danger"/></svg>Critical <span class="count">{{ critical_health_count }}</span></a>
-      <a class="chip {% if financial_filter == 'no' %}active{% endif %}" href="{% querystring financial='no' status=None health=None page=None %}"><svg class="sign" aria-hidden="true"><use href="#sign-none"/></svg>Belum dinilai <span class="count">{{ unvalued_count }}</span></a>
+      <a class="chip {% if status_filter == 'active' %}active{% endif %}" href="{% querystring status='active' health=None financial=None page=None %}" {% if status_filter == 'active' %}aria-current="true"{% endif %}><svg class="sign" aria-hidden="true"><use href="#sign-safe"/></svg>Aktif <span class="count">{{ active_count }}</span></a>
+      <a class="chip {% if status_filter == 'maintenance' %}active{% endif %}" href="{% querystring status='maintenance' health=None financial=None page=None %}" {% if status_filter == 'maintenance' %}aria-current="true"{% endif %}><svg class="sign" aria-hidden="true"><use href="#sign-mandatory"/></svg>Maintenance <span class="count">{{ maintenance_count }}</span></a>
+      <a class="chip {% if status_filter == 'writeoff' %}active{% endif %}" href="{% querystring status='writeoff' health=None financial=None page=None %}" {% if status_filter == 'writeoff' %}aria-current="true"{% endif %}><svg class="sign" aria-hidden="true"><use href="#sign-off"/></svg>Write off <span class="count">{{ writeoff_count }}</span></a>
+      <a class="chip {% if health_filter == 'critical' %}active{% endif %}" href="{% querystring health='critical' status=None financial=None page=None %}" {% if health_filter == 'critical' %}aria-current="true"{% endif %}><svg class="sign" aria-hidden="true"><use href="#sign-danger"/></svg>Critical <span class="count">{{ critical_health_count }}</span></a>
+      <a class="chip {% if financial_filter == 'no' %}active{% endif %}" href="{% querystring financial='no' status=None health=None page=None %}" {% if financial_filter == 'no' %}aria-current="true"{% endif %}><svg class="sign" aria-hidden="true"><use href="#sign-none"/></svg>Belum dinilai <span class="count">{{ unvalued_count }}</span></a>
     </nav>
 
     <form method="get" class="search" role="search" id="searchForm">
       {% for key, value in request.GET.items %}{% if key != 'q' and key != 'page' %}<input type="hidden" name="{{ key }}" value="{{ value }}">{% endif %}{% endfor %}
       <i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i>
       <label class="visually-hidden" for="searchInput">Cari aset</label>
-      <input class="input" type="search" name="q" id="searchInput" value="{{ search_query }}" placeholder="Nama, nomor aset, PO, lokasi, departemen…">
+      <input class="input" type="search" name="q" id="searchInput" value="{{ search_query }}" placeholder="Nama, nomor aset, PO, lokasi, departemen…" autocomplete="off">
+      <span class="search-busy spinner" aria-hidden="true"></span>
     </form>
   </div>
 
+  <div id="assetResults" data-refresh>
   {% if category_filter or group_filter or location_filter %}
   <div class="scope-note">
     {% include "components/_status.html" with kind="mandatory" label="Disaring" %}
@@ -52,20 +54,26 @@
   </div>
   {% endif %}
 
-  <section class="panel" aria-label="Tabel aset">
+  <section class="panel results" aria-label="Tabel aset">
     {% if assets %}
     <div class="table-wrap">
       <table class="table asset-table">
         <thead>
           <tr>
-            <th>Aset</th><th>Kategori</th><th>Lokasi</th><th>Departemen</th>
-            <th class="num">Umur</th><th>Status</th><th>Kesehatan</th><th class="num">BOM</th>
+            {% include "components/_sort_th.html" with label="Aset" next=sort_next.name dir=sort_dir.name %}
+            {% include "components/_sort_th.html" with label="Kategori" next=sort_next.category dir=sort_dir.category %}
+            {% include "components/_sort_th.html" with label="Lokasi" next=sort_next.location dir=sort_dir.location %}
+            {% include "components/_sort_th.html" with label="Departemen" next=sort_next.department dir=sort_dir.department %}
+            {% include "components/_sort_th.html" with label="Umur" next=sort_next.age dir=sort_dir.age cls="num" %}
+            {% include "components/_sort_th.html" with label="Status" next=sort_next.status dir=sort_dir.status %}
+            {% include "components/_sort_th.html" with label="Kesehatan" next=sort_next.health dir=sort_dir.health %}
+            {% include "components/_sort_th.html" with label="BOM" next=sort_next.bom dir=sort_dir.bom cls="num" %}
             <th><span class="visually-hidden">Aksi</span></th>
           </tr>
         </thead>
         <tbody>
         {% for asset in assets %}
-          <tr>
+          <tr data-qv="{% url 'asset_quickview' asset.id %}">
             <td data-label="Aset">
               <div class="asset-cell-wrap">
                 {% if asset.photo_path %}<img class="thumb" src="{% get_media_prefix %}{{ asset.photo_path }}" alt="" loading="lazy">{% else %}<span class="thumb" aria-hidden="true"><i class="fa-solid fa-box"></i></span>{% endif %}
@@ -87,6 +95,7 @@
             </td>
             <td data-label="BOM" class="num">{% if asset.component_count %}{{ asset.component_count }}{% else %}<span class="dim">—</span>{% endif %}</td>
             <td class="actions">
+              <button type="button" class="act-quick" data-qv-open aria-label="Lihat ringkas {{ asset.nama_asset }}"><i class="fa-regular fa-eye" aria-hidden="true"></i>Ringkas</button>
               {% if emp.ga_profile %}
                 <a href="{% url 'asset_update' asset.id %}">Edit</a>
                 <a href="{% url 'component_list' asset.id %}">BOM</a>
@@ -122,21 +131,17 @@
     </div>
     {% endif %}
   </section>
+  </div>
 
+  <p class="list-hint">Klik baris untuk melihat ringkasan aset. Di panel ringkas, tekan <kbd>↑</kbd> <kbd>↓</kbd> untuk berpindah aset.</p>
 </div>
+
+<dialog class="drawer" id="qvDrawer" aria-labelledby="qvTitle">
+  <div class="drawer-inner" id="qvBody"></div>
+</dialog>
 {% endwith %}
 {% endblock %}
 
 {% block extra_scripts %}
-<script>
-  // Cari otomatis 400ms setelah berhenti mengetik
-  (() => {
-    const input = document.getElementById('searchInput');
-    let t;
-    input?.addEventListener('input', () => {
-      clearTimeout(t);
-      t = setTimeout(() => document.getElementById('searchForm').submit(), 400);
-    });
-  })();
-</script>
+<script src="{% static 'js/asset_list.js' %}?v=1"></script>
 {% endblock %}

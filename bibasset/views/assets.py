@@ -5,16 +5,21 @@ from decimal import Decimal
 from django.contrib import messages
 from django.core.paginator import Paginator
 from django.db import transaction
-from django.db.models import Avg, Count, IntegerField, OuterRef, Prefetch, Q, Subquery, Sum
+from django.db.models import (
+    Avg, Case, Count, F, FloatField, IntegerField, OuterRef, Prefetch, Q, Subquery, Sum, Value, When,
+)
 from django.db.models.functions import Coalesce
+from django.conf import settings
+from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
+from django.utils.http import urlencode
 from django.views.decorators.http import require_POST
 
 from ..decorators import role_required
 from ..forms import AssetForm, AssetUpdateForm, flash_form_errors
 from ..models import (
-    Asset, AssetComponent, AssetPhoto, AssetGroup, AssetCategory,
+    Asset, AssetAssignment, AssetComponent, AssetPhoto, AssetGroup, AssetCategory,
     Department, Location, MaintenanceRecord, MaintenanceSchedule,
     compute_health, initialize_schedule_for_asset,
 )
@@ -50,7 +55,6 @@ def asset_list(request):
                 .order_by('-is_primary', '-uploaded_at').values('photo')[:1]
             ),
         )
-        .order_by('id')   # urutan sama seperti sebelumnya; Paginator butuh urutan pasti
     )
 
     if search_query:
@@ -83,6 +87,23 @@ def asset_list(request):
     if health_filter == 'critical':
         assets_qs = critical_qs
 
+    # ── Urutan kolom (?sort=name / -name, dst.) ──
+    sort = request.GET.get('sort', '')
+    sort_key = sort.lstrip('-')
+    if sort_key in SORT_FIELDS:
+        if sort_key == 'health':
+            assets_qs = assets_qs.annotate(ratio_annot=Case(
+                When(financial__nilai_awal_aset__gt=0,
+                     then=F('total_biaya_annot') * 100.0 / F('financial__nilai_awal_aset')),
+                default=Value(None), output_field=FloatField(),
+            ))
+        expr = F(SORT_FIELDS[sort_key])
+        desc = sort.startswith('-') != (sort_key in SORT_DESC_FIRST)
+        assets_qs = assets_qs.order_by(expr.desc(nulls_last=True) if desc else expr.asc(nulls_last=True), 'id')
+    else:
+        sort = ''
+        assets_qs = assets_qs.order_by('id')   # Paginator butuh urutan pasti
+
     stats = Asset.objects.dashboard_stats()
 
     # ── Pagination di level queryset: hanya 50 baris yang diambil ──
@@ -111,8 +132,97 @@ def asset_list(request):
         "category_filter":       category_filter,
         "group_filter":          group_filter,
         "location_filter":       location_filter,
+        "sort":                  sort,
+        # Klik pertama mengurutkan, klik kedua membalik
+        "sort_next":             {k: (f'-{k}' if sort == k else k) for k in SORT_FIELDS},
+        "sort_dir":              _sort_dir(sort),
     }
     return render(request, "asset/list.html", context)
+
+
+# Kunci ?sort= → kolom. Kunci di SORT_DESC_FIRST dibalik supaya klik pertama
+# langsung menampilkan yang paling relevan (aset termuda, rasio biaya tertinggi).
+SORT_FIELDS = {
+    'name': 'nama_asset', 'category': 'asset_category__name', 'location': 'lokasi_asset__full_path',
+    'department': 'owned_by_department__name', 'age': 'tanggal_pembelian', 'status': 'lifecycle_status',
+    'health': 'ratio_annot', 'bom': 'component_count',
+}
+SORT_DESC_FIRST = {'age', 'health', 'bom'}
+
+
+def _sort_dir(sort):
+    """Arah urutan per kolom seperti yang dilihat user (untuk aria-sort & ikon panah)."""
+    key = sort.lstrip('-')
+    dirs = dict.fromkeys(SORT_FIELDS, 'none')
+    if key in SORT_FIELDS:
+        desc = sort.startswith('-') != (key in SORT_DESC_FIRST)
+        if key == 'age':          # kolom menampilkan umur, kebalikan dari tanggal beli
+            desc = not desc
+        dirs[key] = 'descending' if desc else 'ascending'
+    return dirs
+
+
+@role_required(is_ga_or_finance)
+def asset_quickview(request, pk):
+    """Ringkasan satu aset untuk panel samping di daftar aset (HTML parsial)."""
+    asset = get_object_or_404(
+        Asset.objects.select_related(
+            'lokasi_asset', 'owned_by_department', 'asset_group', 'asset_category', 'financial', 'maintenance_config',
+        ).with_health_annotations(),
+        pk=pk,
+    )
+    nilai_awal = asset.financial.nilai_awal_aset if hasattr(asset, 'financial') else None
+    health, ratio = compute_health(asset.total_biaya_annot, asset.jumlah_corrective, nilai_awal)
+    holder = AssetAssignment.objects.filter(asset=asset, status='active').select_related('assigned_to').first()
+    context = {
+        'asset':         asset,
+        'photo':         asset.photos.order_by('-is_primary', '-uploaded_at').first(),
+        'photo_count':   asset.photos.count(),
+        'health':        health,
+        'ratio':         ratio,
+        'book_value':    asset.financial.book_value() if nilai_awal is not None else None,
+        'next_schedule': asset.schedules.filter(status__in=['upcoming', 'overdue']).order_by('scheduled_date').first(),
+        'last_record':   asset.maintenance_records.select_related('performed_by')
+                              .order_by('-tanggal_pelaksanaan', '-id').first(),
+        'open_report':   asset.get_pending_damage_report(),
+        'holder':        holder.assigned_to if holder else None,
+        'interval':      asset.get_effective_interval_days(),
+    }
+    return render(request, 'asset/_quickview.html', context)
+
+
+@role_required(is_ga_or_finance)
+def asset_search(request):
+    """Pencarian ringan untuk palet perintah (Ctrl+K). Maksimal 8 hasil."""
+    q = request.GET.get('q', '').strip()
+    if not q:
+        return JsonResponse({'results': [], 'total': 0})
+    qs = Asset.objects.all()
+    # Setiap kata harus cocok di salah satu kolom: "ac mess 3" → AC di Mess 3
+    for term in q.split()[:5]:
+        qs = qs.filter(Q(nama_asset__icontains=term) | Q(asset_number__icontains=term) | Q(no_po__icontains=term) |
+                       Q(lokasi_asset__name__icontains=term) | Q(asset_category__name__icontains=term))
+    qs = (qs
+          .select_related('lokasi_asset', 'asset_category')
+          .annotate(photo_path=Subquery(
+              AssetPhoto.objects.filter(asset=OuterRef('pk')).order_by('-is_primary', '-uploaded_at').values('photo')[:1]))
+          .order_by('nama_asset', 'id'))
+    can_log = is_ga(request.user)
+    status_label = {'active': 'Aktif', 'maintenance': 'Maintenance', 'writeoff': 'Write off'}
+    results = [{
+        'id':           a.pk,
+        'name':         a.nama_asset,
+        'number':       a.asset_number,
+        'meta':         ' · '.join(x for x in [a.asset_category.name if a.asset_category else '',
+                                               str(a.lokasi_asset) if a.lokasi_asset else 'Belum ditempatkan'] if x),
+        'status':       a.lifecycle_status,
+        'status_label': status_label.get(a.lifecycle_status, ''),
+        'photo':        f'{settings.MEDIA_URL}{a.photo_path}' if a.photo_path else '',
+        'url':          reverse('asset_detail', args=[a.pk]),
+        'maint_url':    reverse('maintenance_create', args=[a.pk]) if can_log and a.lifecycle_status != 'writeoff' else '',
+    } for a in qs[:8]]
+    return JsonResponse({'results': results, 'total': qs.count(),
+                         'all_url': f"{reverse('asset_list')}?{urlencode({'q': q})}"})
 
 
 def _asset_form_context():

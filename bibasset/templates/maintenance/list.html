@@ -11,7 +11,7 @@
   <div class="page-head">
     <div>
       <h1>Jadwal maintenance</h1>
-      <div class="sub">{{ overdue_count|add:upcoming_count }} jadwal perlu ditindaklanjuti · {{ done_count }} sudah selesai</div>
+      <div class="sub" id="maintCount" data-refresh>{{ overdue_count|add:upcoming_count }} jadwal perlu ditindaklanjuti · {{ done_count }} sudah selesai</div>
     </div>
     <div class="page-actions">
       <button type="button" class="btn" data-open="pickAsset"><i class="fa-solid fa-plus" aria-hidden="true"></i>Catat maintenance</button>
@@ -19,7 +19,7 @@
   </div>
 
   <div class="toolbar">
-    <nav class="filters" aria-label="Saring status jadwal">
+    <nav class="filters" id="maintFilters" data-refresh aria-label="Saring status jadwal">
       <a class="chip {% if not status_filter %}active{% endif %}" href="{% querystring status=None page=None %}">Perlu tindakan <span class="count">{{ overdue_count|add:upcoming_count }}</span></a>
       <a class="chip {% if status_filter == 'overdue' %}active{% endif %}" href="{% querystring status='overdue' page=None %}"><svg class="sign" aria-hidden="true"><use href="#sign-warning"/></svg>Terlambat <span class="count">{{ overdue_count }}</span></a>
       <a class="chip {% if status_filter == 'upcoming' %}active{% endif %}" href="{% querystring status='upcoming' page=None %}"><svg class="sign" aria-hidden="true"><use href="#sign-mandatory"/></svg>Akan datang <span class="count">{{ upcoming_count }}</span></a>
@@ -34,7 +34,7 @@
     </form>
   </div>
 
-  <section class="panel {% if status_filter != 'done' and status_filter != 'skipped' and overdue_count %}hazard{% endif %}" aria-label="Daftar jadwal">
+  <section id="maintTable" data-refresh class="panel {% if status_filter != 'done' and status_filter != 'skipped' and overdue_count %}hazard{% endif %}" aria-label="Daftar jadwal">
     {% if schedules %}
     <div class="table-wrap">
       <table class="table sched-table">
@@ -59,7 +59,7 @@
             <td data-label="Interval" class="num">{% if sch.interval_days %}{{ sch.interval_days }} hari<div class="cell-sub">{% if sch.is_custom_interval %}custom{% else %}kategori{% endif %}</div>{% else %}<span class="cell-sub">—</span>{% endif %}</td>
             <td class="actions">
               {% if sch.status == 'upcoming' or sch.status == 'overdue' %}
-                <a class="btn sm" href="{% url 'maintenance_create' sch.asset.id %}">Catat</a>
+                <a class="btn sm" href="{% url 'maintenance_create' sch.asset.id %}" data-quick-maint>Catat</a>
                 <a class="skip" href="{% url 'maintenance_schedule_skip' sch.pk %}" onclick="return confirm('Lewati jadwal {{ sch.asset.nama_asset|escapejs }}? Jadwal ini tidak akan dihitung terlambat lagi.')">Lewati</a>
               {% endif %}
             </td>
@@ -90,7 +90,7 @@
   <ul class="picker-list" id="pickList">
     {% for asset in all_active_assets %}
     <li data-search="{{ asset.nama_asset|lower }} {{ asset.asset_number|lower }}">
-      <a href="{% url 'maintenance_create' asset.id %}">
+      <a href="{% url 'maintenance_create' asset.id %}" data-quick-maint>
         <span><strong>{{ asset.nama_asset }}</strong><span class="cell-sub">{{ asset.asset_number }} · {{ asset.asset_category.name|default:"—" }}</span></span>
         {% if asset.maint_status == 'overdue' %}{% include "components/_status.html" with kind="warning" label="Terlambat" %}{% elif asset.maint_status == 'upcoming_soon' %}{% include "components/_status.html" with kind="mandatory" label="Segera" %}{% endif %}
       </a>

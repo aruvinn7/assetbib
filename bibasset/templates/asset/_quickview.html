@@ -1,0 +1,76 @@
+{# Panel ringkas satu aset di daftar aset (dimuat lewat fetch oleh static/js/asset_list.js) #}
+{% load rupiah %}
+{% with emp=request.user.employee %}
+<header class="dlg-head qv-head">
+  <div class="qv-nav">
+    <button type="button" class="icon-btn" data-qv-step="-1" aria-label="Aset sebelumnya"><i class="fa-solid fa-chevron-up" aria-hidden="true"></i></button>
+    <button type="button" class="icon-btn" data-qv-step="1" aria-label="Aset berikutnya"><i class="fa-solid fa-chevron-down" aria-hidden="true"></i></button>
+    <span class="qv-pos" data-qv-pos></span>
+  </div>
+  <button type="button" class="icon-btn" data-dialog-close aria-label="Tutup panel"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button>
+</header>
+
+<div class="dlg-body qv-body">
+  <a class="qv-photo{% if not photo %} is-empty{% endif %}" href="{% url 'asset_detail' asset.id %}" tabindex="-1" aria-hidden="true">
+    {% if photo %}<img src="{{ photo.photo.url }}" alt="">{% else %}<span class="qv-photo-empty"><i class="fa-solid fa-image"></i>Belum ada foto</span>{% endif %}
+    {% if photo_count > 1 %}<span class="qv-photo-count"><i class="fa-regular fa-images"></i>{{ photo_count }} foto</span>{% endif %}
+  </a>
+
+  <div class="qv-title">
+    <h2 id="qvTitle">{{ asset.nama_asset }}</h2>
+    <p>{{ asset.asset_number }}{% if asset.no_po %} · PO {{ asset.no_po }}{% endif %}</p>
+    <div class="qv-tags">
+      {% include "components/_lifecycle.html" with status=asset.lifecycle_status %}
+      {% include "components/_health.html" with health=health %}
+      {% if ratio is not None %}<span class="qv-ratio">{{ ratio|floatformat:0 }}% biaya perbaikan{% if asset.jumlah_corrective %} · {{ asset.jumlah_corrective }}× rusak{% endif %}</span>{% endif %}
+    </div>
+  </div>
+
+  {% if open_report %}
+  <a class="qv-alert" href="{% if emp.ga_profile %}{% url 'ga_damage_report_detail' open_report.pk %}{% else %}{% url 'asset_detail' asset.id %}{% endif %}">
+    {% include "components/_report_status.html" with status=open_report.report_status %}
+    <span class="qv-alert-text"><strong>{{ open_report.title }}</strong>Dilaporkan {{ open_report.reported_at|date:"d M Y" }}{% if open_report.reported_by %} oleh {{ open_report.reported_by.nama }}{% endif %}</span>
+    <i class="fa-solid fa-chevron-right" aria-hidden="true"></i>
+  </a>
+  {% endif %}
+
+  <dl class="qv-facts">
+    <div><dt>Lokasi</dt><dd>{% if asset.lokasi_asset %}{{ asset.lokasi_asset }}{% else %}<span class="dim">Belum ditempatkan</span>{% endif %}</dd></div>
+    <div><dt>Pemegang</dt><dd>{% if holder %}{{ holder.nama }}{% else %}<span class="dim">Tidak ada (aset bersama)</span>{% endif %}</dd></div>
+    <div><dt>Departemen</dt><dd>{{ asset.owned_by_department|default:"—" }}</dd></div>
+    <div><dt>Kategori</dt><dd>{{ asset.asset_category.name|default:"—" }}</dd></div>
+    <div><dt>Umur</dt><dd>{{ asset.umur_asset_detail.years }} th {{ asset.umur_asset_detail.months }} bln <span class="dim">· beli {{ asset.tanggal_pembelian|date:"d M Y" }}</span></dd></div>
+    <div><dt>Nilai buku</dt><dd>{% if book_value is not None %}{{ book_value|rupiah }}{% else %}<span class="dim">Belum dinilai</span>{% endif %}</dd></div>
+    <div>
+      <dt>Jadwal berikutnya</dt>
+      <dd>
+        {% if next_schedule %}
+          {{ next_schedule.scheduled_date|date:"d M Y" }}
+          {% if next_schedule.status == 'overdue' %}{% include "components/_status.html" with kind="warning" label="Terlambat" %}{% endif %}
+        {% elif asset.lifecycle_status == 'writeoff' %}<span class="dim">Tidak ada (write off)</span>
+        {% elif interval %}<span class="dim">Belum dibuat</span>
+        {% else %}<span class="dim">Interval belum diatur</span>{% endif %}
+      </dd>
+    </div>
+    <div>
+      <dt>Maintenance terakhir</dt>
+      <dd>
+        {% if last_record %}
+          {{ last_record.tanggal_pelaksanaan|date:"d M Y" }} <span class="dim">· {{ last_record.get_maintenance_type_display|cut:" — Terjadwal rutin"|cut:" — Perbaikan setelah rusak/laporan"|cut:" — Pengecekan visual/ringan" }}{% if last_record.performed_by %} · {{ last_record.performed_by.nama }}{% endif %}</span>
+        {% else %}<span class="dim">Belum pernah</span>{% endif %}
+      </dd>
+    </div>
+  </dl>
+</div>
+
+<footer class="dlg-foot qv-foot">
+  <a class="btn" href="{% url 'asset_detail' asset.id %}">Buka detail<i class="fa-solid fa-arrow-right" aria-hidden="true"></i></a>
+  {% if emp.ga_profile and asset.lifecycle_status != 'writeoff' %}
+  <a class="btn outline" href="{% url 'maintenance_create' asset.id %}" data-quick-maint><i class="fa-solid fa-screwdriver-wrench" aria-hidden="true"></i>Catat maintenance</a>
+  {% endif %}
+  <div class="qv-more">
+    {% if emp.ga_profile %}<a href="{% url 'asset_update' asset.id %}">Edit</a><a href="{% url 'component_list' asset.id %}">BOM</a>{% endif %}
+    {% if asset.financial %}<a href="{% url 'financial_detail' asset.id %}">Finansial</a>{% elif emp.finance_profile %}<a href="{% url 'financial_create' asset.id %}">Isi finansial</a>{% endif %}
+  </div>
+</footer>
+{% endwith %}

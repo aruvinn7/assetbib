@@ -8,6 +8,7 @@
 {% block content %}
 {% with emp=request.user.employee %}
 <div class="page">
+  <span hidden id="recentAsset" data-id="{{ asset.id }}" data-name="{{ asset.nama_asset }}" data-number="{{ asset.asset_number }}" data-url="{% url 'asset_detail' asset.id %}"></span>
 
   <div class="crumbs"><a href="{% url 'asset_list' %}">Daftar aset</a><i class="fa-solid fa-chevron-right" aria-hidden="true" style="font-size:10px"></i>{{ asset.asset_number }}</div>
 
@@ -26,7 +27,7 @@
     {% if emp.ga_profile %}
     <div class="page-actions">
       <a href="{% url 'asset_update' asset.id %}" class="btn outline">Edit aset</a>
-      <a href="{% url 'maintenance_create' asset.id %}" class="btn"><i class="fa-solid fa-plus" aria-hidden="true"></i>Catat maintenance</a>
+      <a href="{% url 'maintenance_create' asset.id %}" class="btn" data-quick-maint><i class="fa-solid fa-plus" aria-hidden="true"></i>Catat maintenance</a>
     </div>
     {% elif not asset.has_financial and emp.finance_profile %}
     <div class="page-actions"><a href="{% url 'financial_create' asset.id %}" class="btn">Isi data finansial</a></div>

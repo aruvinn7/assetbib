@@ -1,0 +1,98 @@
+{# Form catat maintenance di dialog (dimuat lewat fetch oleh static/js/app.js). Versi halaman penuh: maintenance/create.html #}
+{% firstof posted.maintenance_type default_type as cur_type %}
+{% firstof posted.hasil "ok" as cur_hasil %}
+<form class="qm" method="post" action="{% url 'maintenance_create' asset.id %}" aria-labelledby="qmTitle">
+  {% csrf_token %}
+  {% if active_schedule %}<input type="hidden" name="schedule_id" value="{{ active_schedule.pk }}">{% endif %}
+
+  <header class="dlg-head">
+    <div class="dlg-title">
+      <h2 id="qmTitle">Catat maintenance</h2>
+      <p>{{ asset.nama_asset }} <span>· {{ asset.asset_number }}{% if asset.lokasi_asset %} · {{ asset.lokasi_asset.name }}{% endif %}</span></p>
+    </div>
+    <button type="button" class="icon-btn" data-dialog-close aria-label="Tutup"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button>
+  </header>
+
+  <div class="dlg-body">
+    {% if active_schedule %}
+    <div class="qm-note {% if active_schedule.status == 'overdue' %}is-late{% endif %}">
+      {% if active_schedule.status == 'overdue' %}
+        {% include "components/_status.html" with kind="warning" label="Terlambat" %}
+        <span>Jadwal {{ active_schedule.scheduled_date|date:"d M Y" }} akan ditandai selesai.</span>
+      {% else %}
+        {% include "components/_status.html" with kind="mandatory" label="Terjadwal" %}
+        <span>Jadwal {{ active_schedule.scheduled_date|date:"d M Y" }} akan ditandai selesai.</span>
+      {% endif %}
+    </div>
+    {% endif %}
+
+    {% if form.non_field_errors %}<p class="field-error" role="alert">{{ form.non_field_errors.0 }}</p>{% endif %}
+
+    <fieldset class="qm-field">
+      <legend>Tipe <span class="req" aria-hidden="true">*</span></legend>
+      <div class="seg" role="radiogroup">
+        <label class="seg-opt"><input type="radio" name="maintenance_type" value="preventive" required {% if cur_type == 'preventive' %}checked{% endif %}><span>Preventive</span></label>
+        <label class="seg-opt"><input type="radio" name="maintenance_type" value="corrective" {% if cur_type == 'corrective' %}checked{% endif %}><span>Corrective</span></label>
+        <label class="seg-opt"><input type="radio" name="maintenance_type" value="inspection" {% if cur_type == 'inspection' %}checked{% endif %}><span>Inspeksi</span></label>
+      </div>
+      {% if form.maintenance_type.errors %}<p class="field-error">Pilih tipe maintenance.</p>{% endif %}
+    </fieldset>
+
+    <div class="qm-row">
+      <div class="field">
+        <label for="qmDate">Tanggal pelaksanaan <span class="req" aria-hidden="true">*</span></label>
+        <input class="input" type="date" id="qmDate" name="tanggal_pelaksanaan" value="{% firstof posted.tanggal_pelaksanaan today|date:'Y-m-d' %}" max="{{ today|date:'Y-m-d' }}" required {% if form.tanggal_pelaksanaan.errors %}aria-invalid="true"{% endif %}>
+        {% if form.tanggal_pelaksanaan.errors %}<p class="field-error">{{ form.tanggal_pelaksanaan.errors.0 }}</p>{% endif %}
+      </div>
+      <div class="field">
+        <label for="qmCost">Biaya</label>
+        <div class="input-affix">
+          <span aria-hidden="true">Rp</span>
+          <input class="input" type="number" id="qmCost" name="biaya" value="{% firstof posted.biaya '0' %}" min="0" step="1000" inputmode="numeric" {% if form.biaya.errors %}aria-invalid="true"{% endif %}>
+        </div>
+        {% if form.biaya.errors %}<p class="field-error">{{ form.biaya.errors.0 }}</p>{% else %}<p class="field-hint">Isi 0 bila dikerjakan internal tanpa biaya.</p>{% endif %}
+      </div>
+    </div>
+
+    <div class="field">
+      <label for="qmDesc">Pekerjaan yang dilakukan <span class="req" aria-hidden="true">*</span></label>
+      <textarea class="textarea" id="qmDesc" name="deskripsi_pekerjaan" rows="3" required placeholder="Mis. cuci filter & evaporator, cek arus kompresor" {% if form.deskripsi_pekerjaan.errors %}aria-invalid="true"{% endif %}>{{ posted.deskripsi_pekerjaan|default:"" }}</textarea>
+      {% if form.deskripsi_pekerjaan.errors %}<p class="field-error">Jelaskan pekerjaan yang dilakukan.</p>{% endif %}
+      {% if recent %}
+      <div class="fill-row">
+        <span>Pakai lagi:</span>
+        {% for d in recent %}<button type="button" class="fill-chip" data-fill="{{ d }}" title="{{ d }}">{{ d|truncatechars:46 }}</button>{% endfor %}
+      </div>
+      {% endif %}
+      {% if checklist_lines %}
+      <details class="checklist">
+        <summary>Checklist standar {{ asset.asset_category.name }} ({{ checklist_lines|length }})</summary>
+        <ol>{% for line in checklist_lines %}<li>{{ line }}</li>{% endfor %}</ol>
+      </details>
+      {% endif %}
+    </div>
+
+    <fieldset class="qm-field">
+      <legend>Hasil <span class="req" aria-hidden="true">*</span></legend>
+      <div class="result-pick">
+        <label class="rp"><input type="radio" name="hasil" value="ok" {% if cur_hasil == 'ok' %}checked{% endif %}><svg class="sign" aria-hidden="true"><use href="#sign-safe"/></svg><span><strong>Baik</strong>Tidak ada masalah</span></label>
+        <label class="rp"><input type="radio" name="hasil" value="minor_issue" {% if cur_hasil == 'minor_issue' %}checked{% endif %}><svg class="sign" aria-hidden="true"><use href="#sign-warning"/></svg><span><strong>Minor issue</strong>Masih bisa beroperasi</span></label>
+        <label class="rp"><input type="radio" name="hasil" value="major_issue" {% if cur_hasil == 'major_issue' %}checked{% endif %}><svg class="sign" aria-hidden="true"><use href="#sign-danger"/></svg><span><strong>Major issue</strong>Perlu tindak lanjut</span></label>
+        <label class="rp"><input type="radio" name="hasil" value="replaced_component" {% if cur_hasil == 'replaced_component' %}checked{% endif %}><svg class="sign" aria-hidden="true"><use href="#sign-mandatory"/></svg><span><strong>Komponen diganti</strong>Ada penggantian part</span></label>
+      </div>
+    </fieldset>
+
+    <div class="field">
+      <label for="qmNote">Catatan <span class="opt">opsional</span></label>
+      <input class="input" type="text" id="qmNote" name="catatan_tambahan" value="{{ posted.catatan_tambahan|default:'' }}" placeholder="Mis. dikerjakan vendor, nomor part">
+    </div>
+  </div>
+
+  <footer class="dlg-foot">
+    <a class="dlg-link" href="{% url 'maintenance_create' asset.id %}">Buka form lengkap</a>
+    <div class="dlg-actions">
+      <button type="button" class="btn outline" data-dialog-close>Batal</button>
+      <button type="submit" class="btn"><span class="spinner" aria-hidden="true"></span><span class="btn-label">Simpan</span></button>
+    </div>
+  </footer>
+</form>

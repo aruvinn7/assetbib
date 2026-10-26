@@ -2,6 +2,7 @@ from .auth import login_view, logout_view
 from .dashboard import (dashboard, location_dashboard)  
 from .assets import (
     asset_list, asset_create, asset_update, asset_detail, asset_delete,
+    asset_quickview, asset_search,
     photo_upload, photo_set_primary, photo_delete,
 )
 from .master import (

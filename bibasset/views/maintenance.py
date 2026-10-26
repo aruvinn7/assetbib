@@ -5,12 +5,13 @@ from django.contrib import messages
 from django.core.paginator import Paginator
 from django.db import transaction
 from django.db.models import Count, Q
+from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 
 from ..decorators import role_required
 from ..forms import MaintenanceConfigForm, MaintenanceRecordForm, flash_form_errors
 from ..models import (
-    Asset, MaintenanceSchedule,
+    Asset, MaintenanceRecord, MaintenanceSchedule,
     initialize_schedule_for_asset, refresh_overdue_schedules_daily,
 )
 from ..roles import is_ga
@@ -23,29 +24,62 @@ def maintenance_create(request, asset_id):
         id=asset_id
     )
     checklist_hint = asset.asset_category.maintenance_description if asset.asset_category else ""
+    # Dipanggil dari dialog "Catat cepat" (fetch) → balas parsial/JSON, bukan halaman penuh
+    is_dialog = request.headers.get("X-Requested-With") == "fetch"
+    form = None
 
     if request.method == "POST":
         form = MaintenanceRecordForm(request.POST)
         if form.is_valid():
             with transaction.atomic():
+                schedule_id = request.POST.get("schedule_id")
+                # Hanya jadwal milik aset ini yang boleh ditandai selesai. Ditandai SEBELUM record
+                # disimpan: record.save() menghapus jadwal 'upcoming' lama saat membuat jadwal baru,
+                # sehingga jadwal yang dikerjakan dulu ikut terhapus dan riwayatnya hilang.
+                done_qs = MaintenanceSchedule.objects.filter(pk=schedule_id, asset=asset) \
+                    if schedule_id and schedule_id.isdigit() else MaintenanceSchedule.objects.none()
+                done_qs.update(status='done')
                 record = form.save(commit=False)
                 record.asset        = asset
                 record.performed_by = request.user.employee
                 record.save()
-                schedule_id = request.POST.get("schedule_id")
-                if schedule_id and schedule_id.isdigit():
-                    # Hanya jadwal milik aset ini yang boleh ditandai selesai
-                    MaintenanceSchedule.objects.filter(pk=schedule_id, asset=asset).update(
-                        status='done',
-                        maintenance_record=record,
-                    )
+                done_qs.update(maintenance_record=record)
+            if is_dialog:
+                nxt = asset.schedules.filter(status='upcoming').order_by('scheduled_date').first()
+                return JsonResponse({
+                    "ok": True,
+                    "message": f"Maintenance {asset.asset_number} dicatat."
+                               + (f" Jadwal berikutnya {nxt.scheduled_date:%d %b %Y}." if nxt else ""),
+                })
             messages.success(request, "Maintenance berhasil dicatat.")
             return redirect("asset_detail", pk=asset.id)
-        flash_form_errors(request, form)
+        if not is_dialog:
+            flash_form_errors(request, form)
 
     active_schedule = asset.schedules.filter(
         status__in=['upcoming', 'overdue']
-    ).only("id", "scheduled_date", "status").order_by('scheduled_date').first()
+    ).only("id", "scheduled_date", "status", "damage_report").order_by('scheduled_date').first()
+
+    if is_dialog:
+        # Deskripsi yang pernah dipakai untuk aset ini → tombol isi cepat
+        recent = []
+        for d in asset.maintenance_records.order_by('-tanggal_pelaksanaan').values_list('deskripsi_pekerjaan', flat=True)[:25]:
+            if d not in recent:
+                recent.append(d)
+        default_type = ''
+        if active_schedule:
+            default_type = 'corrective' if active_schedule.damage_report_id else 'preventive'
+        return render(request, "maintenance/_quick_form.html", {
+            "asset":           asset,
+            "form":            form,
+            "posted":          request.POST if request.method == "POST" else None,
+            "checklist_lines": [l.strip() for l in checklist_hint.splitlines() if l.strip()],
+            "active_schedule": active_schedule,
+            "today":           date.today(),
+            "recent":          recent[:3],
+            "default_type":    default_type,
+            "results":         MaintenanceRecord.RESULT,
+        }, status=422 if form is not None else 200)
 
     return render(request, "maintenance/create.html", {
         "asset":           asset,

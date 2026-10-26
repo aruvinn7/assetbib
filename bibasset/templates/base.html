@@ -13,7 +13,7 @@
 
   {# CSS library per halaman (mis. Bootstrap) — dimuat sebelum base.css supaya tema tetap menang #}
   {% block vendor_css %}{% endblock %}
-  <link rel="stylesheet" href="{% static 'css/base.css' %}?v=3">
+  <link rel="stylesheet" href="{% static 'css/base.css' %}?v=5">
 
   {# Pulihkan sidebar ringkas sebelum render supaya tidak berkedip #}
   <script>try { if (localStorage.getItem('sbMini') === '1') document.documentElement.classList.add('sb-mini-pending'); } catch (e) {}</script>
@@ -132,12 +132,15 @@
     <form class="topbar-search" method="get" action="{% url 'asset_list' %}" role="search">
       <i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i>
       <label class="visually-hidden" for="globalSearch">Cari aset</label>
-      <input class="input" type="search" name="q" id="globalSearch" placeholder="Cari aset: nama, nomor, PO, lokasi…" autocomplete="off">
-      <kbd>/</kbd>
+      <input class="input" type="search" name="q" id="globalSearch" placeholder="Cari aset, halaman, atau aksi…" autocomplete="off" aria-haspopup="dialog" aria-keyshortcuts="Control+K">
+      <kbd>Ctrl K</kbd>
     </form>
     {% endif %}
 
     <div class="topbar-right">
+      <button type="button" class="icon-btn round search-trigger{% if emp.ga_profile or emp.finance_profile %} only-narrow{% endif %}" data-palette-open aria-haspopup="dialog" aria-label="Cari (Ctrl+K)">
+        <i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i>
+      </button>
       {% if emp.ga_profile or emp.finance_profile %}
       <div class="dd">
         <button type="button" class="icon-btn round" data-dropdown="notifMenu" aria-expanded="false" aria-controls="notifMenu" aria-label="Notifikasi{% if notifications %} ({{ notifications|length }} baru){% endif %}">
@@ -206,7 +209,6 @@
     <span>PT Borneo Indobara</span>
   </footer>
 </div>
-{% endwith %}
 
 <script>
   // Sidebar: ringkas di desktop (diingat), laci di ponsel/tablet
@@ -274,12 +276,6 @@
     }
   })();
 
-  // "/" fokus ke pencarian global
-  document.addEventListener('keydown', e => {
-    const s = document.getElementById('globalSearch');
-    if (e.key === '/' && s && !/^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName)) { e.preventDefault(); s.focus(); }
-  });
-
   // Pesan sukses/info hilang sendiri; error & warning tetap sampai ditutup
   document.querySelectorAll('.flash.success, .flash.info').forEach(el => {
     setTimeout(() => el.remove(), 6000);
@@ -306,6 +302,54 @@
   })();
 </script>
 {% endif %}
+
+{% if request.user.is_authenticated %}
+{# ── Palet perintah (Ctrl+K / "/") ── #}
+<dialog class="palette" id="palette" aria-label="Cari dan navigasi">
+  <div class="pal-search">
+    <i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i>
+    <span class="pal-mode" id="palMode" hidden>Catat maintenance<button type="button" id="palModeClear" aria-label="Kembali ke pencarian biasa"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button></span>
+    <label class="visually-hidden" for="palInput">Cari</label>
+    <input id="palInput" type="text" role="combobox" aria-expanded="true" aria-controls="palList" aria-autocomplete="list" autocomplete="off" spellcheck="false">
+    <kbd>Esc</kbd>
+  </div>
+  <ul class="pal-list" id="palList" role="listbox" aria-label="Hasil"></ul>
+  <div class="pal-foot" aria-hidden="true"><span><kbd>↑</kbd><kbd>↓</kbd> pilih</span><span><kbd>Enter</kbd> buka</span><span><kbd>Ctrl</kbd>+<kbd>Enter</kbd> tab baru</span></div>
+</dialog>
+<script type="application/json" id="paletteData">{
+  "search": "{% if emp.ga_profile or emp.finance_profile %}{% url 'asset_search' %}{% endif %}",
+  "placeholder": "{% if emp.ga_profile or emp.finance_profile %}Cari aset, halaman, atau aksi…{% else %}Cari halaman atau aksi…{% endif %}",
+  "actions": [
+    {% if emp.ga_profile %}
+    {"label": "Catat maintenance", "hint": "Pilih aset, isi form singkat", "icon": "fa-solid fa-screwdriver-wrench", "mode": "maint"},
+    {"label": "Tambah aset", "icon": "fa-solid fa-plus", "url": "{% url 'asset_create' %}"},
+    {"label": "Serahkan aset ke karyawan", "icon": "fa-solid fa-handshake", "url": "{% url 'assignment_create' %}"},
+    {"label": "Jadwal maintenance terlambat", "icon": "fa-solid fa-clock", "url": "{% url 'maintenance_list' %}?status=overdue"},
+    {"label": "Laporan kerusakan menunggu", "icon": "fa-solid fa-triangle-exclamation", "url": "{% url 'ga_damage_report_list' %}?status=pending"},
+    {"label": "Aset critical", "icon": "fa-solid fa-heart-pulse", "url": "{% url 'asset_list' %}?health=critical"},
+    {"label": "Import aset dari Excel", "icon": "fa-solid fa-file-import", "url": "{% url 'import_asset' %}"},
+    {% endif %}
+    {% if emp.finance_profile %}
+    {"label": "Aset belum dinilai", "icon": "fa-solid fa-coins", "url": "{% url 'asset_list' %}?financial=no"},
+    {"label": "Import data finansial", "icon": "fa-solid fa-file-invoice-dollar", "url": "{% url 'import_finansial' %}"},
+    {% endif %}
+    {% if emp.user_profile %}
+    {"label": "Lapor kerusakan", "icon": "fa-solid fa-circle-exclamation", "url": "{% url 'damage_report_create' %}"},
+    {% endif %}
+    {"label": "Keluar", "icon": "fa-solid fa-arrow-right-from-bracket", "url": "{% url 'logout' %}"}
+  ]
+}</script>
+
+{% if emp.ga_profile %}
+{# ── Dialog catat maintenance (isi dimuat dari maintenance/_quick_form.html) ── #}
+<dialog class="sheet" id="quickMaint" aria-labelledby="qmTitle">
+  <div id="quickMaintBody"></div>
+</dialog>
+{% endif %}
+<div class="toasts" id="toasts" aria-live="polite" aria-atomic="false"></div>
+<script src="{% static 'js/app.js' %}?v=2"></script>
+{% endif %}
+{% endwith %}
 
 {% block extra_scripts %}{% endblock %}
 </body>

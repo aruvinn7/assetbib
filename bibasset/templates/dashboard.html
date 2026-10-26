@@ -27,7 +27,7 @@
   </div>
 
   {# ── Papan status: bentuk rambu = arti ── #}
-  <div class="boards" aria-label="Status aset">
+  <div class="boards" id="dashBoards" data-refresh aria-label="Status aset">
     <a class="board safe" href="{% url 'asset_list' %}?status=active">
       <span class="board-sign"><svg class="sign" aria-hidden="true"><use href="#sign-safe-rev"/></svg></span>
       <span class="board-body"><span class="board-num">{{ active_count }}</span><span class="board-label">Aktif</span><span class="board-note">dari {{ total_asset }} aset</span></span>
@@ -53,7 +53,7 @@
   <div class="dash-grid">
 
     {# ── Antrean kerja ── #}
-    <section class="panel {% if overdue_count %}hazard {% endif %}queue" aria-labelledby="queueTitle">
+    <section class="panel {% if overdue_count %}hazard {% endif %}queue" id="dashQueue" data-refresh aria-labelledby="queueTitle">
       <div class="panel-head">
         <h2 id="queueTitle">Antrean kerja</h2>
         {% if is_ga %}<a href="{% url 'maintenance_list' %}">Semua jadwal</a>{% endif %}
@@ -70,7 +70,7 @@
               <td class="q-asset"><a class="row-link" href="{% url 'asset_detail' sch.asset.id %}">{{ sch.asset.nama_asset }}</a><div class="cell-sub">{{ sch.asset.asset_number }}{% if sch.asset.asset_category %} · {{ sch.asset.asset_category.name }}{% endif %}</div></td>
               <td class="loc">{% include "components/_location.html" with loc=sch.asset.lokasi_asset %}</td>
               <td class="num q-when">{{ sch.scheduled_date|date:"d M Y" }}<div class="cell-sub {% if d < 0 %}late{% endif %}">{% if d < 0 %}{{ d|abs_value }} hari terlambat{% elif d == 0 %}hari ini{% else %}{{ d }} hari lagi{% endif %}</div></td>
-              {% if is_ga %}<td class="num q-act"><a class="btn sm outline" href="{% url 'maintenance_create' sch.asset.id %}">Catat</a></td>{% endif %}
+              {% if is_ga %}<td class="num q-act"><a class="btn sm outline" href="{% url 'maintenance_create' sch.asset.id %}" data-quick-maint>Catat</a></td>{% endif %}
             </tr>
             {% endwith %}
           {% endfor %}
