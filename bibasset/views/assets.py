@@ -40,9 +40,16 @@ def asset_list(request):
     )
     assets_qs = (
         Asset.objects
-        .select_related("lokasi_asset", "owned_by_department", "asset_group", "financial")
+        .select_related("lokasi_asset", "owned_by_department", "asset_group", "asset_category", "financial")
         .with_health_annotations()
-        .annotate(component_count=Coalesce(component_count, 0))
+        .annotate(
+            component_count=Coalesce(component_count, 0),
+            # Path foto utama (atau terbaru) untuk thumbnail di daftar
+            photo_path=Subquery(
+                AssetPhoto.objects.filter(asset=OuterRef('pk'))
+                .order_by('-is_primary', '-uploaded_at').values('photo')[:1]
+            ),
+        )
         .order_by('id')   # urutan sama seperti sebelumnya; Paginator butuh urutan pasti
     )
 
@@ -63,6 +70,8 @@ def asset_list(request):
         assets_qs = assets_qs.filter(asset_group_id=group_filter)
     if location_filter.isdigit():
         assets_qs = assets_qs.filter(lokasi_asset_id=location_filter)
+    elif location_filter == 'none':
+        assets_qs = assets_qs.filter(lokasi_asset__isnull=True)
 
     if status_filter in ['active', 'maintenance', 'writeoff']:
         assets_qs = assets_qs.filter(lifecycle_status=status_filter)
@@ -215,7 +224,17 @@ def asset_detail(request, pk):
     def pct(n):
         return round((n or 0) / corrective_count * 100) if corrective_count else 0
 
+    # Posisi nilai buku di antara nilai residual (0%) dan nilai awal (100%)
+    book_value = book_value_pct = None
+    if hasattr(asset, 'financial'):
+        fin = asset.financial
+        book_value = fin.book_value()
+        rentang = fin.nilai_awal_aset - fin.nilai_residual
+        book_value_pct = round(float((book_value - fin.nilai_residual) / rentang * 100)) if rentang > 0 else 0
+
     context = {
+        "book_value":           book_value,
+        "book_value_pct":       book_value_pct,
         "asset":                asset,
         "maintenance_records":  all_records,
         "corrective_records":   [r for r in all_records if r.maintenance_type == 'corrective'],
@@ -223,7 +242,8 @@ def asset_detail(request, pk):
         "components":           asset.components.all(),
         "photos":               photos,
         "primary_photo":        next((p for p in photos if p.is_primary), None),
-        "next_schedule":        next((s for s in schedules if s.status == 'upcoming'), None),
+        # Jadwal aktif terdekat — termasuk yang sudah terlambat
+        "next_schedule":        next((s for s in schedules if s.status in ('upcoming', 'overdue')), None),
         "last_maintenance":     all_records[0] if all_records else None,
         "effective_interval":   asset.get_effective_interval_days(),
         "all_maintenance_count":  stats['total_count'] or 0,

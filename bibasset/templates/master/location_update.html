@@ -3,8 +3,9 @@
 {% block title %}Edit Lokasi — {{ loc.name }}{% endblock %}
 {% block nav_master %}active{% endblock %}
 
+{% block extra_head %}<link rel="stylesheet" href="{% static 'css/pages/master_location_update.css' %}?v=3">{% endblock %}
+
 {% block content %}
-<link rel="stylesheet" href="{% static 'css/pages/master_location_update.css' %}">
 
 <div class="wrap">
 
@@ -26,7 +27,7 @@
   <!-- FORM CARD -->
   <div class="card anim">
     <div class="card-header">
-      <span class="card-dot" style="background:#d97706;"></span>
+      <span class="card-dot" style="background:var(--warning-ink);"></span>
       <span class="card-label">Edit Lokasi</span>
     </div>
     <div class="card-body">
@@ -67,7 +68,7 @@
 
         <!-- ACTIONS -->
         <div class="form-actions">
-          <button type="submit" class="btn btn-warning">💾 Simpan Perubahan</button>
+          <button type="submit" class="btn btn-warning">Simpan Perubahan</button>
           <a href="{% url 'location_list' %}" class="btn btn-outline">← Batal</a>
         </div>
       </form>

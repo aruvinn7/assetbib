@@ -2,6 +2,7 @@
 from datetime import date, timedelta
 from django.db.models import Count, Prefetch, Q, Sum
 from django.db.models.functions import TruncMonth
+from django.contrib.auth.decorators import login_required
 from django.shortcuts import render
 
 from ..decorators import role_required
@@ -156,6 +157,7 @@ def _build_chart_data():
 # ─────────────────────────────────────────────────────────────────────────────
 # VIEW: Dashboard Utama
 # ─────────────────────────────────────────────────────────────────────────────
+@login_required(login_url='login')
 def dashboard(request):
     refresh_overdue_schedules_daily()
 
@@ -230,6 +232,9 @@ def dashboard(request):
         'maintenance_status_count':  asset_stats['in_maintenance'],
         'writeoff_count':            asset_stats['writeoff'],
         'unvalued_count':            asset_stats['unvalued'],
+        # Untuk donut komposisi status: aktif, maintenance, write off
+        'status_counts':             [asset_stats['active'], asset_stats['in_maintenance'], asset_stats['writeoff']],
+        'critical_health_count':     Asset.objects.with_health_annotations().critical_health().count(),
 
         # ── Maintenance stats ──
         'overdue_count':             schedule_stats['overdue'],

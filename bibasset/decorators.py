@@ -1,3 +1,4 @@
+from django.contrib.auth.views import redirect_to_login
 from django.shortcuts import redirect
 from django.contrib import messages
 from functools import wraps
@@ -9,6 +10,10 @@ def role_required(role_check_function):
 
         @wraps(view_func)
         def wrapper(request, *args, **kwargs):
+
+            # Belum login → ke halaman masuk, lalu kembali ke halaman ini setelah login
+            if not request.user.is_authenticated:
+                return redirect_to_login(request.get_full_path(), login_url="login")
 
             # Pastikan user punya employee
             if not hasattr(request.user, "employee"):

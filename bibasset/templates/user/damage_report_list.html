@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block legacy_css %}{% endblock %}
+{% block title %}Laporan saya{% endblock %}
+
+{% block content %}
+<div class="page">
+  <div class="page-head">
+    <div>
+      <h1>Laporan kerusakan saya</h1>
+      <div class="sub">{{ reports|length }} laporan · {{ pending_count }} menunggu GA · {{ resolved_count }} selesai</div>
+    </div>
+    <div class="page-actions">
+      <a href="{% url 'damage_report_create' %}" class="btn"><i class="fa-solid fa-plus" aria-hidden="true"></i>Lapor kerusakan</a>
+    </div>
+  </div>
+
+  <section class="panel" aria-label="Daftar laporan">
+    {% if reports %}
+    <div class="table-wrap">
+      <table class="table">
+        <thead><tr><th>Laporan</th><th>Aset</th><th>Tingkat</th><th>Status</th><th class="num">Dilaporkan</th></tr></thead>
+        <tbody>
+        {% for r in reports %}
+          <tr>
+            <td><a class="row-link" href="{% url 'user_damage_report_detail' r.pk %}">{{ r.title }}</a></td>
+            <td>{{ r.asset.nama_asset }}</td>
+            <td>{{ r.get_severity_display }}</td>
+            <td>{% include "components/_report_status.html" with status=r.report_status %}</td>
+            <td class="num">{{ r.reported_at|date:"d M Y" }}</td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="empty"><strong>Belum ada laporan</strong>Kalau aset yang Anda pegang rusak, <a href="{% url 'damage_report_create' %}">laporkan di sini</a>.</div>
+    {% endif %}
+  </section>
+</div>
+{% endblock %}

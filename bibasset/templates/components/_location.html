@@ -1,0 +1,1 @@
+{% load location_path %}{% if loc %}{{ loc|path_leaf }}{% with parent=loc|path_parent %}{% if parent %}<div class="cell-sub">{{ parent }}</div>{% endif %}{% endwith %}{% else %}<span class="cell-sub">Belum ditempatkan</span>{% endif %}

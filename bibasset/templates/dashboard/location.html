@@ -2,8 +2,9 @@
 {% load static %}
 {% block title %}Dashboard Lokasi — Asset Management{% endblock %}
 
+{% block extra_head %}<link rel="stylesheet" href="{% static 'css/pages/dashboard_location.css' %}?v=3">{% endblock %}
+
 {% block content %}
-<link rel="stylesheet" href="{% static 'css/pages/dashboard_location.css' %}">
 
 <div class="loc-wrap">
 
@@ -20,15 +21,15 @@
   <div class="loc-stats anim">
     <div class="loc-stat">
       <div class="loc-stat-num" style="color:var(--accent);">{{ total_with_location }}</div>
-      <div class="loc-stat-label">📍 Aset Berlokasi</div>
+      <div class="loc-stat-label">Aset Berlokasi</div>
     </div>
     <div class="loc-stat">
       <div class="loc-stat-num" style="color:var(--warning);">{{ total_without_location }}</div>
-      <div class="loc-stat-label">❓ Tanpa Lokasi</div>
+      <div class="loc-stat-label">Tanpa Lokasi</div>
     </div>
     <div class="loc-stat">
       <div class="loc-stat-num" style="color:var(--text);">{{ roots|length }}</div>
-      <div class="loc-stat-label">🗺️ Area Utama</div>
+      <div class="loc-stat-label">Area Utama</div>
     </div>
   </div>
 
@@ -41,10 +42,9 @@
         <div class="tree-panel-title">
           <span class="tree-dot"></span>Pohon Lokasi
         </div>
-        <span style="font-size:9px;color:var(--muted);font-family:var(--mono);">klik untuk filter</span>
+        <span style="font-size:12px;color:var(--muted);font-family:var(--mono);">klik untuk filter</span>
       </div>
       <div class="tree-search-wrap">
-        <span class="tree-search-icon">🔍</span>
         <input type="text" class="tree-search" id="treeSearch" placeholder="Cari lokasi...">
       </div>
       <div class="tree-body" id="treeBody">
@@ -53,7 +53,6 @@
         <a href="{% url 'location_dashboard' %}"
           class="tree-node-row tl0 {% if not selected_id %}selected{% endif %}">
           <span style="width:22px;"></span>
-          <span style="font-size:13px;margin-right:4px;">🗺️</span>
           <span class="tree-node-name" style="font-weight:800;">Semua Area</span>
           <span class="tree-node-count has">{{ total_with_location }}</span>
         </a>
@@ -72,7 +71,7 @@
 
         <!-- BREADCRUMB -->
         <div class="bc-wrap anim">
-          <a href="{% url 'location_dashboard' %}" class="bc-item">🗺️ Semua</a>
+          <a href="{% url 'location_dashboard' %}" class="bc-item">Semua</a>
           {% for crumb in breadcrumb %}
             <span class="bc-sep">›</span>
             {% if forloop.last %}
@@ -88,7 +87,7 @@
         <div class="detail-card anim">
           <div class="detail-header">
             <div class="detail-icon">
-              {% if selected_node.children_list %}🏢{% else %}📍{% endif %}
+              {% if selected_node.children_list %}{% else %}{% endif %}
             </div>
             <div>
               <div class="detail-name">{{ selected_node.name }}</div>
@@ -107,21 +106,21 @@
             </div>
             <div class="sstrip">
               <div class="sstrip-num" style="color:var(--success);">{{ selected_node.total_active }}</div>
-              <div class="sstrip-label">🟢 Aktif</div>
+              <div class="sstrip-label">Aktif</div>
             </div>
             <div class="sstrip">
               <div class="sstrip-num" style="color:var(--accent);">{{ selected_node.total_maint }}</div>
-              <div class="sstrip-label">🔧 Maint.</div>
+              <div class="sstrip-label">Maint.</div>
             </div>
             <div class="sstrip">
               <div class="sstrip-num" style="color:var(--text-soft);">{{ selected_node.total_writeoff }}</div>
-              <div class="sstrip-label">⚫ W/O</div>
+              <div class="sstrip-label">W/O</div>
             </div>
           </div>
 
           {% if selected_node.children_list %}
           <div class="subloc-section">
-            <div class="subloc-section-label">📁 Sub-Lokasi</div>
+            <div class="subloc-section-label">Sub-Lokasi</div>
             <div class="subloc-grid">
               {% for child in selected_node.children_list %}
               {% if child.total_assets > 0 or child.children_list %}
@@ -130,9 +129,9 @@
                 <div class="subloc-meta">
                   <div class="subloc-count">{{ child.total_assets }}</div>
                   <div class="subloc-pills">
-                    {% if child.total_active > 0 %}<span class="spill g">✅ {{ child.total_active }}</span>{% endif %}
-                    {% if child.total_maint > 0 %}<span class="spill b">🔧 {{ child.total_maint }}</span>{% endif %}
-                    {% if child.total_writeoff > 0 %}<span class="spill gr">⚫ {{ child.total_writeoff }}</span>{% endif %}
+                    {% if child.total_active > 0 %}<span class="spill g">{{ child.total_active }}</span>{% endif %}
+                    {% if child.total_maint > 0 %}<span class="spill b">{{ child.total_maint }}</span>{% endif %}
+                    {% if child.total_writeoff > 0 %}<span class="spill gr">{{ child.total_writeoff }}</span>{% endif %}
                   </div>
                 </div>
                 <div class="subloc-arrow">
@@ -156,9 +155,9 @@
             </div>
             <div class="ap-filters">
               <button class="ap-tab active" onclick="filterAssets('all',this)">Semua ({{ selected_assets|length }})</button>
-              <button class="ap-tab g" onclick="filterAssets('active',this)">🟢 Aktif</button>
-              <button class="ap-tab a" onclick="filterAssets('maintenance',this)">🔧 Maint.</button>
-              <button class="ap-tab r" onclick="filterAssets('writeoff',this)">⚫ W/O</button>
+              <button class="ap-tab g" onclick="filterAssets('active',this)">Aktif</button>
+              <button class="ap-tab a" onclick="filterAssets('maintenance',this)">Maint.</button>
+              <button class="ap-tab r" onclick="filterAssets('writeoff',this)">W/O</button>
             </div>
           </div>
           <div style="overflow-x:auto;">
@@ -178,20 +177,20 @@
                 {% for asset in selected_assets %}
                 <tr data-status="{{ asset.lifecycle_status }}"
                   onclick="window.location='{% url 'asset_detail' asset.pk %}'">
-                  <td style="font-family:var(--mono);font-size:10px;color:var(--muted);">{{ forloop.counter }}</td>
+                  <td style="font-family:var(--mono);font-size:12px;color:var(--muted);">{{ forloop.counter }}</td>
                   <td>
                     <div style="font-weight:700;font-size:12px;">{{ asset.nama_asset }}</div>
-                    <div style="font-size:9px;color:var(--muted);font-family:var(--mono);margin-top:1px;">
+                    <div style="font-size:12px;color:var(--muted);font-family:var(--mono);margin-top:1px;">
                       {{ asset.asset_number }}{% if asset.asset_group %} · {{ asset.asset_group.name }}{% endif %}
                     </div>
                   </td>
-                  <td class="hm" style="font-size:11px;color:var(--text-soft);">
+                  <td class="hm" style="font-size:12px;color:var(--text-soft);">
                     {{ asset.asset_category.name|default:"—" }}
                   </td>
-                  <td style="font-size:11px;color:var(--text-soft);">{{ asset.lokasi_asset|default:"—" }}</td>
+                  <td style="font-size:12px;color:var(--text-soft);">{{ asset.lokasi_asset|default:"—" }}</td>
                   <td class="hm">
-                    <span style="font-size:10px;font-weight:600;color:var(--text-soft);
-                      background:var(--surface2);padding:2px 7px;border-radius:5px;
+                    <span style="font-size:12px;font-weight:600;color:var(--text-soft);
+                      background:var(--surface2);padding:2px 7px;border-radius:var(--r);
                       border:1px solid var(--border);">{{ asset.owned_by_department|default:"—" }}</span>
                   </td>
                   <td>
@@ -201,13 +200,13 @@
                   </td>
                   <td onclick="event.stopPropagation()">
                    <a href="{% url 'maintenance_create' asset.id %}"  
-                      style="padding:4px 10px;border-radius:5px;font-size:10px;font-weight:700;
+                      style="padding:4px 10px;border-radius:var(--r);font-size:12px;font-weight:700;
                       text-decoration:none;border:1.5px solid #16a34a;
-                      background:#dcfce7;color:#166534;display:inline-block;">
+                      background:var(--safe-tint);color:#166534;display:inline-block;">
                       + Input
                     </a>
                     <a href="{% url 'asset_detail' asset.pk %}"
-                      style="padding:4px 10px;border-radius:5px;font-size:10px;font-weight:700;
+                      style="padding:4px 10px;border-radius:var(--r);font-size:12px;font-weight:700;
                         text-decoration:none;border:1.5px solid var(--border);
                         background:var(--surface2);color:var(--text-soft);display:inline-block;">Detail</a>
                   </td>
@@ -223,13 +222,12 @@
         <!-- PROMPT — belum ada yang dipilih -->
         <div class="detail-card anim">
           <div class="loc-empty">
-            <div class="loc-empty-icon">🗺️</div>
             <div class="loc-empty-title">Pilih Lokasi</div>
             <div class="loc-empty-sub">Klik area di panel kiri untuk melihat aset di lokasi tersebut.</div>
           </div>
           {% if roots %}
           <div class="subloc-section" style="border-top:1px solid var(--border);">
-            <div class="subloc-section-label">🗺️ Area Utama</div>
+            <div class="subloc-section-label">Area Utama</div>
             <div class="subloc-grid">
               {% for root in roots %}
               {% if root.total_assets > 0 or root.children_list %}
@@ -238,9 +236,9 @@
                 <div class="subloc-meta">
                   <div class="subloc-count">{{ root.total_assets }}</div>
                   <div class="subloc-pills">
-                    {% if root.total_active > 0 %}<span class="spill g">✅ {{ root.total_active }}</span>{% endif %}
-                    {% if root.total_maint > 0 %}<span class="spill b">🔧 {{ root.total_maint }}</span>{% endif %}
-                    {% if root.total_writeoff > 0 %}<span class="spill gr">⚫ {{ root.total_writeoff }}</span>{% endif %}
+                    {% if root.total_active > 0 %}<span class="spill g">{{ root.total_active }}</span>{% endif %}
+                    {% if root.total_maint > 0 %}<span class="spill b">{{ root.total_maint }}</span>{% endif %}
+                    {% if root.total_writeoff > 0 %}<span class="spill gr">{{ root.total_writeoff }}</span>{% endif %}
                   </div>
                 </div>
                 <div class="subloc-arrow">{{ root.children_list|length }} sub-lokasi →</div>

@@ -4,121 +4,87 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Login — Asset Management</title>
-  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@300;400;600;700;800;900&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="{% static 'css/pages/login.css' %}">
+  <title>Masuk · AssetMS</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300..700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <link rel="stylesheet" href="{% static 'css/base.css' %}?v=3">
+  <link rel="stylesheet" href="{% static 'css/pages/login.css' %}?v=3">
 </head>
-<body>
+<body class="login">
+  <main class="login-main">
+    <div class="login-form-side">
+      <div class="login-box">
+        <div class="login-brand brand">
+          <span class="brand-mark" aria-hidden="true"><i class="fa-solid fa-cubes"></i></span>
+          <span class="brand-text">AssetMS<small>PT Borneo Indobara</small></span>
+        </div>
 
-  <!-- Background decoration -->
-  <div class="bg-dots">
-    <div class="bg-dot"></div>
-    <div class="bg-dot"></div>
-    <div class="bg-dot"></div>
-    <div class="bg-dot"></div>
-  </div>
+        <h1 id="loginTitle">Masuk</h1>
+        <p class="login-sub">Masukkan username dan password yang diberikan GA.</p>
 
-  <div class="login-card">
-
-    <!-- Top accent stripe -->
-    <div class="card-accent"></div>
-
-    <!-- Header -->
-    <div class="card-header">
-      <div class="logo-wrap">📦</div>
-      <div class="card-eyebrow">Asset Information Management</div>
-      <div class="card-title">Selamat <em>Datang</em></div>
-      <div class="card-subtitle">Masuk untuk melanjutkan ke sistem</div>
-    </div>
-
-    <!-- Body -->
-    <div class="card-body">
-
-      <!-- Messages / Notifications -->
-      {% if messages %}
         {% for message in messages %}
-          <div class="msg {{ message.tags }}">
-            <span class="msg-icon">
-              {% if message.tags == 'error' or message.tags == 'danger' %}⛔
-              {% elif message.tags == 'success' %}✅
-              {% elif message.tags == 'warning' %}⚠️
-              {% else %}ℹ️{% endif %}
-            </span>
-            <span>{{ message }}</span>
-          </div>
+        <div class="flash {{ message.tags }}" role="alert">
+          <svg class="sign" aria-hidden="true" width="18" height="18" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9.6" fill="#fff" stroke="#D92D20" stroke-width="2.8"/><path d="M5.3 5.3l13.4 13.4" stroke="#D92D20" stroke-width="2.8"/></svg>
+          <span>{{ message }}</span>
+        </div>
         {% endfor %}
-      {% endif %}
 
-      <form method="POST" autocomplete="off">
-        {% csrf_token %}
-
-        <!-- Username -->
-        <div class="field">
-          <div class="field-label">
-            <span class="field-label-icon">👤</span> Username
+        <form method="post" class="login-form" aria-labelledby="loginTitle">
+          {% csrf_token %}
+          {% if request.GET.next %}<input type="hidden" name="next" value="{{ request.GET.next }}">{% endif %}
+          <div class="field">
+            <label for="username">Username <span class="req" aria-hidden="true">*</span></label>
+            <div class="with-icon">
+              <i class="fa-regular fa-user" aria-hidden="true"></i>
+              <input class="input" type="text" id="username" name="username" placeholder="mis. ga.staff" autocomplete="username" autocapitalize="none" required autofocus>
+            </div>
           </div>
-          <div class="field-input-wrap">
-            <span class="field-icon">🔑</span>
-            <input
-              type="text"
-              name="username"
-              class="field-input"
-              placeholder="Masukkan username"
-              autocomplete="username"
-              autofocus
-              required>
+          <div class="field">
+            <label for="password">Password <span class="req" aria-hidden="true">*</span></label>
+            <div class="with-icon pw">
+              <i class="fa-solid fa-lock" aria-hidden="true"></i>
+              <input class="input" type="password" id="password" name="password" placeholder="Masukkan password" autocomplete="current-password" required>
+              <button type="button" class="pw-toggle" id="pwToggle" aria-pressed="false" aria-label="Tampilkan password"><i class="fa-regular fa-eye" aria-hidden="true"></i></button>
+            </div>
+            <p class="caps" id="capsHint" hidden><i class="fa-solid fa-circle-info" aria-hidden="true"></i> Caps Lock aktif</p>
           </div>
-        </div>
+          <button type="submit" class="btn login-submit" id="loginBtn">Masuk</button>
+        </form>
 
-        <!-- Password -->
-        <div class="field">
-          <div class="field-label">
-            <span class="field-label-icon">🔒</span> Password
-          </div>
-          <div class="field-input-wrap">
-            <span class="field-icon">🛡</span>
-            <input
-              type="password"
-              name="password"
-              id="passwordInput"
-              class="field-input has-toggle"
-              placeholder="Masukkan password"
-              autocomplete="current-password"
-              required>
-            <button type="button" class="pwd-toggle" id="pwdToggle"
-                    onclick="togglePassword()" title="Tampilkan/sembunyikan password">
-              👁
-            </button>
-          </div>
-        </div>
-
-        <button type="submit" class="btn-login">
-          <span>→</span> Masuk ke Sistem
-        </button>
-
-      </form>
+        <p class="login-foot">Lupa password? Hubungi staf General Affairs di site Anda.</p>
+      </div>
     </div>
 
-    <!-- Footer -->
-    <div class="card-footer">
-      <strong>Asset Management System</strong> · Hanya untuk pengguna terdaftar
+    <div class="login-art" aria-hidden="true">
+      <div class="art-grid"></div>
+      <div class="art-content">
+        <span class="brand-mark big"><i class="fa-solid fa-cubes"></i></span>
+        <h2>Asset Management System</h2>
+        <p>Pantau aset, jadwal maintenance, dan laporan kerusakan di seluruh site dalam satu tempat.</p>
+        <ul>
+          <li><i class="fa-solid fa-box-archive"></i>Daftar &amp; foto aset</li>
+          <li><i class="fa-solid fa-screwdriver-wrench"></i>Jadwal maintenance</li>
+          <li><i class="fa-solid fa-triangle-exclamation"></i>Laporan kerusakan</li>
+        </ul>
+      </div>
     </div>
-
-  </div>
+  </main>
 
   <script>
-    function togglePassword() {
-      const input  = document.getElementById('passwordInput');
-      const toggle = document.getElementById('pwdToggle');
-      if (input.type === 'password') {
-        input.type = 'text';
-        toggle.textContent = '🙈';
-      } else {
-        input.type = 'password';
-        toggle.textContent = '👁';
-      }
-    }
+    const pw = document.getElementById('password'), tg = document.getElementById('pwToggle');
+    tg.addEventListener('click', () => {
+      const show = pw.type === 'password';
+      pw.type = show ? 'text' : 'password';
+      tg.innerHTML = show ? '<i class="fa-regular fa-eye-slash" aria-hidden="true"></i>' : '<i class="fa-regular fa-eye" aria-hidden="true"></i>';
+      tg.setAttribute('aria-pressed', show);
+      tg.setAttribute('aria-label', show ? 'Sembunyikan password' : 'Tampilkan password');
+    });
+    pw.addEventListener('keyup', e => { document.getElementById('capsHint').hidden = !e.getModifierState?.('CapsLock'); });
+    document.querySelector('.login-form').addEventListener('submit', () => {
+      const b = document.getElementById('loginBtn'); b.disabled = true; b.textContent = 'Memeriksa…';
+    });
   </script>
-
 </body>
 </html>

@@ -1,0 +1,51 @@
+{
+  "hook": {
+    "enabled": true,
+    "limits": {
+      "maxFindings": 5,
+      "maxChars": 8000
+    }
+  },
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "cramped-padding",
+        "value": "*",
+        "files": [
+          ".impeccable/mocks/decision/*.html"
+        ],
+        "createdAt": "2026-10-25T20:51:12.413Z",
+        "reason": "Agent: decision-round sketches, not shipped UI; rendered as skeletons on the decision page"
+      },
+      {
+        "rule": "overused-font",
+        "value": "*",
+        "files": [
+          ".impeccable/mocks/decision/canon.html"
+        ],
+        "createdAt": "2026-10-25T20:51:12.471Z",
+        "reason": "Agent: canon card deliberately depicts the generic category standard (Inter)"
+      },
+      {
+        "rule": "design-system-font",
+        "value": "*",
+        "files": [
+          ".impeccable/mocks/decision/canon.html"
+        ],
+        "createdAt": "2026-10-25T21:06:19.322Z",
+        "reason": "Agent: canon decision card deliberately depicts the generic category standard (Inter); not shipped UI"
+      },
+      {
+        "rule": "flat-type-hierarchy",
+        "value": "*",
+        "files": [
+          "bibasset/templates/login.html"
+        ],
+        "createdAt": "2026-10-26T00:33:16.260Z",
+        "reason": "Claude: login.css sets h1 30px/600 vs body 14px (2.1x) and brand 19px; hook cannot see external page CSS"
+      }
+    ]
+  }
+}

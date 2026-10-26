@@ -3,8 +3,9 @@
 {% block title %}Master Asset Group{% endblock %}
 {% block nav_master %}active{% endblock %}
 
+{% block extra_head %}<link rel="stylesheet" href="{% static 'css/pages/master_assetgroup_list.css' %}?v=3">{% endblock %}
+
 {% block content %}
-<link rel="stylesheet" href="{% static 'css/pages/master_assetgroup_list.css' %}">
 
 <div class="wrap">
 
@@ -30,7 +31,7 @@
   <!-- TOOLBAR -->
   <div class="toolbar anim">
     <div class="search-wrap">
-      <span class="search-icon">🔍</span>
+      <i class="search-icon fa-solid fa-magnifying-glass" aria-hidden="true"></i>
       <input type="text" class="search-input" id="searchInput"
         placeholder="Cari nama asset group..."
         oninput="filterTable(this.value)">
@@ -62,18 +63,17 @@
       <tbody id="groupTbody">
         {% for g in groups %}
         <tr class="group-row" data-search="{{ g.name|lower }}">
-          <td style="font-family:var(--mono);font-size:10px;color:var(--muted);">{{ forloop.counter }}</td>
+          <td style="font-family:var(--mono);font-size:12px;color:var(--muted);">{{ forloop.counter }}</td>
           <td>
             <div class="group-name">
-              <div class="group-icon">📦</div>
               {{ g.name }}
             </div>
           </td>
           <td>
             <div class="action-group">
-              <a href="{% url 'assetgroup_update' g.id %}" class="act-btn edit">✏️ Edit</a>
+              <a href="{% url 'assetgroup_update' g.id %}" class="act-btn edit">Edit</a>
               <a href="{% url 'assetgroup_delete' g.id %}" class="act-btn"
-                 onclick="return confirm('Hapus asset group \'{{ g.name|escapejs }}\'?')">🗑 Hapus</a>
+                 onclick="return confirm('Hapus asset group \'{{ g.name|escapejs }}\'?')">Hapus</a>
             </div>
           </td>
         </tr>
@@ -87,12 +87,11 @@
       {% for g in groups %}
       <div class="mc group-row" data-search="{{ g.name|lower }}">
         <span class="mc-num">{{ forloop.counter }}</span>
-        <div class="mc-icon">📦</div>
         <span class="mc-name">{{ g.name }}</span>
         <div class="action-group">
-          <a href="{% url 'assetgroup_update' g.id %}" class="act-btn edit">✏️</a>
+          <a href="{% url 'assetgroup_update' g.id %}" class="act-btn edit">Edit</a>
           <a href="{% url 'assetgroup_delete' g.id %}" class="act-btn"
-             onclick="return confirm('Hapus asset group \'{{ g.name|escapejs }}\'?')">🗑</a>
+             onclick="return confirm('Hapus asset group \'{{ g.name|escapejs }}\'?')">Hapus</a>
         </div>
       </div>
       {% endfor %}
@@ -100,14 +99,12 @@
 
     <!-- EMPTY SEARCH -->
     <div id="searchEmpty" style="display:none;" class="empty-state">
-      <div class="empty-icon">🔍</div>
       <div class="empty-title">Asset group tidak ditemukan</div>
       <div class="empty-sub">Coba kata kunci lain</div>
     </div>
 
     {% else %}
     <div class="empty-state">
-      <div class="empty-icon">📦</div>
       <div class="empty-title">Belum ada asset group</div>
       <div class="empty-sub">Tambahkan group pertama untuk mulai mengkategorikan aset</div>
       <a href="{% url 'assetgroup_create' %}" class="btn btn-success">＋ Tambah Asset Group</a>

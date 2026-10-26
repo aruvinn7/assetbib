@@ -4,230 +4,285 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>{% block title %}Asset Management{% endblock %} — PT Borneo Indobara</title>
+  <title>{% block title %}Asset Management{% endblock %} · AssetMS</title>
 
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700;800;900&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
-  {# Ikon tidak kritis untuk render pertama → dimuat tanpa memblokir halaman #}
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"
-        media="print" onload="this.media='all'">
-  <noscript><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"></noscript>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300..700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
 
   {# CSS library per halaman (mis. Bootstrap) — dimuat sebelum base.css supaya tema tetap menang #}
   {% block vendor_css %}{% endblock %}
-  <link rel="stylesheet" href="{% static 'css/base.css' %}">
+  <link rel="stylesheet" href="{% static 'css/base.css' %}?v=3">
+
+  {# Pulihkan sidebar ringkas sebelum render supaya tidak berkedip #}
+  <script>try { if (localStorage.getItem('sbMini') === '1') document.documentElement.classList.add('sb-mini-pending'); } catch (e) {}</script>
 
   {% block extra_head %}{% endblock %}
+  {# Penyelaras gaya untuk halaman berkelas lama; halaman yang sudah dibangun ulang mengosongkan block ini #}
+  {% block legacy_css %}<link rel="stylesheet" href="{% static 'css/legacy.css' %}?v=4">{% endblock %}
 </head>
 
-  <body>
+<body>
+<script>if (document.documentElement.classList.contains('sb-mini-pending')) document.body.classList.add('sb-mini');</script>
+{# Rambu status bergaya ISO 7010: bentuk membawa arti, warna menguatkan. Pakai: <svg class="sign"><use href="#sign-danger"/></svg> #}
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="sign-safe" viewBox="0 0 24 24"><rect x="1" y="1" width="22" height="22" rx="5" fill="var(--safe)"/><path d="M6.5 12.5l3.5 3.5 7.5-8" fill="none" stroke="#fff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="sign-mandatory" viewBox="0 0 24 24"><circle cx="12" cy="12" r="11" fill="var(--mandatory)"/><path d="M14.8 6.2a3.6 3.6 0 0 0-4.6 4.6l-4.4 4.4 2 2 4.4-4.4a3.6 3.6 0 0 0 4.6-4.6l-2.1 2.1-1.8-.2-.2-1.8z" fill="#fff"/></symbol>
+  <symbol id="sign-warning" viewBox="0 0 24 24"><path d="M12 2.2L22.8 21H1.2z" fill="var(--warning-fill)" stroke="var(--warning-fill)" stroke-width="1.6" stroke-linejoin="round"/><path d="M12 8.5v6.2" stroke="#fff" stroke-width="2.4" stroke-linecap="round"/><circle cx="12" cy="17.6" r="1.3" fill="#fff"/></symbol>
+  <symbol id="sign-danger" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9.6" fill="#fff" stroke="var(--danger)" stroke-width="2.8"/><path d="M5.3 5.3l13.4 13.4" stroke="var(--danger)" stroke-width="2.8"/></symbol>
+  <symbol id="sign-off" viewBox="0 0 24 24"><rect x="1" y="1" width="22" height="22" rx="5" fill="var(--off)"/><path d="M6 12h12" stroke="#fff" stroke-width="2.6" stroke-linecap="round"/></symbol>
+  {# Varian terbalik (dulu untuk blok warna penuh) — kini sama dengan versi biasa #}
+  <symbol id="sign-safe-rev" viewBox="0 0 24 24"><use href="#sign-safe"/></symbol>
+  <symbol id="sign-mandatory-rev" viewBox="0 0 24 24"><use href="#sign-mandatory"/></symbol>
+  <symbol id="sign-off-rev" viewBox="0 0 24 24"><use href="#sign-off"/></symbol>
+  <symbol id="sign-none" viewBox="0 0 24 24"><rect x="2" y="2" width="20" height="20" rx="5" fill="none" stroke="#98A2B3" stroke-width="2" stroke-dasharray="3 2.4"/></symbol>
+</svg>
 
-  <!-- ── NAVBAR ── -->
-  <nav class="navbar">
-    <div class="navbar-inner">
+<a class="skip-link" href="#main">Lewati ke konten</a>
 
-      <a class="nav-brand" href="{% url 'dashboard' %}">
-        <div class="nav-brand-icon">⛏️</div>
-        <div>
-          <div class="nav-brand-text">AssetMS</div>
-          <div class="nav-brand-sub">PT Borneo Indobara</div>
-        </div>
-      </a>
+{% with emp=request.user.employee %}
+{% if request.user.is_authenticated %}
+{# ── Sidebar ── #}
+<aside class="sidebar" id="sidebar" aria-label="Navigasi utama">
+  <div class="sidebar-top">
+    <a class="brand" href="{% if emp.user_profile and not emp.ga_profile and not emp.finance_profile %}{% url 'user_dashboard' %}{% else %}{% url 'dashboard' %}{% endif %}">
+      <span class="brand-mark" aria-hidden="true"><i class="fa-solid fa-cubes"></i></span>
+      <span class="brand-text">AssetMS<small>PT Borneo Indobara</small></span>
+    </a>
+    <button type="button" class="icon-btn sidebar-close" data-sidebar-close aria-label="Tutup menu"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button>
+  </div>
 
-      <!-- DESKTOP LINKS -->
-      <div class="nav-links">
-        <a href="{% url 'dashboard' %}" class="nav-link {% block nav_dashboard %}{% endblock %}">
-          <i class="fa-solid fa-house"></i> Dashboard
-        </a>
-        <a href="{% url 'asset_list' %}" class="nav-link {% block nav_assets %}{% endblock %}">
-          <i class="fa-solid fa-box-archive"></i> Aset
-        </a>
-
-        {% if request.user.is_authenticated %}
-          {% if request.user.employee.ga_profile %}
-          <div class="nav-dropdown">
-            <div class="nav-link nav-dropdown-toggle {% block nav_maintenance %}{% endblock %}">
-              <i class="fa-solid fa-wrench"></i> Maintenance
-              <i class="fa-solid fa-chevron-down chevron"></i>
-            </div>
-            <div class="nav-dropdown-menu">
-              <a href="{% url 'maintenance_list' %}" class="nav-dropdown-item">
-                <i class="fa-solid fa-gauge"></i> Monitor Dashboard
-              </a>
-              <div class="nav-divider"></div>
-              <a href="#" class="nav-dropdown-item" id="navMaintCreate" style="display:none;">
-                <i class="fa-solid fa-plus"></i> Input Maintenance
-              </a>
-            </div>
-          </div>
-
-          <div class="nav-dropdown">
-            <div class="nav-link nav-dropdown-toggle {% block nav_master %}{% endblock %}">
-              <i class="fa-solid fa-database"></i> Master Data
-              <i class="fa-solid fa-chevron-down chevron"></i>
-            </div>
-            <div class="nav-dropdown-menu">
-              <a href="{% url 'department_list' %}" class="nav-dropdown-item"><i class="fa-solid fa-building"></i> Department</a>
-              <a href="{% url 'location_list' %}" class="nav-dropdown-item"><i class="fa-solid fa-location-dot"></i> Lokasi</a>
-              <a href="{% url 'assetgroup_list' %}" class="nav-dropdown-item"><i class="fa-solid fa-layer-group"></i> Asset Group</a>
-              <a href="{% url 'assetcategory_list' %}" class="nav-dropdown-item"><i class="fa-solid fa-tags"></i> Asset Category</a>
-            </div>
-          </div>
-          {% endif %}
-
-          {% if request.user.employee.finance_profile %}
-          <a href="{% url 'asset_list' %}?financial=no" class="nav-link {% block nav_financial %}{% endblock %}">
-            <i class="fa-solid fa-coins"></i> Finansial
-          </a>
-          {% endif %}
-        {% endif %}
-      </div>
-
-      <!-- DESKTOP RIGHT -->
-      {% if request.user.is_authenticated %}
-      <div class="nav-right">
-        <div class="nav-sep"></div>
-        <div>
-          <div class="nav-user-name">{{ request.user.employee.nama|default:request.user.username }}</div>
-          <div class="nav-user-sub">
-            {{ request.user.employee.jabatan|default:"" }}{% if request.user.employee.department %} · {{ request.user.employee.department.name }}{% endif %}
-          </div>
-        </div>
-        {% if request.user.employee.ga_profile %}
-          <span class="role-pill ga">GA</span>
-        {% elif request.user.employee.finance_profile %}
-          <span class="role-pill finance">Finance</span>
-        {% else %}
-          <span class="role-pill user">User</span>
-        {% endif %}
-        <div class="nav-sep"></div>
-        <a href="{% url 'logout' %}" class="nav-logout">
-          <i class="fa-solid fa-right-from-bracket"></i> Logout
-        </a>
-      </div>
+  <nav class="sidebar-nav">
+    {% if emp.ga_profile or emp.finance_profile %}
+    <h2 class="menu-label">Menu</h2>
+    <ul class="menu">
+      <li><a href="{% url 'dashboard' %}" class="menu-item {% block nav_dashboard %}{% endblock %}"><i class="mi-icon fa-solid fa-chart-pie" aria-hidden="true"></i><span class="mi-text">Ringkasan</span></a></li>
+      <li><a href="{% url 'asset_list' %}" class="menu-item {% block nav_assets %}{% endblock %}"><i class="mi-icon fa-solid fa-box-archive" aria-hidden="true"></i><span class="mi-text">Daftar aset</span></a></li>
+      {% if emp.ga_profile %}
+      <li><a href="{% url 'maintenance_list' %}" class="menu-item {% block nav_maintenance %}{% endblock %}"><i class="mi-icon fa-solid fa-screwdriver-wrench" aria-hidden="true"></i><span class="mi-text">Maintenance</span></a></li>
+      <li><a href="{% url 'ga_damage_report_list' %}" class="menu-item {% block nav_damage %}{% endblock %}"><i class="mi-icon fa-solid fa-triangle-exclamation" aria-hidden="true"></i><span class="mi-text">Laporan kerusakan</span></a></li>
+      <li><a href="{% url 'assignment_list' %}" class="menu-item {% block nav_assignment %}{% endblock %}"><i class="mi-icon fa-solid fa-handshake" aria-hidden="true"></i><span class="mi-text">Serah terima</span></a></li>
+      <li><a href="{% url 'location_dashboard' %}" class="menu-item"><i class="mi-icon fa-solid fa-map-location-dot" aria-hidden="true"></i><span class="mi-text">Peta lokasi</span></a></li>
       {% endif %}
+      <li><a href="{% url 'movement_dashboard' %}" class="menu-item {% block nav_movement %}{% endblock %}"><i class="mi-icon fa-solid fa-right-left" aria-hidden="true"></i><span class="mi-text">Movement</span></a></li>
+      {% if emp.finance_profile %}
+      <li><a href="{% url 'asset_list' %}?financial=no" class="menu-item {% block nav_financial %}{% endblock %}"><i class="mi-icon fa-solid fa-coins" aria-hidden="true"></i><span class="mi-text">Belum dinilai</span></a></li>
+      {% endif %}
+    </ul>
 
-      <!-- HAMBURGER -->
-      <button class="nav-hamburger" onclick="toggleMobile()" id="hamburgerBtn" aria-label="Menu">
-        <i class="fa-solid fa-bars" id="hamburgerIcon"></i>
-      </button>
+    <h2 class="menu-label">Data</h2>
+    <ul class="menu">
+      <li>
+        <button type="button" class="menu-item {% block nav_master %}{% endblock %}" data-submenu="masterMenu" aria-expanded="false" aria-controls="masterMenu">
+          <i class="mi-icon fa-solid fa-database" aria-hidden="true"></i><span class="mi-text">Master data</span><i class="mi-chev fa-solid fa-chevron-down" aria-hidden="true"></i>
+        </button>
+        <ul class="submenu" id="masterMenu" hidden>
+          <li><a href="{% url 'location_list' %}">Lokasi</a></li>
+          <li><a href="{% url 'department_list' %}">Departemen</a></li>
+          <li><a href="{% url 'assetgroup_list' %}">Grup aset</a></li>
+          <li><a href="{% url 'assetcategory_list' %}">Kategori aset</a></li>
+        </ul>
+      </li>
+      {% if emp.ga_profile %}
+      <li><a href="{% url 'import_asset' %}" class="menu-item"><i class="mi-icon fa-solid fa-file-import" aria-hidden="true"></i><span class="mi-text">Import aset</span></a></li>
+      <li><a href="{% url 'import_finansial' %}" class="menu-item"><i class="mi-icon fa-solid fa-file-invoice-dollar" aria-hidden="true"></i><span class="mi-text">Import finansial</span></a></li>
+      {% endif %}
+    </ul>
+    {% endif %}
 
-    </div>
+    {% if emp.user_profile %}
+    <h2 class="menu-label">Karyawan</h2>
+    <ul class="menu">
+      <li><a href="{% url 'user_dashboard' %}" class="menu-item"><i class="mi-icon fa-solid fa-laptop" aria-hidden="true"></i><span class="mi-text">Aset saya</span></a></li>
+      <li><a href="{% url 'damage_report_create' %}" class="menu-item"><i class="mi-icon fa-solid fa-circle-exclamation" aria-hidden="true"></i><span class="mi-text">Lapor kerusakan</span></a></li>
+      <li><a href="{% url 'user_damage_report_list' %}" class="menu-item"><i class="mi-icon fa-solid fa-clipboard-list" aria-hidden="true"></i><span class="mi-text">Laporan saya</span></a></li>
+    </ul>
+    {% endif %}
   </nav>
 
-  <!-- MOBILE MENU -->
-  {% if request.user.is_authenticated %}
-  <div class="nav-mobile-menu" id="mobileMenu">
-
-    <!-- User info mini -->
-    <div class="mobile-user-info">
-      <div class="mobile-user-avatar">👤</div>
-      <div>
-        <div class="nav-user-name">{{ request.user.employee.nama|default:request.user.username }}</div>
-        <div class="nav-user-sub">{{ request.user.employee.jabatan|default:"" }}</div>
+  <div class="sidebar-foot">
+    <div class="sidebar-user">
+      <span class="avatar" aria-hidden="true">{{ emp.nama|default:request.user.username|slice:":1" }}</span>
+      <div class="who">
+        <strong>{{ emp.nama|default:request.user.username }}</strong>
+        <span>{% if emp.ga_profile %}General Affairs{% elif emp.finance_profile %}Finance{% else %}Karyawan{% endif %}</span>
       </div>
-      {% if request.user.employee.ga_profile %}
-        <span class="role-pill ga" style="margin-left:auto;">GA</span>
-      {% elif request.user.employee.finance_profile %}
-        <span class="role-pill finance" style="margin-left:auto;">Finance</span>
-      {% else %}
-        <span class="role-pill user" style="margin-left:auto;">User</span>
-      {% endif %}
     </div>
-
-    <a href="{% url 'dashboard' %}" class="nav-mobile-link"><i class="fa-solid fa-house"></i> Dashboard</a>
-    <a href="{% url 'asset_list' %}" class="nav-mobile-link"><i class="fa-solid fa-box-archive"></i> Aset</a>
-
-    {% if request.user.employee.ga_profile %}
-    <a href="{% url 'maintenance_list' %}" class="nav-mobile-link"><i class="fa-solid fa-wrench"></i> Maintenance Monitor</a>
-    <a href="{% url 'department_list' %}" class="nav-mobile-link"><i class="fa-solid fa-building"></i> Department</a>
-    <a href="{% url 'location_list' %}" class="nav-mobile-link"><i class="fa-solid fa-location-dot"></i> Lokasi</a>
-    <a href="{% url 'assetgroup_list' %}" class="nav-mobile-link"><i class="fa-solid fa-layer-group"></i> Asset Group</a>
-    <a href="{% url 'assetcategory_list' %}" class="nav-mobile-link"><i class="fa-solid fa-tags"></i> Asset Category</a>
-    {% endif %}
-
-    {% if request.user.employee.finance_profile %}
-    <a href="{% url 'asset_list' %}?financial=no" class="nav-mobile-link"><i class="fa-solid fa-coins"></i> Finansial</a>
-    {% endif %}
-
-    <div style="border-top:1px solid var(--border);margin:8px 0 4px;padding-top:4px;">
-      <a href="{% url 'logout' %}" class="nav-mobile-link" style="color:var(--danger);">
-        <i class="fa-solid fa-right-from-bracket"></i> Logout
-      </a>
-    </div>
+    <a href="{% url 'logout' %}" class="logout-btn"><i class="fa-solid fa-arrow-right-from-bracket" aria-hidden="true"></i><span>Keluar</span></a>
   </div>
+</aside>
+<div class="sidebar-overlay" data-sidebar-close></div>
+{% endif %}
+
+<div class="app-body">
+  {% if request.user.is_authenticated %}
+  {# ── Header ── #}
+  <header class="topbar">
+    <button type="button" class="icon-btn" id="sidebarToggle" aria-label="Buka/tutup menu" aria-controls="sidebar">
+      <i class="fa-solid fa-bars" aria-hidden="true"></i>
+    </button>
+
+    <a class="brand topbar-brand" href="{% url 'dashboard' %}">
+      <span class="brand-mark" aria-hidden="true"><i class="fa-solid fa-cubes"></i></span>
+      <span class="brand-text">AssetMS</span>
+    </a>
+
+    {% if emp.ga_profile or emp.finance_profile %}
+    <form class="topbar-search" method="get" action="{% url 'asset_list' %}" role="search">
+      <i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i>
+      <label class="visually-hidden" for="globalSearch">Cari aset</label>
+      <input class="input" type="search" name="q" id="globalSearch" placeholder="Cari aset: nama, nomor, PO, lokasi…" autocomplete="off">
+      <kbd>/</kbd>
+    </form>
+    {% endif %}
+
+    <div class="topbar-right">
+      {% if emp.ga_profile or emp.finance_profile %}
+      <div class="dd">
+        <button type="button" class="icon-btn round" data-dropdown="notifMenu" aria-expanded="false" aria-controls="notifMenu" aria-label="Notifikasi{% if notifications %} ({{ notifications|length }} baru){% endif %}">
+          <i class="fa-regular fa-bell" aria-hidden="true"></i>
+          {% if notifications %}<span class="notif-dot" aria-hidden="true"></span>{% endif %}
+        </button>
+        <div class="dd-menu notif-menu" id="notifMenu" hidden>
+          <div class="notif-head"><h2>Notifikasi</h2>{% if notifications %}<span class="tag warning">{{ notifications|length }} perlu perhatian</span>{% endif %}</div>
+          {% if notifications %}
+          <ul class="notif-list">
+            {% for n in notifications %}
+            <li><a href="{{ n.url }}"><svg class="sign" aria-hidden="true"><use href="#sign-{{ n.kind }}"/></svg><div><strong>{{ n.text }}</strong><span>{{ n.sub }}</span></div></a></li>
+            {% endfor %}
+          </ul>
+          {% else %}
+          <div class="notif-empty"><svg class="sign" aria-hidden="true" style="width:28px;height:28px"><use href="#sign-safe"/></svg><p>Semua beres. Tidak ada yang perlu ditindaklanjuti.</p></div>
+          {% endif %}
+        </div>
+      </div>
+      {% endif %}
+
+      <div class="dd">
+        <button type="button" class="user-btn" data-dropdown="userMenu" aria-expanded="false" aria-controls="userMenu">
+          <span class="avatar" aria-hidden="true">{{ emp.nama|default:request.user.username|slice:":1" }}</span>
+          <span class="u-name">{{ emp.nama|default:request.user.username }}</span>
+          <i class="fa-solid fa-chevron-down" aria-hidden="true"></i>
+          <span class="visually-hidden">Menu akun</span>
+        </button>
+        <div class="dd-menu" id="userMenu" hidden>
+          <div class="user-menu-head">
+            <strong>{{ emp.nama|default:request.user.username }}</strong>
+            <span>{{ request.user.username }}{% if emp.department %} · {{ emp.department.name }}{% endif %}</span>
+            <div><span class="role-badge">{% if emp.ga_profile %}General Affairs{% elif emp.finance_profile %}Finance{% else %}Karyawan{% endif %}</span></div>
+          </div>
+          {% if emp.ga_profile or emp.finance_profile %}
+          <a class="user-menu-link" href="{% url 'dashboard' %}"><i class="fa-solid fa-chart-pie" aria-hidden="true"></i>Ringkasan</a>
+          {% endif %}
+          {% if emp.user_profile %}
+          <a class="user-menu-link" href="{% url 'user_dashboard' %}"><i class="fa-solid fa-laptop" aria-hidden="true"></i>Aset saya</a>
+          {% endif %}
+          <a class="user-menu-link logout" href="{% url 'logout' %}"><i class="fa-solid fa-arrow-right-from-bracket" aria-hidden="true"></i>Keluar</a>
+        </div>
+      </div>
+    </div>
+  </header>
   {% endif %}
 
-  <!-- ── FLASH MESSAGES ── -->
   {% if messages %}
-  <div class="messages-wrap">
+  <div class="flash-stack" role="status">
     {% for message in messages %}
-    <div class="flash-msg {{ message.tags }}" id="flash-{{ forloop.counter }}">
-      {% if message.tags == 'success' %}✅
-      {% elif message.tags == 'error' %}❌
-      {% elif message.tags == 'warning' %}⚠️
-      {% else %}ℹ️{% endif %}
-      {{ message }}
-      <button class="flash-close" onclick="this.parentElement.remove()">✕</button>
+    <div class="flash {{ message.tags }}">
+      <svg class="sign" aria-hidden="true"><use href="#{% if message.tags == 'success' %}sign-safe{% elif message.tags == 'error' %}sign-danger{% elif message.tags == 'warning' %}sign-warning{% else %}sign-mandatory{% endif %}"/></svg>
+      <span>{{ message }}</span>
+      <button type="button" class="flash-close" aria-label="Tutup pesan" onclick="this.parentElement.remove()"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button>
     </div>
     {% endfor %}
   </div>
   {% endif %}
 
-  <!-- ── MAIN ── -->
-  <main class="main-content">
+  <main class="main-content" id="main">
     {% block content %}{% endblock %}
   </main>
 
-  <!-- ── FOOTER ── -->
   <footer class="footer">
-    <div class="footer-text"><strong>Asset Management System</strong> · PT Borneo Indobara</div>
-    <div class="footer-text" id="footerClock">—</div>
+    <span>AssetMS · Asset Management System</span>
+    <span>PT Borneo Indobara</span>
   </footer>
+</div>
+{% endwith %}
 
 <script>
-  function toggleMobile() {
-    const menu = document.getElementById('mobileMenu');
-    const icon = document.getElementById('hamburgerIcon');
-    const isOpen = menu.classList.toggle('open');
-    icon.className = isOpen ? 'fa-solid fa-xmark' : 'fa-solid fa-bars';
-  }
+  // Sidebar: ringkas di desktop (diingat), laci di ponsel/tablet
+  (() => {
+    const body = document.body, mq = window.matchMedia('(min-width: 1024px)');
+    document.getElementById('sidebarToggle')?.addEventListener('click', () => {
+      if (mq.matches) {
+        const mini = body.classList.toggle('sb-mini');
+        try { localStorage.setItem('sbMini', mini ? '1' : '0'); } catch (e) {}
+      } else {
+        body.classList.toggle('sb-open');
+      }
+    });
+    document.querySelectorAll('[data-sidebar-close]').forEach(el => el.addEventListener('click', () => body.classList.remove('sb-open')));
+    document.addEventListener('keydown', e => { if (e.key === 'Escape') body.classList.remove('sb-open'); });
+  })();
 
-  // Close mobile menu on outside click
-  document.addEventListener('click', function(e) {
-    const menu = document.getElementById('mobileMenu');
-    const btn = document.getElementById('hamburgerBtn');
-    if (menu && menu.classList.contains('open') && !menu.contains(e.target) && !btn.contains(e.target)) {
-      menu.classList.remove('open');
-      document.getElementById('hamburgerIcon').className = 'fa-solid fa-bars';
+  // Submenu sidebar
+  document.querySelectorAll('[data-submenu]').forEach(btn => {
+    const sub = document.getElementById(btn.dataset.submenu);
+    const set = open => { sub.hidden = !open; btn.setAttribute('aria-expanded', open); };
+    btn.addEventListener('click', () => set(sub.hidden));
+  });
+
+  // Dropdown header: satu terbuka, tutup saat klik di luar atau Escape
+  (() => {
+    const toggles = [...document.querySelectorAll('[data-dropdown]')];
+    const closeAll = except => toggles.forEach(t => {
+      if (t === except) return;
+      document.getElementById(t.dataset.dropdown).hidden = true;
+      t.setAttribute('aria-expanded', 'false');
+    });
+    toggles.forEach(t => t.addEventListener('click', e => {
+      e.stopPropagation();
+      const menu = document.getElementById(t.dataset.dropdown);
+      closeAll(t);
+      menu.hidden = !menu.hidden;
+      t.setAttribute('aria-expanded', !menu.hidden);
+    }));
+    document.addEventListener('click', e => { if (!e.target.closest('.dd-menu')) closeAll(); });
+    document.addEventListener('keydown', e => { if (e.key === 'Escape') closeAll(); });
+  })();
+
+  // Tandai menu aktif dari URL bila halaman tidak menandainya sendiri
+  (() => {
+    const here = window.location.pathname + window.location.search;
+    const links = [...document.querySelectorAll('.sidebar-nav a')];
+    let best = links.find(a => a.classList.contains('active'));
+    if (!best) {
+      links.forEach(a => {
+        const href = a.getAttribute('href');
+        const path = href.split('?')[0];
+        const match = href.includes('?') ? here.startsWith(href) : (path === '/' ? window.location.pathname === '/' : window.location.pathname.startsWith(path));
+        if (match && (!best || href.length > best.getAttribute('href').length)) best = a;
+      });
+      best?.classList.add('active');
     }
+    // Buka submenu yang berisi halaman aktif
+    const sub = best?.closest('.submenu') || document.querySelector('[data-submenu].active') && document.getElementById(document.querySelector('[data-submenu].active').dataset.submenu);
+    if (sub) {
+      sub.hidden = false;
+      const btn = document.querySelector(`[data-submenu="${sub.id}"]`);
+      btn?.setAttribute('aria-expanded', 'true');
+      btn?.classList.add('active');
+    }
+  })();
+
+  // "/" fokus ke pencarian global
+  document.addEventListener('keydown', e => {
+    const s = document.getElementById('globalSearch');
+    if (e.key === '/' && s && !/^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName)) { e.preventDefault(); s.focus(); }
   });
 
-  // Footer clock
-  function updateClock() {
-    const el = document.getElementById('footerClock');
-    if (!el) return;
-    const now = new Date();
-    el.textContent = now.toLocaleDateString('id-ID', { weekday: 'short', day: '2-digit', month: 'short', year: 'numeric' })
-      + ' · ' + now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-  }
-  updateClock();
-  setInterval(updateClock, 1000);
-
-  // Auto-dismiss flash after 5s — kecuali error, supaya pesan validasi sempat dibaca
-  document.querySelectorAll('.flash-msg:not(.error)').forEach(el => {
-    setTimeout(() => {
-      el.style.transition = 'opacity .4s';
-      el.style.opacity = '0';
-      setTimeout(() => el.remove(), 400);
-    }, 5000);
-  });
-
-  // Active nav highlight
-  const path = window.location.pathname;
-  document.querySelectorAll('.nav-link, .nav-mobile-link').forEach(link => {
-    if (link.getAttribute('href') === path) link.classList.add('active');
+  // Pesan sukses/info hilang sendiri; error & warning tetap sampai ditutup
+  document.querySelectorAll('.flash.success, .flash.info').forEach(el => {
+    setTimeout(() => el.remove(), 6000);
   });
 </script>
 
@@ -253,6 +308,5 @@
 {% endif %}
 
 {% block extra_scripts %}{% endblock %}
-
 </body>
 </html>

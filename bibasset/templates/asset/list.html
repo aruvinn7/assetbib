@@ -1,361 +1,142 @@
-  {% extends "base.html" %}
+{% extends "base.html" %}
 {% load static %}
-  {% block title %}Asset List — Asset Management{% endblock %}
+{% block legacy_css %}{% endblock %}
+{% block title %}Daftar aset{% endblock %}
+{% block nav_assets %}{% if financial_filter != 'no' %}active{% endif %}{% endblock %}
+{% block nav_financial %}{% if financial_filter == 'no' %}active{% endif %}{% endblock %}
 
-  {% block content %}
-  <link rel="stylesheet" href="{% static 'css/pages/asset_list.css' %}">
+{% block extra_head %}<link rel="stylesheet" href="{% static 'css/pages/asset_list.css' %}?v=3">{% endblock %}
 
-  {% with user_emp=request.user.employee %}
-  <div class="wrap">
+{% block content %}
+{% with emp=request.user.employee %}
+<div class="page">
 
-    <!-- PAGE HEADER -->
-    <div class="page-header anim">
-      <div>
-        <span class="page-eyebrow">Asset Information Management</span>
-        <h1 class="page-title">Daftar <em>Aset</em></h1>
-      </div>
-      <div style="display:flex;gap:8px;flex-wrap:wrap;">
-        <a href="{% url 'dashboard' %}" class="btn btn-outline">← Dashboard</a>
-        {% if user_emp.ga_profile %}
-          <a href="{% url 'import_asset' %}" class="btn btn-outline"
-            style="border-color:#bfdbfe;color:#1a56db;background:#eff6ff;">
-            📥 Import
-          </a>
-          <a href="{% url 'asset_create' %}" class="btn btn-primary">＋ Tambah</a>
-        {% endif %}
-      </div>
+  <div class="page-head">
+    <div>
+      <h1>Daftar aset</h1>
+      <div class="sub">{{ filtered_count }} dari {{ total_asset }} aset ditampilkan</div>
     </div>
-
-    <!-- STAT ROW -->
-    <div class="stat-row anim">
-      <a href="?{% if search_query %}q={{ search_query }}{% endif %}" class="stat-mini blue {% if not status_filter and not financial_filter and not health_filter %}active-filter{% endif %}">
-        <div class="stat-mini-num">{{ total_asset }}</div>
-        <div class="stat-mini-label">📦 Total</div>
-      </a>
-      <a href="?{% if search_query %}q={{ search_query }}&{% endif %}status=active" class="stat-mini green {% if status_filter == 'active' %}active-filter{% endif %}">
-        <div class="stat-mini-num">{{ active_count }}</div>
-        <div class="stat-mini-label">🟢 Active</div>
-      </a>
-      <a href="?{% if search_query %}q={{ search_query }}&{% endif %}status=maintenance" class="stat-mini amber {% if status_filter == 'maintenance' %}active-filter{% endif %}">
-        <div class="stat-mini-num">{{ maintenance_count }}</div>
-        <div class="stat-mini-label">🔧 Maintenance</div>
-      </a>
-      <a href="?{% if search_query %}q={{ search_query }}&{% endif %}status=writeoff" class="stat-mini red {% if status_filter == 'writeoff' %}active-filter{% endif %}">
-        <div class="stat-mini-num">{{ writeoff_count }}</div>
-        <div class="stat-mini-label">✖ Write Off</div>
-      </a>
-      <a href="?{% if search_query %}q={{ search_query }}&{% endif %}financial=no" class="stat-mini purple {% if financial_filter == 'no' %}active-filter{% endif %}">
-        <div class="stat-mini-num">{{ unvalued_count }}</div>
-        <div class="stat-mini-label">💳 Blm Valuasi</div>
-      </a>
-      <a href="?{% if search_query %}q={{ search_query }}&{% endif %}health=critical" class="stat-mini orange {% if health_filter == 'critical' %}active-filter{% endif %}">
-        <div class="stat-mini-num">{{ critical_health_count }}</div>
-        <div class="stat-mini-label">🔴 Critical</div>
-      </a>
-    </div>
-
-    <!-- ALERT BANNER -->
-    {% if critical_health_count > 0 %}
-    <div class="alert-banner anim">
-      <span style="font-size:18px;flex-shrink:0;">⚠️</span>
-      <div>
-        <strong>{{ critical_health_count }} aset</strong> perlu review writeoff/penggantian.
-        <a href="?{% if search_query %}q={{ search_query }}&{% endif %}health=critical" style="color:#e02424;font-weight:800;margin-left:4px;">Lihat →</a>
-      </div>
+    {% if emp.ga_profile %}
+    <div class="page-actions">
+      <a href="{% url 'import_asset' %}" class="btn outline"><i class="fa-solid fa-file-arrow-up" aria-hidden="true"></i>Import Excel</a>
+      <a href="{% url 'asset_create' %}" class="btn"><i class="fa-solid fa-plus" aria-hidden="true"></i>Tambah aset</a>
     </div>
     {% endif %}
+  </div>
 
-    <!-- FILTER + SEARCH -->
-    <div class="toolbar anim">
-      <span class="toolbar-label">STATUS:</span>
-      <a href="?{% if search_query %}q={{ search_query }}{% endif %}" class="filter-tab {% if not status_filter and not financial_filter and not health_filter %}active{% endif %}">Semua</a>
-      <a href="?{% if search_query %}q={{ search_query }}&{% endif %}status=active" class="filter-tab green  {% if status_filter == 'active'      %}active{% endif %}">🟢 Active</a>
-      <a href="?{% if search_query %}q={{ search_query }}&{% endif %}status=maintenance" class="filter-tab amber  {% if status_filter == 'maintenance' %}active{% endif %}">🔧 Maint.</a>
-      <a href="?{% if search_query %}q={{ search_query }}&{% endif %}status=writeoff" class="filter-tab red    {% if status_filter == 'writeoff'    %}active{% endif %}">✖ W/O</a>
-      <a href="?{% if search_query %}q={{ search_query }}&{% endif %}financial=no" class="filter-tab purple {% if financial_filter == 'no'       %}active{% endif %}">💳 Valuasi</a>
-      <a href="?{% if search_query %}q={{ search_query }}&{% endif %}health=critical" class="filter-tab orange {% if health_filter == 'critical'    %}active{% endif %}">🔴 Critical</a>
-      <form method="get" class="search-wrap" id="searchForm" style="display:flex;align-items:center;gap:6px;">
-        {# Pertahankan filter aktif saat search #}
-        {% if status_filter %}<input type="hidden" name="status" value="{{ status_filter }}">{% endif %}
-        {% if financial_filter %}<input type="hidden" name="financial" value="{{ financial_filter }}">{% endif %}
-        {% if health_filter %}<input type="hidden" name="health" value="{{ health_filter }}">{% endif %}
-        <div style="position:relative;">
-          <span class="search-icon">🔍</span>
-          <input type="text" name="q" class="search-input" id="searchInput"
-            placeholder="Cari nama, nomor, lokasi..."
-            value="{{ search_query }}"
-            autocomplete="off">
-          {% if search_query %}
-          <a href="?{% if status_filter %}status={{ status_filter }}&{% endif %}{% if financial_filter %}financial={{ financial_filter }}&{% endif %}{% if health_filter %}health={{ health_filter }}&{% endif %}"
-            style="position:absolute;right:8px;top:50%;transform:translateY(-50%);
-                    color:var(--muted);text-decoration:none;font-size:14px;line-height:1;"
-            title="Hapus pencarian">✕</a>
-          {% endif %}
-        </div>
-        <button type="submit" class="btn btn-primary" style="padding:6px 12px;font-size:11px;">Cari</button>
-      </form>
-    </div>
+  <div class="toolbar">
+    <nav class="filters" aria-label="Saring status">
+      {% with none_active=status_filter|default:health_filter|default:financial_filter %}
+      <a class="chip {% if not none_active %}active{% endif %}" href="{% querystring status=None health=None financial=None page=None %}">Semua <span class="count">{{ total_asset }}</span></a>
+      {% endwith %}
+      <a class="chip {% if status_filter == 'active' %}active{% endif %}" href="{% querystring status='active' health=None financial=None page=None %}"><svg class="sign" aria-hidden="true"><use href="#sign-safe"/></svg>Aktif <span class="count">{{ active_count }}</span></a>
+      <a class="chip {% if status_filter == 'maintenance' %}active{% endif %}" href="{% querystring status='maintenance' health=None financial=None page=None %}"><svg class="sign" aria-hidden="true"><use href="#sign-mandatory"/></svg>Maintenance <span class="count">{{ maintenance_count }}</span></a>
+      <a class="chip {% if status_filter == 'writeoff' %}active{% endif %}" href="{% querystring status='writeoff' health=None financial=None page=None %}"><svg class="sign" aria-hidden="true"><use href="#sign-off"/></svg>Write off <span class="count">{{ writeoff_count }}</span></a>
+      <a class="chip {% if health_filter == 'critical' %}active{% endif %}" href="{% querystring health='critical' status=None financial=None page=None %}"><svg class="sign" aria-hidden="true"><use href="#sign-danger"/></svg>Critical <span class="count">{{ critical_health_count }}</span></a>
+      <a class="chip {% if financial_filter == 'no' %}active{% endif %}" href="{% querystring financial='no' status=None health=None page=None %}"><svg class="sign" aria-hidden="true"><use href="#sign-none"/></svg>Belum dinilai <span class="count">{{ unvalued_count }}</span></a>
+    </nav>
 
-    <!-- SEARCH RESULT BANNER -->
-    {% if search_query %}
-    <div style="display:flex;align-items:center;gap:8px;padding:8px 14px;
-      background:#eff6ff;border:1.5px solid #bfdbfe;border-radius:10px;
-      margin-bottom:10px;font-size:12px;color:#1e40af;">
-      <span style="font-size:16px;">🔍</span>
-      <span>Hasil pencarian untuk <strong>"{{ search_query }}"</strong> — ditemukan <strong>{{ filtered_count }}</strong> aset</span>
-      <a href="?{% if status_filter %}status={{ status_filter }}&{% endif %}{% if financial_filter %}financial={{ financial_filter }}&{% endif %}{% if health_filter %}health={{ health_filter }}&{% endif %}"
-        style="margin-left:auto;color:#1e40af;font-weight:800;white-space:nowrap;">✕ Hapus</a>
-    </div>
-    {% endif %}
+    <form method="get" class="search" role="search" id="searchForm">
+      {% for key, value in request.GET.items %}{% if key != 'q' and key != 'page' %}<input type="hidden" name="{{ key }}" value="{{ value }}">{% endif %}{% endfor %}
+      <i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i>
+      <label class="visually-hidden" for="searchInput">Cari aset</label>
+      <input class="input" type="search" name="q" id="searchInput" value="{{ search_query }}" placeholder="Nama, nomor aset, PO, lokasi, departemen…">
+    </form>
+  </div>
 
-    <!-- TABLE CARD -->
-    <div class="card anim">
-      <div class="card-header">
-        <div class="card-title">
-          <span class="card-title-dot" style="background:{% if health_filter == 'critical' %}var(--danger){% else %}var(--accent){% endif %}"></span>
-          {% if status_filter == 'active' %}Active
-          {% elif status_filter == 'maintenance' %}Maintenance
-          {% elif status_filter == 'writeoff' %}Write Off
-          {% elif financial_filter == 'no' %}Belum Tervaluasi
-          {% elif health_filter == 'critical' %}⚠️ Perlu Ditinjau
-          {% else %}Semua Aset{% endif %}
-          — <span id="tableCount">{{ filtered_count }}</span> item
-        </div>
-        {% if page_obj.paginator.num_pages > 1 %}
-        <span style="font-size:10px;color:var(--muted);font-family:var(--mono);">
-          Hal. {{ page_obj.number }}/{{ page_obj.paginator.num_pages }}
-        </span>
-        {% endif %}
-      </div>
+  {% if category_filter or group_filter or location_filter %}
+  <div class="scope-note">
+    {% include "components/_status.html" with kind="mandatory" label="Disaring" %}
+    Hanya {% if category_filter %}satu kategori{% elif group_filter %}satu grup aset{% else %}satu lokasi{% endif %} yang ditampilkan.
+    <a href="{% querystring category=None group=None location=None page=None %}">Hapus filter ini</a>
+  </div>
+  {% endif %}
 
-      {% if assets %}
-
-      <!-- ═══════════════ DESKTOP TABLE ═══════════════ -->
-      <div style="overflow-x:auto;" class="desktop-table">
-      <table class="tbl" id="assetTable">
+  <section class="panel" aria-label="Tabel aset">
+    {% if assets %}
+    <div class="table-wrap">
+      <table class="table asset-table">
         <thead>
           <tr>
-            <th>#</th>
-            <th>Aset</th>
-            <th>Tgl Beli</th>
-            <th>Umur</th>
-            <th>Lokasi</th>
-            <th>Dept.</th>
-            <th>Status</th>
-            <th>Kesehatan</th>
-            <th>Fin.</th>
-            <th>BOM</th>
-            <th>Aksi</th>
+            <th>Aset</th><th>Kategori</th><th>Lokasi</th><th>Departemen</th>
+            <th class="num">Umur</th><th>Status</th><th>Kesehatan</th><th class="num">BOM</th>
+            <th><span class="visually-hidden">Aksi</span></th>
           </tr>
         </thead>
-        <tbody id="assetTbody">
-          {% for asset in assets %}
-          <tr class="asset-row
-              {% if asset.health == 'critical' %}row-critical
-              {% elif asset.health == 'waspada' %}row-waspada
-              {% elif asset.health == 'warning' %}row-warning{% endif %}"
-              data-search="{{ asset.nama_asset|lower }} {{ asset.asset_number|lower }} {{ asset.no_po|lower }}"
-              onclick="window.location='{% url 'asset_detail' asset.id %}'">
-
-            <td style="font-family:var(--mono);font-size:10px;color:var(--muted);">
-              {{ page_obj.start_index|add:forloop.counter0 }}
-            </td>
-
-            <td>
-              <div style="display:flex;align-items:center;gap:8px;">
-                <div class="group-icon" style="background:{% if asset.health == 'critical' %}#fee2e2{% elif asset.health == 'waspada' %}#ffedd5{% elif asset.health == 'warning' %}#fef9c3{% else %}#eff6ff{% endif %}">
-                  {% with g=asset.asset_group.name|default:"" %}
-                    {% if 'AC' in g or 'Klim' in g %}❄️
-                    {% elif 'IT' in g or 'Laptop' in g or 'Komputer' in g %}💻
-                    {% elif 'Furni' in g or 'Meja' in g or 'Kursi' in g %}🪑
-                    {% elif 'Utilitas' in g or 'Mekanikal' in g %}⚙️
-                    {% elif 'Kendaraan' in g %}🚗
-                    {% elif 'Perlengkapan' in g %}🖨️
-                    {% else %}📦{% endif %}
-                  {% endwith %}
-                </div>
+        <tbody>
+        {% for asset in assets %}
+          <tr>
+            <td data-label="Aset">
+              <div class="asset-cell-wrap">
+                {% if asset.photo_path %}<img class="thumb" src="{% get_media_prefix %}{{ asset.photo_path }}" alt="" loading="lazy">{% else %}<span class="thumb" aria-hidden="true"><i class="fa-solid fa-box"></i></span>{% endif %}
                 <div>
-                  <div class="asset-name">
-                    {{ asset.nama_asset }}
-                    {% if asset.health == 'critical' %}<span class="health-badge critical">🔴 CRITICAL</span>
-                    {% elif asset.health == 'waspada' %}<span class="health-badge waspada">🟠 WASPADA</span>
-                    {% elif asset.health == 'warning' %}<span class="health-badge warning">🟡 WARNING</span>{% endif %}
-                  </div>
-                  <div class="asset-sub">
-                    {{ asset.asset_number }} · {{ asset.asset_group }}
-                    {% if asset.jumlah_corrective > 0 %}
-                      · <span style="color:{% if asset.jumlah_corrective >= 5 %}#e02424{% elif asset.jumlah_corrective >= 3 %}#d97706{% else %}var(--muted){% endif %}">
-                        {{ asset.jumlah_corrective }}× rusak
-                      </span>
-                    {% endif %}
-                  </div>
+                  <a class="row-link" href="{% url 'asset_detail' asset.id %}">{{ asset.nama_asset }}</a>
+                  <div class="cell-sub">{{ asset.asset_number }}{% if asset.no_po %} · PO {{ asset.no_po }}{% endif %}</div>
                 </div>
               </div>
             </td>
-
-            <td><span style="font-family:var(--mono);font-size:11px;font-weight:600;">{{ asset.tanggal_pembelian|date:"d M Y" }}</span></td>
-            <td><span style="font-family:var(--mono);font-size:11px;color:var(--text-soft);">{{ asset.umur_asset }} thn</span></td>
-            <td><div style="font-size:11px;max-width:140px;line-height:1.4;">{{ asset.lokasi_asset|default:"—" }}</div></td>
-            <td><span style="font-size:10px;font-weight:600;color:var(--text-soft);background:var(--surface2);padding:2px 7px;border-radius:5px;border:1px solid var(--border);white-space:nowrap;">{{ asset.owned_by_department|default:"—" }}</span></td>
-
-            <td>
-              {% if asset.lifecycle_status == 'active' %}<span class="pill active">Active</span>
-              {% elif asset.lifecycle_status == 'maintenance' %}<span class="pill maintenance">Maintenance</span>
-              {% elif asset.lifecycle_status == 'writeoff' %}<span class="pill writeoff">Write Off</span>{% endif %}
+            <td data-label="Kategori">{{ asset.asset_category.name|default:"—" }}<div class="cell-sub">{{ asset.asset_group.name|default:"" }}</div></td>
+            <td data-label="Lokasi" class="loc">{% include "components/_location.html" with loc=asset.lokasi_asset %}</td>
+            <td data-label="Departemen">{{ asset.owned_by_department|default:"—" }}</td>
+            <td data-label="Umur" class="num">{{ asset.umur_asset }} th<div class="cell-sub">{{ asset.tanggal_pembelian|date:"M Y" }}</div></td>
+            <td data-label="Status">{% include "components/_lifecycle.html" with status=asset.lifecycle_status %}</td>
+            <td data-label="Kesehatan">
+              {% include "components/_health.html" with health=asset.health %}
+              {% if asset.ratio is not None %}<div class="cell-sub">{{ asset.ratio|floatformat:0 }}% biaya{% if asset.jumlah_corrective %} · {{ asset.jumlah_corrective }}× rusak{% endif %}</div>
+              {% elif not asset.has_financial %}<div class="cell-sub">{% if asset.jumlah_corrective %}{{ asset.jumlah_corrective }}× rusak · {% endif %}belum dinilai</div>{% endif %}
             </td>
-
-            <td onclick="event.stopPropagation()">
-              {# ✅ Pakai health dan ratio dari view — 0 query tambahan #}
-              {% if asset.health == 'critical' %}
-                <div>
-                  <span class="health-pill critical">🔴 Critical</span>
-                  {% if asset.ratio is not None %}<div style="font-size:9px;color:#e02424;font-family:var(--mono);margin-top:3px;font-weight:700;">{{ asset.ratio|floatformat:0 }}% nilai awal</div>{% endif %}
-                  <a href="{% url 'asset_detail' asset.id %}" style="font-size:9px;color:#e02424;font-family:var(--mono);font-weight:800;display:block;margin-top:2px;">→ Review</a>
-                </div>
-              {% elif asset.health == 'waspada' %}
-                <div>
-                  <span class="health-pill waspada">🟠 Waspada</span>
-                  {% if asset.ratio is not None %}<div style="font-size:9px;color:#c2410c;font-family:var(--mono);margin-top:3px;font-weight:700;">{{ asset.ratio|floatformat:0 }}% nilai awal</div>{% endif %}
-                </div>
-              {% elif asset.health == 'warning' %}
-                <div>
-                  <span class="health-pill warning">🟡 Warning</span>
-                  {% if asset.ratio is not None %}<div style="font-size:9px;color:#d97706;font-family:var(--mono);margin-top:3px;font-weight:700;">{{ asset.ratio|floatformat:0 }}% nilai awal</div>{% endif %}
-                </div>
-              {% elif asset.health == 'normal' %}
-                <span class="health-pill normal">🟢 Normal</span>
-              {% else %}
-                <span class="health-pill no-data">⚪ No Data</span>
+            <td data-label="BOM" class="num">{% if asset.component_count %}{{ asset.component_count }}{% else %}<span class="dim">—</span>{% endif %}</td>
+            <td class="actions">
+              {% if emp.ga_profile %}
+                <a href="{% url 'asset_update' asset.id %}">Edit</a>
+                <a href="{% url 'component_list' asset.id %}">BOM</a>
               {% endif %}
-            </td>
-
-            <td>{% if asset.has_financial %}<span class="pill financial-ok">OK</span>{% else %}<span class="pill financial-no">—</span>{% endif %}</td>
-
-            <td>
-              {% with cc=asset.component_count %}
-                {% if cc > 0 %}<span class="pill bom">{{ cc }}p</span>{% else %}<span class="pill bom-no">—</span>{% endif %}
-              {% endwith %}
-            </td>
-
-            <td onclick="event.stopPropagation()">
-              <div class="action-group">
-                <a href="{% url 'asset_detail' asset.id %}" class="act-btn">Detail</a>
-                {% if user_emp.ga_profile %}
-                  <a href="{% url 'asset_update' asset.id %}" class="act-btn warning">Edit</a>
-                  <a href="{% url 'component_list' asset.id %}" class="act-btn purple">BOM</a>
-                  <a href="{% url 'asset_delete' asset.id %}{% querystring %}" class="act-btn danger" onclick="return confirm('Hapus {{ asset.nama_asset|escapejs }}?')">Hapus</a>
-                {% endif %}
-                {% if asset.has_financial %}
-                  <a href="{% url 'financial_detail' asset.id %}" class="act-btn success">Fin.</a>
-                {% elif user_emp.finance_profile %}
-                  <a href="{% url 'financial_create' asset.id %}" class="act-btn">+ Fin.</a>
-                {% endif %}
-              </div>
+              {% if asset.has_financial %}
+                <a href="{% url 'financial_detail' asset.id %}">Finansial</a>
+              {% elif emp.finance_profile %}
+                <a href="{% url 'financial_create' asset.id %}">Isi finansial</a>
+              {% endif %}
+              {% if emp.ga_profile %}
+                <a class="del" href="{% url 'asset_delete' asset.id %}{% querystring %}" onclick="return confirm('Hapus aset {{ asset.nama_asset|escapejs }}? Data maintenance & finansialnya ikut terhapus.')">Hapus</a>
+              {% endif %}
             </td>
           </tr>
-          {% endfor %}
+        {% endfor %}
         </tbody>
       </table>
-      </div>
+    </div>
+    {% include "components/_pagination.html" with label="aset" %}
 
-      <!-- ═══════════════ MOBILE CARD LIST ═══════════════ -->
-      <div class="mobile-list" id="mobileList">
-        {% for asset in assets %}
-        <div class="mobile-card asset-row
-            {% if asset.health == 'critical' %}row-critical
-            {% elif asset.health == 'waspada' %}row-waspada
-            {% elif asset.health == 'warning' %}row-warning{% endif %}"
-            data-search="{{ asset.nama_asset|lower }} {{ asset.asset_number|lower }} {{ asset.no_po|lower }}"
-            onclick="window.location='{% url 'asset_detail' asset.id %}'">
-
-          <div class="mc-num">{{ page_obj.start_index|add:forloop.counter0 }}</div>
-
-          <div class="mc-icon" style="background:{% if asset.health == 'critical' %}#fee2e2{% elif asset.health == 'waspada' %}#ffedd5{% elif asset.health == 'warning' %}#fef9c3{% else %}#eff6ff{% endif %}">
-            {% with g=asset.asset_group.name|default:"" %}
-              {% if 'AC' in g or 'Klim' in g %}❄️{% elif 'IT' in g or 'Laptop' in g %}💻{% elif 'Furni' in g or 'Meja' in g %}🪑{% elif 'Utilitas' in g %}⚙️{% elif 'Kendaraan' in g %}🚗{% else %}📦{% endif %}
-            {% endwith %}
-          </div>
-
-          <div class="mc-body">
-            <div class="mc-name">
-              {{ asset.nama_asset }}
-              {% if asset.health == 'critical' %}<span class="health-badge critical">🔴 CRITICAL</span>
-              {% elif asset.health == 'waspada' %}<span class="health-badge waspada">🟠 WASPADA</span>
-              {% elif asset.health == 'warning' %}<span class="health-badge warning">🟡 WARNING</span>{% endif %}
-            </div>
-            <div class="mc-sub">{{ asset.asset_number }} · {{ asset.asset_group }}{% if asset.jumlah_corrective > 0 %} · {{ asset.jumlah_corrective }}× rusak{% endif %}</div>
-            <div class="mc-meta">
-              {% if asset.lifecycle_status == 'active' %}<span class="pill active">Active</span>
-              {% elif asset.lifecycle_status == 'maintenance' %}<span class="pill maintenance">Maintenance</span>
-              {% elif asset.lifecycle_status == 'writeoff' %}<span class="pill writeoff">Write Off</span>{% endif %}
-
-              {% if asset.health == 'critical' %}<span class="health-pill critical">🔴 Critical{% if asset.ratio is not None %} · {{ asset.ratio|floatformat:0 }}%{% endif %}</span>
-              {% elif asset.health == 'waspada' %}<span class="health-pill waspada">🟠 Waspada{% if asset.ratio is not None %} · {{ asset.ratio|floatformat:0 }}%{% endif %}</span>
-              {% elif asset.health == 'warning' %}<span class="health-pill warning">🟡 Warning{% if asset.ratio is not None %} · {{ asset.ratio|floatformat:0 }}%{% endif %}</span>
-              {% elif asset.health == 'normal' %}<span class="health-pill normal">🟢 Normal</span>{% endif %}
-
-              {% if asset.owned_by_department %}<span class="mc-loc">{{ asset.owned_by_department }}</span>{% endif %}
-              <span style="font-size:9px;color:var(--muted);font-family:var(--mono);">{{ asset.tanggal_pembelian|date:"d M Y" }} · {{ asset.umur_asset }}thn</span>
-            </div>
-            {% if asset.lokasi_asset %}<div style="font-size:9px;color:var(--text-soft);margin-top:4px;">📍 {{ asset.lokasi_asset }}</div>{% endif %}
-            <div class="mc-actions" onclick="event.stopPropagation()">
-              <a href="{% url 'asset_detail' asset.id %}" class="act-btn">Detail</a>
-              {% if user_emp.ga_profile %}
-                <a href="{% url 'asset_update' asset.id %}" class="act-btn warning">Edit</a>
-                <a href="{% url 'component_list' asset.id %}" class="act-btn purple">BOM</a>
-                <a href="{% url 'asset_delete' asset.id %}{% querystring %}" class="act-btn danger" onclick="event.stopPropagation();return confirm('Hapus?')">Hapus</a>
-              {% endif %}
-              {% if asset.has_financial %}<a href="{% url 'financial_detail' asset.id %}" class="act-btn success">Fin.</a>
-              {% elif user_emp.finance_profile %}<a href="{% url 'financial_create' asset.id %}" class="act-btn">+ Fin.</a>{% endif %}
-            </div>
-          </div>
-        </div>
-        {% endfor %}
-      </div>
-
-      <!-- EMPTY SEARCH STATE -->
-      <div id="searchEmpty" style="display:none;" class="empty-state">
-        <div class="empty-icon">🔍</div>
-        <div class="empty-title">Aset tidak ditemukan</div>
-        <div class="empty-sub">Coba kata kunci lain</div>
-      </div>
-
-      <!-- ═══════════════ PAGINATION ═══════════════ -->
-      {% include "components/_pagination.html" with label="aset" %}
-
+    {% else %}
+    <div class="empty">
+      {% if search_query %}
+        <strong>Tidak ada aset yang cocok dengan “{{ search_query }}”</strong>
+        Coba kata kunci lain, atau <a href="{% querystring q=None page=None %}">hapus pencarian</a>.
+      {% elif health_filter == 'critical' %}
+        <strong>Tidak ada aset critical</strong>Biaya perbaikan semua aset masih di bawah ambang.
+      {% elif status_filter or financial_filter or category_filter or group_filter or location_filter %}
+        <strong>Tidak ada aset untuk filter ini</strong><a href="{% url 'asset_list' %}">Tampilkan semua aset</a>
       {% else %}
-      <div class="empty-state">
-        <div class="empty-icon">{% if health_filter == 'critical' %}✅{% else %}📦{% endif %}</div>
-        <div class="empty-title">
-          {% if health_filter == 'critical' %}Tidak ada aset critical{% else %}Belum ada aset{% endif %}
-        </div>
-        <div class="empty-sub">
-          {% if health_filter == 'critical' %}Semua aset dalam kondisi baik
-          {% elif user_emp.ga_profile %}Tambahkan aset pertama Anda
-          {% else %}Tidak ada aset untuk filter ini{% endif %}
-        </div>
-        {% if health_filter == 'critical' %}
-          <a href="?" class="btn btn-outline" style="margin-top:12px;">← Lihat Semua Aset</a>
-        {% endif %}
-      </div>
+        <strong>Belum ada aset</strong>{% if emp.ga_profile %}<a href="{% url 'asset_create' %}">Tambah aset pertama</a> atau import dari Excel.{% endif %}
       {% endif %}
     </div>
+    {% endif %}
+  </section>
 
-  </div>
-  {% endwith %}
+</div>
+{% endwith %}
+{% endblock %}
 
-  <script>
-    // Auto-submit setelah user berhenti mengetik 400ms
-    // Sehingga tidak perlu klik tombol Cari setiap kali
-    let searchTimeout;
-    const searchInput = document.getElementById('searchInput');
-    if (searchInput) {
-      searchInput.addEventListener('input', function() {
-        clearTimeout(searchTimeout);
-        searchTimeout = setTimeout(() => {
-          document.getElementById('searchForm').submit();
-        }, 400);
-      });
-    }
-  </script>
-  {% endblock %}
+{% block extra_scripts %}
+<script>
+  // Cari otomatis 400ms setelah berhenti mengetik
+  (() => {
+    const input = document.getElementById('searchInput');
+    let t;
+    input?.addEventListener('input', () => {
+      clearTimeout(t);
+      t = setTimeout(() => document.getElementById('searchForm').submit(), 400);
+    });
+  })();
+</script>
+{% endblock %}

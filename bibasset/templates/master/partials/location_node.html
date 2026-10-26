@@ -15,10 +15,10 @@
 
   {# Ikon berdasarkan depth — pakai if biasa, tidak perlu {% with %} #}
   <span class="child-icon">
-    {% if depth == 1 %}📂
-    {% elif depth == 2 %}📁
-    {% elif depth == 3 %}🗂️
-    {% else %}📄
+    {% if depth == 1 %}
+    {% elif depth == 2 %}
+    {% elif depth == 3 %}
+    {% else %}
     {% endif %}
   </span>
 
@@ -30,15 +30,13 @@
       data-count="{{ node.children|length }}"
       onclick="toggleSub(this, 'subpanel-{{ node.obj.pk }}')"
       type="button">
-      ▼ {{ node.children|length }} sub
+      {{ node.children|length }} sub · tutup
     </button>
     {% endif %}
 
-    <a href="{% url 'location_update' node.obj.id %}" class="act-btn edit">✏️ Edit</a>
+    <a href="{% url 'location_update' node.obj.id %}" class="act-btn edit">Edit</a>
     <a href="{% url 'location_delete' node.obj.id %}" class="act-btn del"
-       onclick="return confirm('Hapus lokasi \'{{ node.obj.name|escapejs }}\'?\nSemua sub-lokasi juga akan terhapus.')">
-      🗑
-    </a>
+       onclick="return confirm('Hapus lokasi \'{{ node.obj.name|escapejs }}\'?\nSemua sub-lokasi juga akan terhapus.')">Hapus</a>
   </div>
 
   {# Sub-panel rekursif #}

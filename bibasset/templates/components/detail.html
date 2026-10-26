@@ -2,8 +2,9 @@
 {% load static %}
 {% block title %}{{ component.component_name }} — Detail Komponen{% endblock %}
 
+{% block extra_head %}<link rel="stylesheet" href="{% static 'css/pages/components_detail.css' %}?v=3">{% endblock %}
+
 {% block content %}
-<link rel="stylesheet" href="{% static 'css/pages/components_detail.css' %}">
 
 <div class="wrap">
 
@@ -23,7 +24,7 @@
     <div class="page-header-left">
       <span class="page-eyebrow">Komponen Aset · {{ asset.asset_number }}</span>
       <div class="page-title">
-        {% if component.is_critical %}⚠️{% else %}🔩{% endif %}
+        {% if component.is_critical %}{% else %}{% endif %}
         <em>{{ component.component_name }}</em>
         {% if component.is_critical %}
           <span class="critical-badge">CRITICAL</span>
@@ -36,7 +37,7 @@
       {% endif %}
     </div>
     <div style="display:flex;gap:8px;flex-shrink:0;">
-      <a href="{% url 'component_update' component.id %}" class="btn btn-warning-soft">✏️ Edit</a>
+      <a href="{% url 'component_update' component.id %}" class="btn btn-warning-soft">Edit</a>
       <a href="{% url 'component_list' asset.id %}" class="btn btn-outline">← Kembali</a>
     </div>
   </div>
@@ -48,7 +49,7 @@
         <span class="card-dot" style="background:var(--purple);"></span>
         Informasi Komponen
       </div>
-      <span style="font-family:var(--mono);font-size:11px;color:var(--muted);">
+      <span style="font-family:var(--mono);font-size:12px;color:var(--muted);">
         PN: {{ component.part_number }}
       </span>
     </div>
@@ -56,7 +57,7 @@
     <div class="info-grid">
       <div class="info-cell">
         <div class="info-cell-label">Quantity</div>
-        <div class="info-cell-value purple">{{ component.quantity }} <span style="font-size:11px;font-weight:600;">pcs</span></div>
+        <div class="info-cell-value purple">{{ component.quantity }} <span style="font-size:12px;font-weight:600;">pcs</span></div>
       </div>
       <div class="info-cell">
         <div class="info-cell-label">Harga / Unit</div>
@@ -89,16 +90,16 @@
     {% if component.supplier_name or component.created_by %}
     <div class="meta-row">
       {% if component.supplier_name %}
-      <div class="meta-chip">🏭 Supplier: <strong>{{ component.supplier_name }}</strong></div>
+      <div class="meta-chip">Supplier: <strong>{{ component.supplier_name }}</strong></div>
       {% endif %}
       {% if component.created_by %}
       <div class="meta-chip">
-        👤 Dibuat oleh: <strong>{{ component.created_by.nama }}</strong>
+        Dibuat oleh: <strong>{{ component.created_by.nama }}</strong>
         <span class="ts">· {{ component.created_at|date:"d M Y" }}</span>
       </div>
       {% endif %}
       <div class="meta-chip">
-        🔄 Update: <strong style="font-family:var(--mono);font-size:11px;">{{ component.updated_at|date:"d M Y H:i" }}</strong>
+        Update: <strong style="font-family:var(--mono);font-size:12px;">{{ component.updated_at|date:"d M Y H:i" }}</strong>
       </div>
     </div>
     {% endif %}
@@ -106,7 +107,7 @@
     <!-- NOTES -->
     {% if component.notes %}
     <div class="notes-strip">
-      📝 <span>{{ component.notes }}</span>
+      <span>{{ component.notes }}</span>
     </div>
     {% endif %}
 
@@ -117,15 +118,15 @@
   <div class="stats-row anim">
     <div class="stat-mini amber">
       <div class="stat-mini-num">{{ total_replacements }}</div>
-      <div class="stat-mini-label">🔄 Total Penggantian</div>
+      <div class="stat-mini-label">Total Penggantian</div>
     </div>
     <div class="stat-mini red">
       <div class="stat-mini-num" style="font-size:18px;">Rp {{ total_replacement_cost|floatformat:0 }}</div>
-      <div class="stat-mini-label">💸 Total Biaya</div>
+      <div class="stat-mini-label">Total Biaya</div>
     </div>
     <div class="stat-mini green">
       <div class="stat-mini-num" style="font-size:18px;">{{ replacements.0.replaced_date|date:"M Y" }}</div>
-      <div class="stat-mini-label">📅 Penggantian Terakhir</div>
+      <div class="stat-mini-label">Penggantian Terakhir</div>
     </div>
   </div>
   {% endif %}
@@ -137,8 +138,8 @@
         <span class="card-dot" style="background:var(--purple);"></span>
         Riwayat Penggantian Komponen
         {% if total_replacements %}
-          <span style="font-size:10px;background:#ede9fe;color:var(--purple);padding:2px 8px;
-            border-radius:99px;font-family:var(--mono);font-weight:700;">{{ total_replacements }}x</span>
+          <span style="font-size:12px;background:var(--mandatory-tint);color:var(--purple);padding:2px 8px;
+            border-radius:var(--r);font-family:var(--mono);font-weight:700;">{{ total_replacements }}x</span>
         {% endif %}
       </div>
       <a href="{% url 'replacement_create' component.id %}" class="btn btn-primary"
@@ -159,16 +160,16 @@
             <div class="tl-reason">{{ r.reason }}</div>
             <div class="tl-meta">
               <div class="tl-meta-item cost">
-                💰 Biaya: <strong>Rp {{ r.cost|floatformat:0 }}</strong>
+                Biaya: <strong>Rp {{ r.cost|floatformat:0 }}</strong>
               </div>
               {% if r.old_part_number %}
               <div class="tl-meta-item">
-                🔄 PN Lama: <code>{{ r.old_part_number }}</code>
+                PN Lama: <code>{{ r.old_part_number }}</code>
               </div>
               {% endif %}
               {% if r.performed_by %}
               <div class="tl-meta-item">
-                👤 <strong>{{ r.performed_by.nama }}</strong>
+                <strong>{{ r.performed_by.nama }}</strong>
               </div>
               {% endif %}
             </div>
@@ -180,7 +181,6 @@
 
     {% else %}
     <div class="empty-state">
-      <div class="empty-icon">🔩</div>
       <div class="empty-title">Belum ada riwayat penggantian</div>
       <div class="empty-sub">Komponen ini belum pernah diganti sejak terpasang</div>
       <a href="{% url 'replacement_create' component.id %}" class="btn btn-primary"

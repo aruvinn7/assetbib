@@ -4,8 +4,9 @@
 {% block nav_master %}active{% endblock %}
 {% include "master/partials/location_node.html" with node=child depth=1 %}
 
+{% block extra_head %}<link rel="stylesheet" href="{% static 'css/pages/master_location_list.css' %}?v=3">{% endblock %}
+
 {% block content %}
-<link rel="stylesheet" href="{% static 'css/pages/master_location_list.css' %}">
 
 <div class="wrap">
 
@@ -31,7 +32,7 @@
   <!-- TOOLBAR -->
   <div class="toolbar anim">
     <div class="search-wrap">
-      <span class="search-icon">🔍</span>
+      <i class="search-icon fa-solid fa-magnifying-glass" aria-hidden="true"></i>
       <input type="text" class="search-input" id="searchInput"
         placeholder="Cari nama lokasi..."
         oninput="filterTree(this.value)">
@@ -39,14 +40,14 @@
     <span class="count-label" id="countLabel">{{ locations|length }} lokasi</span>
 
     <button id="expandAllBtn" onclick="expandAll()"
-      style="padding:6px 12px;border-radius:8px;border:1.5px solid #c7d2fe;
-        background:#eef2ff;color:#4338ca;font-size:10px;font-weight:700;
+      style="padding:6px 12px;border-radius:var(--r);border:1.5px solid #A9C4E2;
+        background:#eef2ff;color:#4338ca;font-size:12px;font-weight:700;
         cursor:pointer;font-family:var(--sans);">
       ⊞ Buka Semua
     </button>
     <button id="collapseAllBtn" onclick="collapseAll()"
-      style="padding:6px 12px;border-radius:8px;border:1.5px solid #e5e7eb;
-        background:#f9fafb;color:#6b7280;font-size:10px;font-weight:700;
+      style="padding:6px 12px;border-radius:var(--r);border:1.5px solid var(--rule);
+        background:#f9fafb;color:var(--ink-3);font-size:12px;font-weight:700;
         cursor:pointer;font-family:var(--sans);">
       ⊟ Tutup Semua
     </button>
@@ -54,24 +55,23 @@
 
   <!-- SELECTION BAR -->
   <div id="selectionBar">
-    <span style="font-size:13px;">🗑</span>
-    <span style="font-size:12px;font-weight:700;color:#e02424;">
+    <span style="font-size:12px;font-weight:700;color:var(--danger);">
       <span id="selBarCount">0</span> lokasi dipilih
     </span>
-    <span style="font-size:11px;color:#9b1c1c;">
+    <span style="font-size:12px;color:#9b1c1c;">
       — lokasi yang memiliki sub-lokasi akan menghapus seluruh turunannya
     </span>
     <button onclick="clearSelection()"
-      style="margin-left:auto;padding:5px 12px;border-radius:7px;border:1.5px solid #fca5a5;
-        background:#fff;color:#e02424;font-size:10px;font-weight:700;cursor:pointer;
+      style="margin-left:auto;padding:5px 12px;border-radius:var(--r);border:1.5px solid #E7A5AF;
+        background:#fff;color:var(--danger);font-size:12px;font-weight:700;cursor:pointer;
         font-family:var(--sans);">
       ✕ Batal
     </button>
     <button onclick="confirmBulkDelete()"
-      style="padding:5px 14px;border-radius:7px;border:none;
-        background:#e02424;color:#fff;font-size:10px;font-weight:700;cursor:pointer;
+      style="padding:5px 14px;border-radius:var(--r);border:none;
+        background:var(--danger);color:#fff;font-size:12px;font-weight:700;cursor:pointer;
         font-family:var(--sans);">
-      🗑 Hapus Sekarang
+      Hapus Sekarang
     </button>
   </div>
 
@@ -87,10 +87,10 @@
           Hierarki Lokasi — <span id="tableCount">{{ locations|length }}</span> item
         </div>
         {% if locations %}
-        <label style="display:flex;align-items:center;gap:6px;font-size:11px;
+        <label style="display:flex;align-items:center;gap:6px;font-size:12px;
           font-weight:700;color:var(--text-soft);cursor:pointer;user-select:none;">
           <input type="checkbox" id="selectAll" onchange="toggleSelectAll(this)"
-            style="width:15px;height:15px;cursor:pointer;accent-color:#e02424;">
+            style="width:15px;height:15px;cursor:pointer;accent-color:var(--danger);">
           Pilih Semua
         </label>
         {% endif %}
@@ -120,10 +120,9 @@
               </div>
 
               {% if root_node.children %}
-              <span class="toggle-arrow open">▶</span>
+              <span class="toggle-arrow open"><i class="fa-solid fa-chevron-right" aria-hidden="true"></i></span>
               {% endif %}
 
-              <span class="root-icon">🏢</span>
               <span class="root-name">{{ root_node.obj.name }}</span>
 
               <div class="root-meta" onclick="event.stopPropagation()">
@@ -133,11 +132,9 @@
                   <span class="root-tag">root</span>
                 {% endif %}
 
-                <a href="{% url 'location_update' root_node.obj.id %}" class="act-btn edit">✏️ Edit</a>
+                <a href="{% url 'location_update' root_node.obj.id %}" class="act-btn edit">Edit</a>
                 <a href="{% url 'location_delete' root_node.obj.id %}" class="act-btn del"
-                   onclick="return confirm('Hapus lokasi \'{{ root_node.obj.name|escapejs }}\'?\nSemua sub-lokasi juga akan terhapus.')">
-                  🗑
-                </a>
+                   onclick="return confirm('Hapus lokasi \'{{ root_node.obj.name|escapejs }}\'?\nSemua sub-lokasi juga akan terhapus.')">Hapus</a>
               </div>
             </div>
 
@@ -160,7 +157,6 @@
 
         <!-- EMPTY SEARCH STATE -->
         <div id="searchEmpty" style="display:none;" class="empty-state">
-          <div class="empty-icon">🔍</div>
           <div class="empty-title">Lokasi tidak ditemukan</div>
           <div class="empty-sub">Coba kata kunci lain</div>
         </div>
@@ -168,7 +164,6 @@
 
       {% else %}
       <div class="empty-state">
-        <div class="empty-icon">📍</div>
         <div class="empty-title">Belum ada lokasi</div>
         <div class="empty-sub">Tambahkan lokasi pertama untuk mulai mengorganisir aset</div>
         <a href="{% url 'location_create' %}" class="btn btn-success">＋ Tambah Lokasi</a>
@@ -206,8 +201,8 @@ function toggleSub(btn, panelId) {
   const isOpen = panel.classList.contains('open');
   panel.classList.toggle('open', !isOpen);
   btn.textContent = isOpen
-    ? '▶ ' + btn.dataset.count + ' sub'
-    : '▼ ' + btn.dataset.count + ' sub';
+    ? btn.dataset.count + ' sub · buka'
+    : btn.dataset.count + ' sub · tutup';
 }
 
 function expandAll() {
@@ -215,7 +210,7 @@ function expandAll() {
   document.querySelectorAll('.toggle-arrow').forEach(a => a.classList.add('open'));
   document.querySelectorAll('.root-header').forEach(h => h.classList.add('open'));
   document.querySelectorAll('.sub-toggle').forEach(b => {
-    b.textContent = '▼ ' + b.dataset.count + ' sub';
+    b.textContent = b.dataset.count + ' sub · tutup';
   });
 }
 
@@ -224,7 +219,7 @@ function collapseAll() {
   document.querySelectorAll('.toggle-arrow').forEach(a => a.classList.remove('open'));
   document.querySelectorAll('.root-header').forEach(h => h.classList.remove('open'));
   document.querySelectorAll('.sub-toggle').forEach(b => {
-    b.textContent = '▶ ' + b.dataset.count + ' sub';
+    b.textContent = b.dataset.count + ' sub · buka';
   });
 }
 
@@ -262,7 +257,7 @@ function filterTree(q) {
       return;
     }
     if (name.includes(q)) {
-      node.style.outline = '2px solid #6366f1';
+      node.style.outline = '2px solid var(--mandatory)';
       node.style.outlineOffset = '-2px';
       node.style.background = '#eef2ff';
     } else {
@@ -330,7 +325,7 @@ function confirmBulkDelete() {
   if (!checked.length) return;
   if (confirm(
     `Hapus ${checked.length} lokasi yang dipilih?\n\n` +
-    `⚠️ Lokasi yang memiliki sub-lokasi akan menghapus seluruh turunannya.\n` +
+    `Lokasi yang memiliki sub-lokasi akan menghapus seluruh turunannya.\n` +
     `Tindakan ini tidak dapat dibatalkan.`
   )) {
     document.getElementById('bulkForm').submit();

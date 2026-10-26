@@ -1,366 +1,129 @@
 {% extends "base.html" %}
-{% load static %}
-{% block title %}Maintenance Monitor — Asset Management{% endblock %}
+{% load static math_filter %}
+{% block legacy_css %}{% endblock %}
+{% block title %}Maintenance{% endblock %}
+{% block nav_maintenance %}active{% endblock %}
+{% block extra_head %}<link rel="stylesheet" href="{% static 'css/pages/maintenance_list.css' %}?v=3">{% endblock %}
 
 {% block content %}
-<link rel="stylesheet" href="{% static 'css/pages/maintenance_list.css' %}">
+<div class="page">
 
-<div class="wrap">
-
-  <!-- PAGE HEADER -->
-  <div class="page-header anim">
+  <div class="page-head">
     <div>
-      <span class="page-eyebrow">General Affair — GA</span>
-      <h1 class="page-title">Maintenance <em>Monitor</em></h1>
+      <h1>Jadwal maintenance</h1>
+      <div class="sub">{{ overdue_count|add:upcoming_count }} jadwal perlu ditindaklanjuti · {{ done_count }} sudah selesai</div>
     </div>
-    <div style="display:flex;gap:8px;flex-wrap:wrap;">
-      <a href="{% url 'dashboard' %}" class="btn btn-outline">← Dashboard</a>
-      <a href="{% url 'asset_list' %}" class="btn btn-outline">📋 Aset</a>
-      <button onclick="document.getElementById('modalPilihAset').classList.add('open')"
-              class="btn btn-primary">➕ Input Maintenance</button>
+    <div class="page-actions">
+      <button type="button" class="btn" data-open="pickAsset"><i class="fa-solid fa-plus" aria-hidden="true"></i>Catat maintenance</button>
     </div>
   </div>
 
-  <!-- STAT ROW -->
-  <div class="stat-row anim">
-    <a href="?status=overdue{% if search_query %}&q={{ search_query }}{% endif %}" class="stat-mini red">
-      <div class="stat-mini-num">{{ overdue_count }}</div>
-      <div class="stat-mini-label">🚨 Overdue</div>
-    </a>
-    <a href="?status=upcoming{% if search_query %}&q={{ search_query }}{% endif %}" class="stat-mini amber">
-      <div class="stat-mini-num">{{ upcoming_count }}</div>
-      <div class="stat-mini-label">🔔 Upcoming</div>
-    </a>
-    <a href="?status=done{% if search_query %}&q={{ search_query }}{% endif %}" class="stat-mini green">
-      <div class="stat-mini-num">{{ done_count }}</div>
-      <div class="stat-mini-label">✅ Selesai</div>
-    </a>
-    <a href="?{% if search_query %}q={{ search_query }}{% endif %}" class="stat-mini slate">
-      <div class="stat-mini-num">{{ overdue_count|add:upcoming_count }}</div>
-      <div class="stat-mini-label">📋 Perlu Aksi</div>
-    </a>
-  </div>
-
-  <!-- TOOLBAR: FILTER + SEARCH (pola identik dengan asset list) -->
-  <div class="toolbar anim">
-    <span class="toolbar-label">STATUS:</span>
-    <a href="?{% if search_query %}q={{ search_query %}{% endif %}" class="filter-tab {% if not status_filter %}active{% endif %}">Perlu Aksi</a>
-    <a href="?{% if search_query %}q={{ search_query }}&{% endif %}status=overdue"
-       class="filter-tab red {% if status_filter == 'overdue' %}active{% endif %}">
-      🚨 Overdue <span class="filter-count">{{ overdue_count }}</span>
-    </a>
-    <a href="?{% if search_query %}q={{ search_query }}&{% endif %}status=upcoming"
-       class="filter-tab amber {% if status_filter == 'upcoming' %}active{% endif %}">
-      🔔 Upcoming
-    </a>
-    <a href="?{% if search_query %}q={{ search_query }}&{% endif %}status=done"
-       class="filter-tab green {% if status_filter == 'done' %}active{% endif %}">
-      ✅ Selesai
-    </a>
-    <a href="?{% if search_query %}q={{ search_query }}&{% endif %}status=skipped"
-       class="filter-tab {% if status_filter == 'skipped' %}active{% endif %}">
-      ⏭ Dilewati
-    </a>
-
-    <form method="get" class="search-wrap" id="searchForm" style="display:flex;align-items:center;gap:6px;">
-      {# Pertahankan filter aktif saat search #}
+  <div class="toolbar">
+    <nav class="filters" aria-label="Saring status jadwal">
+      <a class="chip {% if not status_filter %}active{% endif %}" href="{% querystring status=None page=None %}">Perlu tindakan <span class="count">{{ overdue_count|add:upcoming_count }}</span></a>
+      <a class="chip {% if status_filter == 'overdue' %}active{% endif %}" href="{% querystring status='overdue' page=None %}"><svg class="sign" aria-hidden="true"><use href="#sign-warning"/></svg>Terlambat <span class="count">{{ overdue_count }}</span></a>
+      <a class="chip {% if status_filter == 'upcoming' %}active{% endif %}" href="{% querystring status='upcoming' page=None %}"><svg class="sign" aria-hidden="true"><use href="#sign-mandatory"/></svg>Akan datang <span class="count">{{ upcoming_count }}</span></a>
+      <a class="chip {% if status_filter == 'done' %}active{% endif %}" href="{% querystring status='done' page=None %}"><svg class="sign" aria-hidden="true"><use href="#sign-safe"/></svg>Selesai <span class="count">{{ done_count }}</span></a>
+      <a class="chip {% if status_filter == 'skipped' %}active{% endif %}" href="{% querystring status='skipped' page=None %}"><svg class="sign" aria-hidden="true"><use href="#sign-off"/></svg>Dilewati</a>
+    </nav>
+    <form method="get" class="search" role="search" id="searchForm">
       {% if status_filter %}<input type="hidden" name="status" value="{{ status_filter }}">{% endif %}
-      <div style="position:relative;">
-        <span class="search-icon">🔍</span>
-        <input type="text" name="q" class="search-input" id="searchInput"
-          placeholder="Cari nama, nomor aset..."
-          value="{{ search_query }}"
-          autocomplete="off">
-        {% if search_query %}
-        <a href="?{% if status_filter %}status={{ status_filter }}{% endif %}"
-           style="position:absolute;right:8px;top:50%;transform:translateY(-50%);
-                  color:var(--muted);text-decoration:none;font-size:14px;line-height:1;"
-           title="Hapus pencarian">✕</a>
-        {% endif %}
-      </div>
-      <button type="submit" class="btn btn-primary" style="padding:6px 12px;font-size:11px;">Cari</button>
+      <i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i>
+      <label class="visually-hidden" for="searchInput">Cari jadwal</label>
+      <input class="input" type="search" name="q" id="searchInput" value="{{ search_query }}" placeholder="Nama atau nomor aset…">
     </form>
   </div>
 
-  <!-- SEARCH RESULT BANNER -->
-  {% if search_query %}
-  <div style="display:flex;align-items:center;gap:8px;padding:8px 14px;
-    background:#eff6ff;border:1.5px solid #bfdbfe;border-radius:10px;
-    margin-bottom:10px;font-size:12px;color:#1e40af;">
-    <span style="font-size:16px;">🔍</span>
-    <span>Hasil pencarian untuk <strong>"{{ search_query }}"</strong> — ditemukan <strong>{{ filtered_count }}</strong> jadwal</span>
-    <a href="?{% if status_filter %}status={{ status_filter }}{% endif %}"
-       style="margin-left:auto;color:#1e40af;font-weight:800;white-space:nowrap;">✕ Hapus</a>
-  </div>
-  {% endif %}
-
-  <!-- MAIN CARD -->
-  <div class="card anim">
-    <div class="card-header">
-      <div class="card-title">
-        <span class="card-title-dot" style="background:
-          {% if status_filter == 'overdue' %}var(--danger)
-          {% elif status_filter == 'done' %}var(--success)
-          {% elif status_filter == 'upcoming' %}var(--warning)
-          {% else %}var(--accent){% endif %};"></span>
-        {% if status_filter == 'overdue' %}Jadwal Overdue
-        {% elif status_filter == 'upcoming' %}Jadwal Upcoming
-        {% elif status_filter == 'done' %}Riwayat Selesai
-        {% elif status_filter == 'skipped' %}Jadwal Dilewati
-        {% else %}Overdue + Upcoming{% endif %}
-        — <span>{{ filtered_count }}</span> item
-      </div>
-      {% if page_obj.paginator.num_pages > 1 %}
-      <span style="font-size:10px;color:var(--muted);font-family:var(--mono);">
-        Hal. {{ page_obj.number }}/{{ page_obj.paginator.num_pages }}
-      </span>
-      {% endif %}
-    </div>
-
+  <section class="panel {% if status_filter != 'done' and status_filter != 'skipped' and overdue_count %}hazard{% endif %}" aria-label="Daftar jadwal">
     {% if schedules %}
-
-    <!-- ═══════════════ DESKTOP TABLE ═══════════════ -->
-    <div style="overflow-x:auto;" class="desktop-table">
-      <table class="tbl">
-        <thead>
-          <tr>
-            <th>#</th>
-            <th>Aset</th>
-            <th>Kategori</th>
-            <th>Lokasi</th>
-            <th>Tgl Jadwal</th>
-            <th>Status</th>
-            <th>Interval</th>
-            <th>Aksi</th>
-          </tr>
-        </thead>
+    <div class="table-wrap">
+      <table class="table sched-table">
+        <thead><tr><th>Status</th><th>Aset</th><th>Lokasi</th><th class="num">Jadwal</th><th class="num">Interval</th><th><span class="visually-hidden">Aksi</span></th></tr></thead>
         <tbody>
-          {% for sch in schedules %}
-          <tr onclick="window.location='{% url 'asset_detail' sch.asset.id %}'">
-            <td style="font-family:var(--mono);font-size:10px;color:var(--muted);">
-              {{ page_obj.start_index|add:forloop.counter0 }}
+        {% for sch in schedules %}
+          {% with d=sch.days_remaining %}
+          <tr>
+            <td data-label="Status">
+              {% if sch.status == 'overdue' %}{% include "components/_status.html" with kind="warning" label="Terlambat" %}
+              {% elif sch.status == 'upcoming' and d <= 7 %}{% include "components/_status.html" with kind="mandatory" label="Segera" %}
+              {% elif sch.status == 'upcoming' %}{% include "components/_status.html" with kind="none" label="Terjadwal" %}
+              {% elif sch.status == 'done' %}{% include "components/_status.html" with kind="safe" label="Selesai" %}
+              {% else %}{% include "components/_status.html" with kind="off" label="Dilewati" %}{% endif %}
+              {% if sch.notes %}<div class="cell-sub" title="{{ sch.notes }}">{% if sch.notes|slice:":11" == "[CORRECTIVE" %}dari laporan kerusakan{% else %}{{ sch.notes|truncatechars:40 }}{% endif %}</div>{% endif %}
             </td>
-            <td>
-              <div class="asset-name">{{ sch.asset.nama_asset }}</div>
-              <div class="asset-sub">{{ sch.asset.asset_number }}</div>
+            <td data-label="Aset" class="asset-cell"><a class="row-link" href="{% url 'asset_detail' sch.asset.id %}">{{ sch.asset.nama_asset }}</a><div class="cell-sub">{{ sch.asset.asset_number }}{% if sch.asset.asset_category %} · {{ sch.asset.asset_category.name }}{% endif %}</div></td>
+            <td data-label="Lokasi" class="loc">{% include "components/_location.html" with loc=sch.asset.lokasi_asset %}</td>
+            <td data-label="Jadwal" class="num">{{ sch.scheduled_date|date:"d M Y" }}
+              {% if sch.status == 'overdue' or sch.status == 'upcoming' %}<div class="cell-sub {% if d < 0 %}late{% endif %}">{% if d < 0 %}{{ d|abs_value }} hari terlambat{% elif d == 0 %}hari ini{% else %}{{ d }} hari lagi{% endif %}</div>{% endif %}
             </td>
-            <td>
-              {% if sch.asset.asset_category %}
-                <div style="font-size:11px;font-weight:600;">{{ sch.asset.asset_category.name }}</div>
-                <div style="font-size:9px;color:var(--muted);font-family:var(--mono);">{{ sch.asset.asset_group.name }}</div>
-              {% else %}<span style="color:var(--muted);font-size:11px;">—</span>{% endif %}
-            </td>
-            <td style="font-size:11px;color:var(--text-soft);">{{ sch.asset.lokasi_asset|default:"—" }}</td>
-            <td>
-              <div style="font-family:var(--mono);font-size:11px;font-weight:600;">
-                {{ sch.scheduled_date|date:"d M Y" }}
-              </div>
-              {% with days=sch.days_remaining %}
-                {% if sch.status == 'overdue' %}
-                  <span class="days-chip late">{{ days|cut:"-" }} hr terlambat</span>
-                {% elif sch.status == 'upcoming' %}
-                  {% if days <= 7 %}<span class="days-chip warn">{{ days }} hari lagi</span>
-                  {% else %}<span class="days-chip ok">{{ days }} hari lagi</span>{% endif %}
-                {% endif %}
-              {% endwith %}
-            </td>
-            <td>
-              {% if sch.status == 'overdue' %}<span class="badge overdue">Overdue</span>
-              {% elif sch.status == 'upcoming' %}
-                {% if sch.days_remaining <= 7 %}<span class="badge soon">Segera</span>
-                {% else %}<span class="badge upcoming">Upcoming</span>{% endif %}
-              {% elif sch.status == 'done' %}<span class="badge done">Selesai</span>
-              {% elif sch.status == 'skipped' %}<span class="badge skipped">Dilewati</span>{% endif %}
-            </td>
-            <td>
-              {% if sch.interval_days %}
-                <span style="font-family:var(--mono);font-size:10px;color:var(--text-soft);">tiap {{ sch.interval_days }}hr</span>
-                {% if sch.is_custom_interval %}<div style="font-size:9px;color:var(--accent);font-family:var(--mono);">custom</div>{% endif %}
-              {% else %}
-                <span style="color:var(--muted);font-size:10px;font-family:var(--mono);">—</span>
+            <td data-label="Interval" class="num">{% if sch.interval_days %}{{ sch.interval_days }} hari<div class="cell-sub">{% if sch.is_custom_interval %}custom{% else %}kategori{% endif %}</div>{% else %}<span class="cell-sub">—</span>{% endif %}</td>
+            <td class="actions">
+              {% if sch.status == 'upcoming' or sch.status == 'overdue' %}
+                <a class="btn sm" href="{% url 'maintenance_create' sch.asset.id %}">Catat</a>
+                <a class="skip" href="{% url 'maintenance_schedule_skip' sch.pk %}" onclick="return confirm('Lewati jadwal {{ sch.asset.nama_asset|escapejs }}? Jadwal ini tidak akan dihitung terlambat lagi.')">Lewati</a>
               {% endif %}
             </td>
-            <td onclick="event.stopPropagation()">
-              <div class="action-group">
-                {% if sch.status == 'upcoming' or sch.status == 'overdue' %}
-                  <a href="{% url 'maintenance_create' sch.asset.id %}" class="act-btn primary">+ Input</a>
-                  <a href="{% url 'maintenance_schedule_skip' sch.pk %}"
-                     class="act-btn danger"
-                     onclick="return confirm('Tandai sebagai dilewati?')">Skip</a>
-                {% endif %}
-                <a href="{% url 'asset_detail' sch.asset.id %}" class="act-btn">Detail</a>
-              </div>
-            </td>
           </tr>
-          {% endfor %}
+          {% endwith %}
+        {% endfor %}
         </tbody>
       </table>
     </div>
-
-    <!-- ═══════════════ MOBILE CARD LIST ═══════════════ -->
-    <div class="mobile-list">
-      {% for sch in schedules %}
-      <div class="mc-item">
-        <div class="mc-num">{{ page_obj.start_index|add:forloop.counter0 }}</div>
-        <div class="mc-dot
-          {% if sch.status == 'overdue' %}overdue
-          {% elif sch.status == 'upcoming' %}{% if sch.days_remaining <= 7 %}soon{% else %}upcoming{% endif %}
-          {% elif sch.status == 'done' %}done
-          {% else %}skipped{% endif %}"></div>
-        <div class="mc-body">
-          <div class="mc-name">{{ sch.asset.nama_asset }}</div>
-          <div class="mc-sub">{{ sch.asset.asset_number }} · {{ sch.asset.lokasi_asset|default:"—" }}</div>
-          <div class="mc-meta">
-            {% if sch.status == 'overdue' %}<span class="badge overdue">Overdue</span>
-            {% elif sch.status == 'upcoming' %}
-              {% if sch.days_remaining <= 7 %}<span class="badge soon">Segera</span>
-              {% else %}<span class="badge upcoming">Upcoming</span>{% endif %}
-            {% elif sch.status == 'done' %}<span class="badge done">Selesai</span>
-            {% elif sch.status == 'skipped' %}<span class="badge skipped">Dilewati</span>{% endif %}
-
-            <span class="mc-date">📅 {{ sch.scheduled_date|date:"d M Y" }}</span>
-
-            {% with days=sch.days_remaining %}
-              {% if sch.status == 'overdue' %}
-                <span class="days-chip late" style="font-size:9px;">{{ days|cut:"-" }}hr terlambat</span>
-              {% elif sch.status == 'upcoming' %}
-                {% if days <= 7 %}<span class="days-chip warn" style="font-size:9px;">{{ days }} hari lagi</span>
-                {% else %}<span class="days-chip ok" style="font-size:9px;">{{ days }} hari lagi</span>{% endif %}
-              {% endif %}
-            {% endwith %}
-
-            {% with interval=sch.interval_days %}
-              {% if interval %}<span style="font-size:9px;color:var(--muted);font-family:var(--mono);">tiap {{ interval }}hr</span>{% endif %}
-            {% endwith %}
-          </div>
-          {% if sch.asset.lokasi_asset %}<div style="font-size:9px;color:var(--text-soft);margin-top:4px;">📍 {{ sch.asset.lokasi_asset }}</div>{% endif %}
-          <div class="mc-actions">
-            {% if sch.status == 'upcoming' or sch.status == 'overdue' %}
-              <a href="{% url 'maintenance_create' sch.asset.id %}" class="act-btn primary">+ Input</a>
-              <a href="{% url 'maintenance_schedule_skip' sch.pk %}"
-                 class="act-btn danger"
-                 onclick="return confirm('Tandai sebagai dilewati?')">Skip</a>
-            {% endif %}
-            <a href="{% url 'asset_detail' sch.asset.id %}" class="act-btn">Detail</a>
-          </div>
-        </div>
-      </div>
-      {% endfor %}
-    </div>
-
-    <!-- ═══════════════ PAGINATION ═══════════════ -->
     {% include "components/_pagination.html" with label="jadwal" %}
-
     {% else %}
-    <div class="empty-state">
-      <div class="empty-icon">
-        {% if status_filter == 'overdue' %}🎉{% elif status_filter == 'done' %}📋{% elif search_query %}🔍{% else %}✅{% endif %}
-      </div>
-      <div class="empty-title">
-        {% if search_query %}Jadwal tidak ditemukan
-        {% elif status_filter == 'overdue' %}Tidak ada jadwal overdue!
-        {% elif status_filter == 'done' %}Belum ada maintenance selesai
-        {% elif status_filter == 'skipped' %}Tidak ada jadwal dilewati
-        {% else %}Semua jadwal aman!{% endif %}
-      </div>
-      <div class="empty-sub">
-        {% if search_query %}Coba kata kunci lain{% else %}Tidak ada data untuk filter ini.{% endif %}
-      </div>
+    <div class="empty">
+      {% if search_query %}<strong>Tidak ada jadwal untuk “{{ search_query }}”</strong><a href="{% querystring q=None page=None %}">Hapus pencarian</a>
+      {% elif status_filter == 'overdue' %}<strong>Tidak ada jadwal terlambat</strong>Semua maintenance dikerjakan tepat waktu.
+      {% elif not status_filter %}<strong>Tidak ada jadwal yang perlu ditindaklanjuti</strong>Semua aset sudah sesuai jadwal.
+      {% else %}<strong>Belum ada jadwal dengan status ini</strong>{% endif %}
     </div>
     {% endif %}
-  </div>
-
+  </section>
 </div>
 
-<!-- MODAL PILIH ASET -->
-<div id="modalPilihAset" class="modal-overlay">
-  <div class="modal-box">
-    <div class="modal-header">
-      <div>
-        <div style="font-size:10px;color:var(--muted);font-family:var(--mono);
-          text-transform:uppercase;letter-spacing:.5px;margin-bottom:3px;">Maintenance Record</div>
-        <div style="font-size:15px;font-weight:900;">Pilih Aset</div>
-      </div>
-      <button class="modal-close" onclick="closeModal()">✕</button>
-    </div>
-    <div class="modal-search">
-      <input type="text" id="asetSearch"
-        placeholder="🔍  Cari nama / nomor aset..."
-        oninput="filterAset(this.value)">
-    </div>
-    <div class="modal-list" id="asetListModal">
-      {% for asset in all_active_assets %}
-      <a href="{% url 'maintenance_create' asset.id %}"
-         class="modal-asset-item aset-modal-item"
-         data-search="{{ asset.nama_asset|lower }} {{ asset.asset_number|lower }}">
-        <div class="modal-asset-icon">
-          {% if asset.asset_group.name == 'Elektronik' %}❄️
-          {% elif asset.asset_group.name == 'IT Infrastructure' %}💻
-          {% elif asset.asset_group.name == 'Furnitur' %}🪑
-          {% elif asset.asset_group.name == 'Utilitas & Mekanikal' %}⚙️
-          {% else %}📦{% endif %}
-        </div>
-        <div style="flex:1;min-width:0;">
-          <div class="modal-asset-name">{{ asset.nama_asset }}</div>
-          <div class="modal-asset-sub">{{ asset.asset_number }} · {{ asset.asset_category.name|default:"—" }}</div>
-        </div>
-        <div style="flex-shrink:0;">
-          {% if asset.maint_status == 'overdue' %}<span class="badge overdue">Overdue</span>
-          {% elif asset.maint_status == 'upcoming_soon' %}<span class="badge soon">Segera</span>
-          {% elif asset.maint_status == 'on_track' %}<span class="badge done">On Track</span>
-          {% else %}<span class="badge skipped">—</span>{% endif %}
-        </div>
+<dialog class="picker" id="pickAsset" aria-labelledby="pickTitle">
+  <div class="panel-head"><h2 id="pickTitle">Pilih aset yang dikerjakan</h2><button type="button" class="icon-btn" data-close aria-label="Tutup"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button></div>
+  <div class="picker-search">
+    <label class="visually-hidden" for="pickSearch">Cari aset</label>
+    <input class="input" type="search" id="pickSearch" placeholder="Cari nama atau nomor aset…" autocomplete="off">
+  </div>
+  <ul class="picker-list" id="pickList">
+    {% for asset in all_active_assets %}
+    <li data-search="{{ asset.nama_asset|lower }} {{ asset.asset_number|lower }}">
+      <a href="{% url 'maintenance_create' asset.id %}">
+        <span><strong>{{ asset.nama_asset }}</strong><span class="cell-sub">{{ asset.asset_number }} · {{ asset.asset_category.name|default:"—" }}</span></span>
+        {% if asset.maint_status == 'overdue' %}{% include "components/_status.html" with kind="warning" label="Terlambat" %}{% elif asset.maint_status == 'upcoming_soon' %}{% include "components/_status.html" with kind="mandatory" label="Segera" %}{% endif %}
       </a>
-      {% empty %}
-      <div style="text-align:center;padding:40px;color:var(--muted);font-size:12px;font-family:var(--mono);">
-        Tidak ada aset aktif.
-      </div>
-      {% endfor %}
-      <div id="noAsetResult" style="display:none;text-align:center;padding:28px;
-        color:var(--muted);font-size:12px;font-family:var(--mono);">
-        Aset tidak ditemukan.
-      </div>
-    </div>
-  </div>
-</div>
+    </li>
+    {% empty %}
+    <li class="empty">Tidak ada aset aktif.</li>
+    {% endfor %}
+  </ul>
+  <p class="empty" id="pickNone" hidden>Aset tidak ditemukan.</p>
+</dialog>
+{% endblock %}
 
+{% block extra_scripts %}
 <script>
-  // ── Auto-submit search (400ms debounce, identik dengan asset list) ──
-  let searchTimeout;
-  const searchInput = document.getElementById('searchInput');
-  if (searchInput) {
-    searchInput.addEventListener('input', function() {
-      clearTimeout(searchTimeout);
-      searchTimeout = setTimeout(() => {
-        document.getElementById('searchForm').submit();
-      }, 400);
-    });
-  }
+  (() => {
+    const input = document.getElementById('searchInput');
+    let t;
+    input?.addEventListener('input', () => { clearTimeout(t); t = setTimeout(() => document.getElementById('searchForm').submit(), 400); });
+  })();
 
-  // ── Modal helpers ──
-  function closeModal() {
-    document.getElementById('modalPilihAset').classList.remove('open');
-    document.getElementById('asetSearch').value = '';
-    filterAset('');
-  }
-  function filterAset(q) {
-    const items = document.querySelectorAll('.aset-modal-item');
-    const query = q.toLowerCase().trim();
-    let found = 0;
-    items.forEach(item => {
-      const match = item.dataset.search.includes(query);
-      item.style.display = match ? '' : 'none';
-      if (match) found++;
+  (() => {
+    const dlg = document.getElementById('pickAsset');
+    const search = document.getElementById('pickSearch');
+    const items = [...dlg.querySelectorAll('#pickList li[data-search]')];
+    document.querySelector('[data-open="pickAsset"]').addEventListener('click', () => { dlg.showModal(); search.focus(); });
+    dlg.querySelector('[data-close]').addEventListener('click', () => dlg.close());
+    dlg.addEventListener('click', e => { if (e.target === dlg) dlg.close(); });
+    search.addEventListener('input', () => {
+      const q = search.value.toLowerCase().trim();
+      let n = 0;
+      items.forEach(li => { const m = li.dataset.search.includes(q); li.hidden = !m; if (m) n++; });
+      document.getElementById('pickNone').hidden = n > 0;
     });
-    document.getElementById('noAsetResult').style.display =
-      found === 0 && query ? 'block' : 'none';
-  }
-  document.getElementById('modalPilihAset').addEventListener('click', function(e) {
-    if (e.target === this) closeModal();
-  });
-  document.addEventListener('keydown', function(e) {
-    if (e.key === 'Escape') closeModal();
-  });
+  })();
 </script>
-
 {% endblock %}

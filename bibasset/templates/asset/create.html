@@ -2,8 +2,9 @@
 {% load static %}
 {% block title %}Tambah Aset Baru{% endblock %}
 
+{% block extra_head %}<link rel="stylesheet" href="{% static 'css/pages/asset_create.css' %}?v=3">{% endblock %}
+
 {% block content %}
-<link rel="stylesheet" href="{% static 'css/pages/asset_create.css' %}">
 
 <div class="wrap">
 
@@ -44,7 +45,7 @@
     <div class="step-sep"></div>
     <div class="step">
       <div class="step-num">4</div>
-      <div class="step-label">Finansial <span style="font-size:10px;color:var(--muted);">(Finance)</span></div>
+      <div class="step-label">Finansial <span style="font-size:12px;color:var(--muted);">(Finance)</span></div>
     </div>
   </div>
 
@@ -54,7 +55,6 @@
     <!-- SECTION 1: IDENTITAS ASET -->
     <div class="form-section anim">
       <div class="section-header">
-        <div class="section-icon si-blue">📦</div>
         <div class="section-label">Identitas Aset</div>
       </div>
       <div class="section-body">
@@ -93,13 +93,13 @@
               onchange="hitungUmur()">
             <span class="field-hint">Tanggal aset dibeli / diterima</span>
           </div>
-          <!-- ✅ UMUR ASET — read-only, dihitung otomatis -->
+          <!-- UMUR ASET — read-only, dihitung otomatis -->
           <div class="field">
             <label class="field-label">Umur Aset</label>
             <div class="umur-display empty" id="umurDisplay">
               <span class="umur-val" id="umurVal">Pilih tanggal pembelian terlebih dahulu</span>
             </div>
-            <span class="field-hint">⚙️ Dihitung otomatis · umur ekonomis diisi Finance</span>
+            <span class="field-hint">Dihitung otomatis · umur ekonomis diisi Finance</span>
           </div>
         </div>
 
@@ -109,7 +109,6 @@
     <!-- SECTION 2: KLASIFIKASI -->
     <div class="form-section anim">
       <div class="section-header">
-        <div class="section-icon si-purple">🗂️</div>
         <div class="section-label">Klasifikasi Aset</div>
       </div>
       <div class="section-body">
@@ -148,7 +147,7 @@
               </select>
             </div>
             <div class="category-info" id="categoryInfo">
-              🔔 Interval maintenance: <strong id="categoryInterval">—</strong> hari
+              Interval maintenance: <strong id="categoryInterval">—</strong> hari
             </div>
           </div>
         </div>
@@ -159,7 +158,6 @@
     <!-- SECTION 3: LOKASI & DEPARTMENT -->
     <div class="form-section anim">
       <div class="section-header">
-        <div class="section-icon si-green">📍</div>
         <div class="section-label">Lokasi &amp; Department</div>
       </div>
       <div class="section-body">
@@ -197,12 +195,10 @@
     <!-- SECTION 4: INFO MAINTENANCE OTOMATIS -->
     <div class="form-section anim" id="maintenanceInfoSection" style="display:none;">
       <div class="section-header">
-        <div class="section-icon si-amber">🔧</div>
         <div class="section-label">Info Maintenance Otomatis</div>
       </div>
       <div class="section-body">
         <div class="maint-banner">
-          <span style="font-size:18px;flex-shrink:0;">⚙️</span>
           <div>
             Setelah aset disimpan, jadwal maintenance akan <strong>di-generate otomatis</strong>
             berdasarkan kategori yang dipilih. Interval default:
@@ -215,13 +211,11 @@
     <!-- FINANCE INFO BANNER -->
     <div class="form-section anim">
       <div class="section-header">
-        <div class="section-icon" style="background:#fffbeb;">💰</div>
         <div class="section-label">Data Finansial</div>
       </div>
       <div class="section-body">
-        <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:9px;
+        <div style="background:var(--mandatory-tint);border:1px solid #A9C4E2;border-radius:var(--r);
           padding:14px 16px;font-size:13px;color:var(--accent);display:flex;gap:10px;align-items:flex-start;">
-          <span style="font-size:18px;flex-shrink:0;">💳</span>
           <div>
             <strong>Umur ekonomis dan valuasi aset</strong> diisi oleh tim <strong>Finance</strong> setelah aset ini disimpan.
             GA tidak perlu mengisi data finansial — ini sepenuhnya wewenang Finance.
@@ -232,7 +226,7 @@
 
     <!-- SUBMIT -->
     <div class="submit-row anim">
-      <button type="submit" class="btn btn-success">💾 Simpan Aset</button>
+      <button type="submit" class="btn btn-success">Simpan Aset</button>
       <a href="{% url 'asset_list' %}" class="btn btn-secondary">Batal</a>
       <span class="submit-hint">* Field wajib diisi</span>
     </div>
@@ -258,7 +252,7 @@
 
     if (diffMs < 0) {
       display.classList.add('empty');
-      val.textContent = '⚠️ Tanggal tidak valid (masa depan)';
+      val.textContent = 'Tanggal tidak valid (masa depan)';
       return;
     }
 

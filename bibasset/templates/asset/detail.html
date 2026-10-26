@@ -1,752 +1,393 @@
 {% extends "base.html" %}
-{% load static %}
-{% load rupiah %}
-{% load math_filter %}
-{% block title %}{{ asset.asset_number }} — Detail Aset{% endblock %}
+{% load static rupiah math_filter %}
+{% block legacy_css %}{% endblock %}
+{% block title %}{{ asset.nama_asset }} · {{ asset.asset_number }}{% endblock %}
+{% block nav_assets %}active{% endblock %}
+{% block extra_head %}<link rel="stylesheet" href="{% static 'css/pages/asset_detail.css' %}?v=3">{% endblock %}
 
 {% block content %}
-<link rel="stylesheet" href="{% static 'css/pages/asset_detail.css' %}">
+{% with emp=request.user.employee %}
+<div class="page">
 
-<div class="wrap">
+  <div class="crumbs"><a href="{% url 'asset_list' %}">Daftar aset</a><i class="fa-solid fa-chevron-right" aria-hidden="true" style="font-size:10px"></i>{{ asset.asset_number }}</div>
 
-  <!-- BREADCRUMB -->
-  <div class="breadcrumb-wrap anim">
-    <a href="{% url 'dashboard' %}">Dashboard</a>
-    <span class="sep">/</span>
-    <a href="{% url 'asset_list' %}">Aset</a>
-    <span class="sep">/</span>
-    <span class="current">{{ asset.asset_number }}</span>
-  </div>
-
-  <!-- HERO CARD -->
-  <div class="hero-card anim">
-    <div class="hero-top">
-      <div class="hero-left">
-        <div class="hero-icon">
-          {% if primary_photo %}
-            <img src="{{ primary_photo.photo.url }}" alt="{{ asset.nama_asset }}">
-          {% else %}
-            {% with g=asset.asset_group.name|default:"" %}
-              {% if 'AC' in g or 'Klim' in g %}❄️
-              {% elif 'IT' in g or 'Laptop' in g or 'Komputer' in g %}💻
-              {% elif 'Furni' in g or 'Meja' in g %}🪑
-              {% elif 'Utilitas' in g or 'Mekanikal' in g %}⚙️
-              {% elif 'Kendaraan' in g %}🚗
-              {% else %}📦{% endif %}
-            {% endwith %}
-          {% endif %}
+  <div class="page-head detail-head">
+    <div class="title-block">
+      <div>
+        <h1>{{ asset.nama_asset }}</h1>
+        <div class="sub">{{ asset.asset_number }}{% if asset.asset_category %} · {{ asset.asset_category.name }}{% endif %}{% if asset.asset_group %} · {{ asset.asset_group.name }}{% endif %}</div>
+        <div class="head-tags">
+          {% include "components/_lifecycle.html" with status=asset.lifecycle_status %}
+          {% include "components/_health.html" with health=health_status %}
+          {% if next_schedule.status == 'overdue' %}{% include "components/_status.html" with kind="warning" label="Maintenance terlambat" %}{% endif %}
         </div>
-        <div style="min-width:0;">
-          <div class="hero-asset-num">{{ asset.asset_number }}</div>
-          <div class="hero-title">{{ asset.nama_asset }}</div>
-          <div class="hero-meta">
-            {% if asset.lifecycle_status == 'active' %}<span class="pill active">Active</span>
-            {% elif asset.lifecycle_status == 'maintenance' %}<span class="pill maintenance">Maintenance</span>
-            {% elif asset.lifecycle_status == 'writeoff' %}<span class="pill writeoff">Write Off</span>
-            {% endif %}
-            {% if asset.asset_group %}<span class="pill group">{{ asset.asset_group }}</span>{% endif %}
-          </div>
-          <div style="margin-top:5px;font-size:11px;color:var(--muted);font-family:var(--mono);">
-            📍 {{ asset.lokasi_asset|default:"Lokasi tidak diset" }}
-          </div>
-        </div>
-      </div>
-      <div class="hero-actions">
-        {% if request.user.employee.ga_profile %}
-          <a href="{% url 'asset_update' asset.id %}" class="btn btn-warning btn-sm">✏️ Edit</a>
-        {% endif %}
-        <a href="{% url 'asset_list' %}" class="btn btn-outline btn-sm">← Kembali</a>
       </div>
     </div>
-
-    <!-- INFO GRID -->
-    <div class="info-grid-4">
-      <div class="ig-cell">
-        <div class="ig-label">No PO</div>
-        <div class="ig-value mono">{{ asset.no_po }}</div>
-      </div>
-      <div class="ig-cell">
-        <div class="ig-label">Tanggal Beli</div>
-        <div class="ig-value">{{ asset.tanggal_pembelian|date:"d M Y" }}</div>
-      </div>
-      <div class="ig-cell">
-        <div class="ig-label">Umur Aset</div>
-        <div class="ig-value mono">{{ asset.umur_asset }} <span style="font-size:10px;font-weight:600;">thn</span></div>
-        <div class="ig-sub">Dari tgl pembelian</div>
-      </div>
-      <div class="ig-cell">
-        <div class="ig-label">Umur Ekonomis</div>
-        {% if asset.has_financial %}
-          <div class="ig-value mono">{{ asset.financial.umur_ekonomis }} <span style="font-size:10px;font-weight:600;">thn</span></div>
-          <div class="ig-sub">Sisa: {{ asset.financial.sisa_umur_ekonomis }} thn</div>
-        {% else %}
-          <div class="ig-value" style="color:var(--muted);font-size:11px;">Belum diset</div>
-        {% endif %}
-      </div>
+    {% if emp.ga_profile %}
+    <div class="page-actions">
+      <a href="{% url 'asset_update' asset.id %}" class="btn outline">Edit aset</a>
+      <a href="{% url 'maintenance_create' asset.id %}" class="btn"><i class="fa-solid fa-plus" aria-hidden="true"></i>Catat maintenance</a>
     </div>
+    {% elif not asset.has_financial and emp.finance_profile %}
+    <div class="page-actions"><a href="{% url 'financial_create' asset.id %}" class="btn">Isi data finansial</a></div>
+    {% endif %}
   </div>
 
-  <!-- MAIN GRID -->
-  <div class="main-grid">
-
-    <!-- LEFT / MAIN COLUMN -->
-    <div>
-
-      <!-- FOTO ASET -->
-      <div class="panel anim">
-        <div class="panel-header">
-          <div class="panel-title">
-            <span class="panel-dot" style="background:var(--purple);"></span>
-            Foto Aset
-            {% if photos.count > 0 %}
-              <span style="font-size:10px;background:#ede9fe;border:1px solid #c4b5fd;border-radius:99px;padding:2px 8px;font-family:var(--mono);color:var(--purple);font-weight:700;">
-                {{ photos.count }} foto
-              </span>
-            {% endif %}
-          </div>
-          {% if request.user.employee.ga_profile %}
-            <button class="btn btn-purple btn-sm" onclick="openUploadModal()">📷 Tambah</button>
-          {% endif %}
-        </div>
-
-        {% if photos %}
-          <div class="photo-grid" id="photoGrid">
-            {% for photo in photos %}
-            <div class="photo-thumb {% if photo.is_primary %}primary{% endif %}"
-                 onclick="openLightbox({{ forloop.counter0 }})"
-                 title="{{ photo.caption|default:photo.get_photo_type_display }}">
-              <img src="{{ photo.photo.url }}" alt="{{ photo.caption|default:asset.nama_asset }}" loading="lazy">
-              <div class="photo-type-badge {{ photo.photo_type }}">
-                {% if photo.photo_type == 'unit' %}Unit
-                {% elif photo.photo_type == 'location' %}Lokasi
-                {% elif photo.photo_type == 'damage' %}Rusak
-                {% else %}Lain{% endif %}
-              </div>
-              {% if photo.is_primary %}<div class="primary-star">⭐</div>{% endif %}
-              {% if request.user.employee.ga_profile %}
-              <div class="photo-actions" onclick="event.stopPropagation()">
-                {% if not photo.is_primary %}
-                  <a href="{% url 'photo_set_primary' photo.id %}" class="photo-action-btn pab-primary" title="Jadikan Utama">⭐</a>
-                {% endif %}
-                <button class="photo-action-btn pab-view" onclick="openLightbox({{ forloop.counter0 }})" title="Lihat">🔍</button>
-                <a href="{% url 'photo_delete' photo.id %}" class="photo-action-btn pab-delete" onclick="return confirm('Hapus foto ini?')" title="Hapus">🗑</a>
-              </div>
-              {% endif %}
-            </div>
-            {% endfor %}
-          </div>
-          {% if primary_photo.caption %}
-          <div style="padding:9px 14px;border-top:1px solid var(--border);background:var(--surface2);font-size:11px;color:var(--text-soft);display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
-            <span>📝 {{ primary_photo.caption }}</span>
-            <span style="font-family:var(--mono);color:var(--muted);font-size:10px;margin-left:auto;">
-              {{ primary_photo.uploaded_at|date:"d M Y" }}{% if primary_photo.uploaded_by %} · {{ primary_photo.uploaded_by.nama }}{% endif %}
-            </span>
-          </div>
-          {% endif %}
-        {% else %}
-          <div class="photos-empty">
-            <div class="photos-empty-icon">📷</div>
-            <div class="photos-empty-title">Belum ada foto</div>
-            <div class="photos-empty-sub">Tambahkan foto unit dan lokasi untuk memudahkan identifikasi</div>
-            {% if request.user.employee.ga_profile %}
-              <button class="btn btn-purple" onclick="openUploadModal()">📷 Upload Foto</button>
-            {% endif %}
-          </div>
-        {% endif %}
-      </div>
-
-      <!-- FINANCIAL -->
-      {% if asset.has_financial %}
-      <div class="fin-card anim">
-        <div class="fin-header">
-          <div class="fin-title"><span class="panel-dot" style="background:var(--success)"></span>Data Finansial</div>
-          {% if request.user.employee.finance_profile %}
-            <a href="{% url 'financial_detail' asset.id %}" class="btn btn-outline btn-sm">Kelola →</a>
-          {% endif %}
-        </div>
-        <div class="fin-grid">
-          <div class="fin-cell">
-            <div class="fin-cell-label">Nilai Awal</div>
-            <div class="fin-cell-value blue">{{ asset.financial.nilai_awal_aset|rupiah }}</div>
-          </div>
-          <div class="fin-cell">
-            <div class="fin-cell-label">Nilai Residual</div>
-            <div class="fin-cell-value amber">{{ asset.financial.nilai_residual|rupiah }}</div>
-          </div>
-          <div class="fin-cell">
-            <div class="fin-cell-label">Depresiasi / Thn</div>
-            <div class="fin-cell-value" style="color:var(--danger);">{{ asset.financial.depresiasi_tahunan|rupiah }}</div>
-            <div class="fin-cell-sub">{{ asset.financial.umur_ekonomis }} thn ekonomis</div>
-          </div>
-          <div class="fin-cell">
-            <div class="fin-cell-label">Book Value</div>
-            <div class="fin-cell-value green">{{ asset.financial.book_value|rupiah }}</div>
-            <div class="fin-cell-sub">Sisa: {{ asset.financial.sisa_umur_ekonomis }} thn</div>
-          </div>
-        </div>
-        <div class="bv-progress">
-          <div class="bv-title">Sisa Nilai Aset <span class="bv-pct-badge" id="bvPctBadge">—%</span></div>
-          <div class="bv-track"><div class="bv-fill" id="bvFill" style="width:0%"></div></div>
-          <div class="bv-labels">
-            <div class="bv-lbl left"><span class="bv-lbl-name">Awal</span><span class="bv-lbl-val">{{ asset.financial.nilai_awal_aset|rupiah }}</span></div>
-            <div class="bv-lbl mid"><span class="bv-lbl-name">Book</span><span class="bv-lbl-val" style="color:var(--accent);">{{ asset.financial.book_value|rupiah }}</span></div>
-            <div class="bv-lbl right"><span class="bv-lbl-name">Residual</span><span class="bv-lbl-val">{{ asset.financial.nilai_residual|rupiah }}</span></div>
-          </div>
-        </div>
-      </div>
-      {% else %}
-      <div class="fin-card anim">
-        <div class="fin-header">
-          <div class="fin-title"><span class="panel-dot" style="background:var(--muted)"></span>Data Finansial</div>
-        </div>
-        <div class="no-fin">
-          <div class="no-fin-icon">💳</div>
-          <div class="no-fin-title">Belum ada data finansial</div>
-          <div class="no-fin-sub">Umur ekonomis & valuasi diisi oleh Finance</div>
-          {% if request.user.employee.finance_profile %}
-            <a href="{% url 'financial_create' asset.id %}" class="btn btn-warning">💰 Input Data Finansial</a>
-          {% endif %}
-        </div>
+  <div class="overview">
+    {# ── Foto utama + galeri ringkas ── #}
+    <section class="panel photo-hero" aria-label="Foto aset">
+      {% if primary_photo %}
+      <button type="button" class="hero-main photo-open" data-index="0" aria-label="Perbesar foto utama">
+        <img src="{{ primary_photo.photo.url }}" alt="{{ primary_photo.caption|default:asset.nama_asset }}">
+        <span class="hero-zoom"><i class="fa-solid fa-magnifying-glass-plus" aria-hidden="true"></i>{{ photos|length }} foto</span>
+      </button>
+      {% if photos|length > 1 %}
+      <div class="hero-thumbs">
+        {% for photo in photos %}{% if forloop.counter0 > 0 and forloop.counter0 < 5 %}
+        <button type="button" class="photo-open" data-index="{{ forloop.counter0 }}" aria-label="Lihat foto {{ forloop.counter }}">
+          <img src="{{ photo.photo.url }}" alt="" loading="lazy">
+          {% if forloop.counter0 == 4 and photos|length > 5 %}<span class="more">+{{ photos|length|add:"-5" }}</span>{% endif %}
+        </button>
+        {% endif %}{% endfor %}
       </div>
       {% endif %}
+      {% else %}
+      <div class="hero-empty">
+        <span class="hero-empty-icon"><i class="fa-solid fa-camera" aria-hidden="true"></i></span>
+        <strong>Belum ada foto</strong>
+        <span>Foto unit dan lokasi memudahkan identifikasi di lapangan.</span>
+      </div>
+      {% endif %}
+      {% if emp.ga_profile %}
+      <div class="hero-foot"><button type="button" class="btn sm outline full" data-open="uploadDialog"><i class="fa-solid fa-camera" aria-hidden="true"></i>Tambah foto</button></div>
+      {% endif %}
+    </section>
 
-      <!-- HEALTH & COST ANALYSIS -->
-      <div class="panel anim">
-        <div class="panel-header">
-          <div class="panel-title">
-            <span class="panel-dot" style="background:
-              {% if health_status == 'critical' %}var(--danger)
-              {% elif health_status == 'waspada' %}#f97316
-              {% elif health_status == 'warning' %}var(--warning)
-              {% elif health_status == 'normal' %}var(--success)
-              {% else %}var(--muted){% endif %};"></span>
-            Kesehatan & Biaya
+    <dl class="facts panel">
+      <div><dt><i class="fa-solid fa-location-dot" aria-hidden="true"></i>Lokasi</dt><dd>{{ asset.lokasi_asset|default:"Belum ditempatkan" }}</dd></div>
+      <div><dt><i class="fa-solid fa-building" aria-hidden="true"></i>Departemen</dt><dd>{{ asset.owned_by_department|default:"—" }}</dd></div>
+      <div><dt><i class="fa-solid fa-receipt" aria-hidden="true"></i>No. PO</dt><dd>{{ asset.no_po|default:"—" }}</dd></div>
+      <div><dt><i class="fa-solid fa-calendar" aria-hidden="true"></i>Tanggal beli</dt><dd>{{ asset.tanggal_pembelian|date:"d M Y" }}</dd></div>
+      <div><dt><i class="fa-solid fa-hourglass-half" aria-hidden="true"></i>Umur</dt><dd>{{ asset.umur_asset_detail.years }} th {{ asset.umur_asset_detail.months }} bln</dd></div>
+      <div><dt><i class="fa-solid fa-user-pen" aria-hidden="true"></i>Dicatat oleh</dt><dd>{{ asset.created_by.nama|default:"—" }}<span class="dd-sub">{{ asset.created_at|date:"d M Y" }}</span></dd></div>
+      <div><dt><i class="fa-solid fa-gears" aria-hidden="true"></i>Komponen</dt><dd>{{ components|length }} part</dd></div>
+      <div><dt><i class="fa-solid fa-coins" aria-hidden="true"></i>Nilai buku</dt><dd>{% if asset.has_financial %}{{ book_value|rupiah }}{% else %}Belum dinilai{% endif %}</dd></div>
+    </dl>
+  </div>
+
+  <div class="detail-grid">
+    <div class="col-main">
+
+      {# ── Kesehatan & biaya: sinyal untuk keputusan writeoff ── #}
+      <section class="panel {% if health_status == 'critical' %}hazard{% endif %}" aria-labelledby="healthTitle">
+        <div class="panel-head">
+          <h2 id="healthTitle">Kesehatan & biaya perbaikan</h2>
+          <span class="meta">{{ all_maintenance_count }} pekerjaan tercatat</span>
+        </div>
+        <div class="health">
+          <div class="health-verdict {{ health_status }}">
+            <svg class="sign" aria-hidden="true"><use href="#sign-{% if health_status == 'critical' %}danger{% elif health_status == 'waspada' or health_status == 'warning' %}warning{% elif health_status == 'normal' %}safe{% else %}none{% endif %}"/></svg>
+            <div>
+              <strong>{% if health_status == 'critical' %}Perlu ditinjau untuk writeoff atau penggantian{% elif health_status == 'waspada' %}Biaya perbaikan mendekati batas — pantau ketat{% elif health_status == 'warning' %}Biaya perbaikan mulai tinggi{% elif health_status == 'normal' %}Kondisi baik, biaya perbaikan masih wajar{% else %}Belum bisa dinilai — data finansial belum diisi{% endif %}</strong>
+              <span>{{ corrective_count }} kerusakan · {{ preventive_count }} preventive · {{ inspection_count }} inspeksi</span>
+            </div>
           </div>
-          {% if request.user.employee.ga_profile %}
-            <a href="{% url 'maintenance_create' asset.id %}" class="btn btn-outline btn-sm">＋ Maintenance</a>
+
+          {% if repair_cost_ratio is not None and threshold %}
+          <div class="budget">
+            <div class="budget-top">
+              <span>Biaya perbaikan terhadap nilai awal</span>
+              <strong class="{{ health_status }}">{{ repair_cost_ratio|floatformat:1 }}%</strong>
+            </div>
+            <div class="budget-track" role="img" aria-label="Rasio biaya perbaikan {{ repair_cost_ratio|floatformat:1 }} persen; ambang warning {{ threshold.warning }}, waspada {{ threshold.waspada }}, critical {{ threshold.critical }} persen">
+              <span class="budget-fill {{ health_status }}" style="width:{% if repair_cost_ratio > 100 %}100{% else %}{{ repair_cost_ratio|floatformat:1 }}{% endif %}%"></span>
+              <span class="tick" style="left:{{ threshold.warning }}%"></span>
+              <span class="tick" style="left:{{ threshold.waspada }}%"></span>
+              <span class="tick crit" style="left:{% if threshold.critical > 100 %}100{% else %}{{ threshold.critical }}{% endif %}%"></span>
+            </div>
+            <div class="budget-scale">
+              <span style="left:{{ threshold.warning }}%">{{ threshold.warning }}%<span class="word"> warning</span></span>
+              <span style="left:{{ threshold.waspada }}%">{{ threshold.waspada }}%<span class="word"> waspada</span></span>
+              <span style="left:{% if threshold.critical > 100 %}100{% else %}{{ threshold.critical }}{% endif %}%">{{ threshold.critical }}%<span class="word"> critical</span></span>
+            </div>
+            <p class="budget-legend">Ambang: {{ threshold.warning }}% warning · {{ threshold.waspada }}% waspada · {{ threshold.critical }}% critical (berdasarkan nilai awal aset)</p>
+          </div>
+          {% endif %}
+
+          <dl class="money">
+            <div><dt>Total biaya maintenance</dt><dd>{{ total_biaya_all|rupiah }}</dd></div>
+            <div><dt>Biaya perbaikan kerusakan</dt><dd>{{ total_biaya_corrective|rupiah }}</dd></div>
+            <div><dt>Biaya preventive & inspeksi</dt><dd>{{ total_biaya_preventive|rupiah }}</dd></div>
+            {% if corrective_count %}<div><dt>Rata-rata per kerusakan</dt><dd>{{ avg_biaya_corrective|rupiah }}</dd></div>{% endif %}
+          </dl>
+
+          {% if corrective_count %}
+          <div class="outcome">
+            <div class="outcome-label">Hasil perbaikan ({{ corrective_count }} kerusakan)</div>
+            <div class="outcome-bar" aria-hidden="true">
+              {% if major_count %}<i class="o-major" style="width:{{ major_pct }}%"></i>{% endif %}{% if minor_count %}<i class="o-minor" style="width:{{ minor_pct }}%"></i>{% endif %}{% if replaced_count %}<i class="o-repl" style="width:{{ replaced_pct }}%"></i>{% endif %}{% if ok_count %}<i class="o-ok" style="width:{{ ok_pct }}%"></i>{% endif %}
+            </div>
+            <ul class="outcome-legend">
+              {% if major_count %}<li><i class="o-major"></i>Major issue {{ major_count }}</li>{% endif %}
+              {% if minor_count %}<li><i class="o-minor"></i>Minor issue {{ minor_count }}</li>{% endif %}
+              {% if replaced_count %}<li><i class="o-repl"></i>Komponen diganti {{ replaced_count }}</li>{% endif %}
+              {% if ok_count %}<li><i class="o-ok"></i>Baik {{ ok_count }}</li>{% endif %}
+            </ul>
+          </div>
+          {% endif %}
+
+          {% if repair_recommendations %}
+          <ul class="recs">
+            {% for rec in repair_recommendations %}
+            <li><svg class="sign" aria-hidden="true"><use href="#sign-{% if health_status == 'critical' %}danger{% else %}warning{% endif %}"/></svg>{{ rec }}</li>
+            {% endfor %}
+          </ul>
           {% endif %}
         </div>
+      </section>
 
-        <div class="hs-hero">
-          <div class="hs-badge {{ health_status }}">
-            <div class="hs-badge-icon">
-              {% if health_status == 'critical' %}🔴
-              {% elif health_status == 'waspada' %}🟠
-              {% elif health_status == 'warning' %}🟡
-              {% elif health_status == 'normal' %}🟢
-              {% else %}⚪{% endif %}
-            </div>
-            <div class="hs-badge-lbl">{{ health_status|upper }}</div>
+      {# ── Riwayat maintenance ── #}
+      <section class="panel" aria-labelledby="histTitle">
+        <div class="panel-head">
+          <h2 id="histTitle">Riwayat maintenance</h2>
+          {% if corrective_count and corrective_count != all_maintenance_count %}
+          <div class="filters seg" role="group" aria-label="Saring riwayat">
+            <button type="button" class="chip active" data-filter="all">Semua <span class="count">{{ all_maintenance_count }}</span></button>
+            <button type="button" class="chip" data-filter="corrective">Kerusakan <span class="count">{{ corrective_count }}</span></button>
           </div>
-          <div class="hs-hero-text">
-            <div class="hs-hero-title">
-              {% if health_status == 'critical' %}Perlu segera ditinjau untuk writeoff atau penggantian
-              {% elif health_status == 'waspada' %}Biaya perbaikan mendekati batas — pantau ketat
-              {% elif health_status == 'warning' %}Indikasi awal biaya perbaikan mulai tinggi
-              {% elif health_status == 'normal' %}Kondisi baik, biaya perbaikan masih wajar
-              {% else %}Belum ada data finansial untuk menilai{% endif %}
-            </div>
-            <div class="hs-hero-sub">
-              {{ all_maintenance_count }} total · {{ corrective_count }} kerusakan · {{ preventive_count }} preventive · {{ inspection_count }} inspeksi
-            </div>
-          </div>
-        </div>
-
-        <div class="cost-stat-grid">
-          <div class="cost-stat">
-            <div class="cost-stat-num" style="color:var(--text);">{{ total_biaya_all|rupiah }}</div>
-            <div class="cost-stat-label">Total Biaya</div>
-          </div>
-          <div class="cost-stat">
-            <div class="cost-stat-num" style="color:var(--danger);">{{ total_biaya_corrective|rupiah }}</div>
-            <div class="cost-stat-label">Kerusakan</div>
-          </div>
-          <div class="cost-stat">
-            <div class="cost-stat-num" style="color:var(--accent);">{{ total_biaya_preventive|rupiah }}</div>
-            <div class="cost-stat-label">Preventif</div>
-          </div>
-        </div>
-
-        <div class="count-grid">
-          <div class="count-cell">
-            <div class="count-cell-num" style="color:{% if corrective_count >= 5 %}var(--danger){% elif corrective_count >= 3 %}var(--warning){% else %}var(--text){% endif %};">{{ corrective_count }}</div>
-            <div class="count-cell-label">🔴 Rusak</div>
-          </div>
-          <div class="count-cell">
-            <div class="count-cell-num" style="color:var(--accent);">{{ preventive_count }}</div>
-            <div class="count-cell-label">🔵 Prev.</div>
-          </div>
-          <div class="count-cell">
-            <div class="count-cell-num" style="color:var(--warning);">{{ inspection_count }}</div>
-            <div class="count-cell-label">🔍 Inspect.</div>
-          </div>
-          <div class="count-cell">
-            <div class="count-cell-num">{{ all_maintenance_count }}</div>
-            <div class="count-cell-label">📋 Total</div>
-          </div>
-        </div>
-
-        {% if asset.has_financial and repair_cost_ratio is not None %}
-        <div class="ratio-bar-wrap">
-          <div class="ratio-bar-header">
-            <span class="ratio-bar-label">Rasio Biaya vs Nilai Aset</span>
-            <span class="ratio-bar-pct" style="color:{% if repair_cost_ratio >= threshold.critical %}var(--danger){% elif repair_cost_ratio >= threshold.waspada %}#f97316{% elif repair_cost_ratio >= threshold.warning %}var(--warning){% else %}var(--success){% endif %};">{{ repair_cost_ratio|floatformat:1 }}%</span>
-          </div>
-          <div class="ratio-track">
-            {% if threshold %}
-              <div class="ratio-threshold-line" style="left:{{ threshold.warning }}%;"></div>
-              <div class="ratio-threshold-line" style="left:{{ threshold.waspada }}%;"></div>
-              <div class="ratio-threshold-line" style="left:{{ threshold.critical }}%;"></div>
-            {% endif %}
-            <div class="ratio-fill" id="ratioFill" style="width:0%;background:{% if repair_cost_ratio >= threshold.critical %}var(--danger){% elif repair_cost_ratio >= threshold.waspada %}#f97316{% elif repair_cost_ratio >= threshold.warning %}var(--warning){% else %}var(--success){% endif %};"></div>
-          </div>
-          <div class="ratio-legends">
-            {% if threshold %}
-              <span class="ratio-legend-item t-warning">≥{{ threshold.warning }}% warning</span>
-              <span class="ratio-legend-item t-waspada">≥{{ threshold.waspada }}% waspada</span>
-              <span class="ratio-legend-item t-critical">≥{{ threshold.critical }}% critical</span>
-            {% endif %}
-          </div>
-        </div>
-        {% endif %}
-
-        {% if corrective_count > 0 %}
-        <div class="sev-wrap">
-          <div class="sev-label">Distribusi Keparahan ({{ corrective_count }} kejadian)</div>
-          <div class="sev-track">
-            {% if major_count %}<div class="sev-seg" style="width:{{ major_pct }}%;background:var(--danger);"></div>{% endif %}
-            {% if minor_count %}<div class="sev-seg" style="width:{{ minor_pct }}%;background:var(--warning);"></div>{% endif %}
-            {% if replaced_count %}<div class="sev-seg" style="width:{{ replaced_pct }}%;background:var(--purple);"></div>{% endif %}
-            {% if ok_count %}<div class="sev-seg" style="width:{{ ok_pct }}%;background:var(--success);"></div>{% endif %}
-          </div>
-          <div class="sev-legend">
-            {% if major_count    %}<span class="sev-dot major">Major ({{ major_count }})</span>{% endif %}
-            {% if minor_count    %}<span class="sev-dot minor">Minor ({{ minor_count }})</span>{% endif %}
-            {% if replaced_count %}<span class="sev-dot replaced">Ganti ({{ replaced_count }})</span>{% endif %}
-            {% if ok_count       %}<span class="sev-dot ok">Baik ({{ ok_count }})</span>{% endif %}
-          </div>
-        </div>
-        {% endif %}
-
-        {% if repair_recommendations %}
-        <div class="rec-list">
-          {% for rec in repair_recommendations %}
-          <div class="rec-item {% if forloop.first and health_status == 'critical' %}danger{% else %}warning{% endif %}">
-            <span class="rec-icon">{% if health_status == 'critical' %}⛔{% else %}⚠️{% endif %}</span>
-            <span>{{ rec }}</span>
-          </div>
-          {% endfor %}
-        </div>
-        {% elif health_status == 'normal' %}
-        <div class="rec-list">
-          <div class="rec-item ok"><span class="rec-icon">✅</span><span>Tidak ada rekomendasi — aset dalam kondisi sehat.</span></div>
-        </div>
-        {% endif %}
-
-        <!-- CORRECTIVE TIMELINE -->
-        <div class="panel-header" style="border-top:1px solid var(--border);">
-          <div class="panel-title" style="font-size:10px;">
-            <span class="panel-dot" style="background:var(--danger);"></span>
-            Riwayat Kerusakan
-            {% if corrective_count > 0 %}
-              <span style="font-size:9px;background:#fee2e2;border:1px solid #fca5a5;border-radius:99px;padding:2px 7px;font-family:var(--mono);color:var(--danger);font-weight:700;">{{ corrective_count }}×</span>
-            {% endif %}
-          </div>
-        </div>
-
-        {% if corrective_records %}
-        <div class="bk-timeline">
-          {% for r in corrective_records %}
-          <div class="bk-item">
-            <div class="bk-num-badge">{{ forloop.counter }}</div>
-            <div class="bk-dot {{ r.hasil }}"><div class="bk-dot-inner"></div></div>
-            <div class="bk-body">
-              <div>
-                <span class="bk-hasil-pill {{ r.hasil }}">
-                  {% if r.hasil == 'major_issue' %}⛔ Major
-                  {% elif r.hasil == 'minor_issue' %}⚠️ Minor
-                  {% elif r.hasil == 'replaced_component' %}🔩 Ganti
-                  {% else %}✅ Baik{% endif %}
-                </span>
-              </div>
-              <div class="bk-desc" title="{{ r.deskripsi_pekerjaan }}">{{ r.deskripsi_pekerjaan }}</div>
-              {% if r.catatan_tambahan %}
-                <div class="bk-notes" title="{{ r.catatan_tambahan }}">📝 {{ r.catatan_tambahan }}</div>
-              {% endif %}
-              <div class="bk-meta">
-                <span class="bk-date-pill">📅 {{ r.tanggal_pelaksanaan|date:"d M Y" }}</span>
-                {% if r.performed_by %}<span class="bk-who">👤 {{ r.performed_by.nama }}</span>{% endif %}
-                <span class="bk-cost">{{ r.biaya|rupiah }}</span>
-              </div>
-            </div>
-          </div>
-          {% endfor %}
-        </div>
-        {% else %}
-        <div class="bk-empty">
-          <div class="bk-empty-icon">✅</div>
-          <div class="bk-empty-title">Belum pernah mengalami kerusakan</div>
-          <div class="bk-empty-sub">Tidak ada riwayat corrective maintenance</div>
-        </div>
-        {% endif %}
-      </div>
-
-      <script>
-        (function(){
-          var fill = document.getElementById('ratioFill');
-          if (!fill) return;
-          var pct = parseFloat("{{ repair_cost_ratio|default:0|floatformat:1 }}") || 0;
-          setTimeout(function(){ fill.style.width = Math.min(pct, 100) + '%'; }, 300);
-        })();
-      </script>
-
-      <!-- DETAIL INFO -->
-      <div class="panel anim">
-        <div class="panel-header">
-          <div class="panel-title"><span class="panel-dot" style="background:var(--accent)"></span>Informasi Lengkap</div>
-        </div>
-        <div class="info-row"><span class="ir-label">Lokasi</span><span class="ir-value">{{ asset.lokasi_asset|default:"—" }}</span></div>
-        <div class="info-row"><span class="ir-label">Asset Group</span><span class="ir-value">{{ asset.asset_group|default:"—" }}</span></div>
-        <div class="info-row"><span class="ir-label">Category</span><span class="ir-value">{{ asset.asset_category|default:"—" }}</span></div>
-        <div class="info-row"><span class="ir-label">Department</span><span class="ir-value">{{ asset.owned_by_department|default:"—" }}</span></div>
-        <div class="info-row">
-          <span class="ir-label">Status</span>
-          <span class="ir-value">
-            {% if asset.lifecycle_status == 'active' %}<span class="pill active">Active</span>
-            {% elif asset.lifecycle_status == 'maintenance' %}<span class="pill maintenance">Maintenance</span>
-            {% elif asset.lifecycle_status == 'writeoff' %}<span class="pill writeoff">Write Off</span>{% endif %}
-          </span>
-        </div>
-        <div class="info-row"><span class="ir-label">Umur Aktual</span><span class="ir-value mono">{{ asset.umur_asset }} thn {{ asset.umur_asset_detail.months }} bln</span></div>
-        <div class="info-row"><span class="ir-label">Dibuat Oleh</span><span class="ir-value">{{ asset.created_by.nama|default:"—" }}</span></div>
-        <div class="info-row"><span class="ir-label">Tanggal Input</span><span class="ir-value mono" style="font-size:11px;">{{ asset.created_at|date:"d M Y · H:i" }}</span></div>
-        <div class="info-row">
-          <span class="ir-label">Komponen</span>
-          <span class="ir-value">{% with cc=asset.components.count %}{% if cc > 0 %}<span style="color:var(--purple);font-family:var(--mono);">{{ cc }} part</span>{% else %}<span style="color:var(--muted);">—</span>{% endif %}{% endwith %}</span>
-        </div>
-        <div class="info-row">
-          <span class="ir-label">Foto</span>
-          <span class="ir-value"><span style="color:var(--purple);font-family:var(--mono);">{{ photos.count }} foto</span></span>
-        </div>
-      </div>
-
-      <!-- MAINTENANCE HISTORY -->
-      <div class="panel anim">
-        <div class="panel-header">
-          <div class="panel-title">
-            <span class="panel-dot" style="background:var(--warning)"></span>
-            Riwayat Maintenance
-            {% if maintenance_records.count > 0 %}
-              <span style="font-size:9px;background:var(--surface2);border:1px solid var(--border);border-radius:99px;padding:2px 8px;font-family:var(--mono);color:var(--muted);font-weight:700;">{{ maintenance_records.count }}</span>
-            {% endif %}
-          </div>
-          {% if request.user.employee.ga_profile %}
-            <a href="{% url 'maintenance_create' asset.id %}" class="btn btn-outline btn-sm">＋ Tambah</a>
           {% endif %}
         </div>
         {% if maintenance_records %}
-          {% for r in maintenance_records|slice:":8" %}
-          <div class="mh-item">
-            <div class="mh-dot {{ r.maintenance_type }}"></div>
-            <div style="flex:1;min-width:0;">
-              <div style="display:flex;align-items:center;gap:5px;margin-bottom:2px;">
-                <span class="mh-type">{{ r.get_maintenance_type_display }}</span>
-                <span class="hasil-pill {{ r.hasil }}">{{ r.get_hasil_display }}</span>
-              </div>
-              <div class="mh-desc" title="{{ r.deskripsi_pekerjaan }}">{{ r.deskripsi_pekerjaan }}</div>
-              <div style="display:flex;align-items:center;gap:6px;margin-top:4px;flex-wrap:wrap;">
-                <span class="mh-date">📅 {{ r.tanggal_pelaksanaan|date:"d M Y" }}</span>
-                {% if r.performed_by %}<span style="font-size:10px;color:var(--muted);font-family:var(--mono);">👤 {{ r.performed_by.nama }}</span>{% endif %}
-              </div>
-            </div>
-            <div class="mh-cost">{{ r.biaya|rupiah }}</div>
-          </div>
-          {% endfor %}
-        {% else %}
-          <div class="empty-mini">📭 Belum ada riwayat maintenance</div>
+        <div class="table-wrap">
+          <table class="table history">
+            <thead><tr><th>Tanggal</th><th>Jenis</th><th>Hasil</th><th>Pekerjaan</th><th>Oleh</th><th class="num">Biaya</th></tr></thead>
+            <tbody>
+            {% for r in maintenance_records %}
+              <tr data-type="{{ r.maintenance_type }}" {% if forloop.counter > 10 %}class="more" hidden{% endif %}>
+                <td class="nowrap">{{ r.tanggal_pelaksanaan|date:"d M Y" }}</td>
+                <td>{% if r.maintenance_type == 'corrective' %}Kerusakan{% elif r.maintenance_type == 'preventive' %}Preventive{% else %}Inspeksi{% endif %}</td>
+                <td>{% if r.hasil == 'major_issue' %}{% include "components/_status.html" with kind="danger" label="Major issue" %}{% elif r.hasil == 'minor_issue' %}{% include "components/_status.html" with kind="warning" label="Minor issue" %}{% elif r.hasil == 'replaced_component' %}{% include "components/_status.html" with kind="mandatory" label="Komponen diganti" %}{% else %}{% include "components/_status.html" with kind="safe" label="Baik" %}{% endif %}</td>
+                <td class="work">{{ r.deskripsi_pekerjaan|truncatechars:120 }}{% if r.catatan_tambahan %}<div class="cell-sub">{{ r.catatan_tambahan|truncatechars:90 }}</div>{% endif %}</td>
+                <td>{{ r.performed_by.nama|default:"—" }}</td>
+                <td class="num">{{ r.biaya|rupiah }}</td>
+              </tr>
+            {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {% if maintenance_records|length > 10 %}
+        <div class="more-row"><button type="button" class="btn sm outline" id="showMore">Tampilkan semua {{ maintenance_records|length }} pekerjaan</button></div>
         {% endif %}
-      </div>
+        {% else %}
+        <div class="empty"><strong>Belum ada riwayat maintenance</strong>{% if emp.ga_profile %}<a href="{% url 'maintenance_create' asset.id %}">Catat maintenance pertama</a>{% endif %}</div>
+        {% endif %}
+      </section>
 
-    </div><!-- /left -->
-
-    <!-- RIGHT SIDEBAR -->
-    <div>
-
-      <!-- JADWAL MAINTENANCE -->
-      <div class="panel anim">
-        <div class="panel-header">
-          <div class="panel-title"><span class="panel-dot" style="background:var(--warning)"></span>Jadwal Maintenance</div>
+      {# ── Foto ── #}
+      <section class="panel" aria-labelledby="photoTitle">
+        <div class="panel-head">
+          <h2 id="photoTitle">Galeri foto <span class="meta">{{ photos|length }} foto</span></h2>
+          {% if emp.ga_profile %}<button type="button" class="btn sm outline" data-open="uploadDialog"><i class="fa-solid fa-camera" aria-hidden="true"></i>Tambah foto</button>{% endif %}
         </div>
-        <div class="sched-card">
-          {% if next_schedule %}
-            {% if next_schedule.status == 'overdue' %}
-            <div class="sched-status-overdue">
-              <div class="sched-label overdue">🔴 Terlambat</div>
-              <div class="sched-date overdue">{{ next_schedule.scheduled_date|date:"d M Y" }}</div>
-              <div class="sched-days overdue">{{ next_schedule.days_remaining }} hari lewat</div>
-            </div>
-            {% else %}
-            <div class="sched-status-upcoming">
-              <div class="sched-label upcoming">🔵 Jadwal Berikutnya</div>
-              <div class="sched-date upcoming">{{ next_schedule.scheduled_date|date:"d M Y" }}</div>
-              <div class="sched-days upcoming">dalam {{ next_schedule.days_remaining }} hari</div>
-            </div>
-            {% endif %}
-          {% else %}
-            <div class="sched-status-none">📅 Belum ada jadwal aktif</div>
-          {% endif %}
-          <div style="margin-top:12px;">
-            {% if asset.maintenance_config %}
-            <div class="config-box custom">
-              <div class="config-label">⚙️ Interval Custom</div>
-              <div class="config-value">{{ asset.maintenance_config.custom_interval_days }} hari</div>
-            </div>
-            {% elif effective_interval %}
-            <div class="config-box">
-              <div class="config-label">📋 Interval Standar</div>
-              <div class="config-value">{{ effective_interval }} hari</div>
-              {% if asset.asset_category %}<div class="config-reason">dari: {{ asset.asset_category.name }}</div>{% endif %}
-            </div>
-            {% endif %}
-            {% if request.user.employee.ga_profile %}
-              {% if asset.maintenance_config %}
-                <a href="{% url 'maintenance_config_update' asset_id=asset.id %}" class="btn btn-outline btn-sm" style="width:100%;justify-content:center;margin-top:8px;">✏️ Ubah Interval</a>
-              {% else %}
-                <a href="{% url 'maintenance_config_create' asset_id=asset.id %}" class="btn btn-outline btn-sm" style="width:100%;justify-content:center;margin-top:8px;">⚙️ Set Custom Interval</a>
+        {% if photos %}
+        <ul class="photos">
+          {% for photo in photos %}
+          <li class="{% if photo.is_primary %}is-primary{% endif %}">
+            <button type="button" class="photo-open" data-index="{{ forloop.counter0 }}" aria-label="Lihat foto {{ forloop.counter }}">
+              <img src="{{ photo.photo.url }}" alt="{{ photo.caption|default:asset.nama_asset }}" loading="lazy">
+            </button>
+            <div class="photo-meta">
+              <span>{% if photo.is_primary %}<strong>Utama</strong> · {% endif %}{% if photo.photo_type == 'unit' %}Unit{% elif photo.photo_type == 'location' %}Lokasi{% elif photo.photo_type == 'damage' %}Kerusakan{% else %}Lainnya{% endif %}</span>
+              {% if emp.ga_profile %}
+              <span class="photo-actions">
+                {% if not photo.is_primary %}
+                <form method="post" action="{% url 'photo_set_primary' photo.id %}">{% csrf_token %}<button type="submit">Jadikan utama</button></form>
+                {% endif %}
+                <form method="post" action="{% url 'photo_delete' photo.id %}" onsubmit="return confirm('Hapus foto ini?')">{% csrf_token %}<button type="submit" class="del">Hapus</button></form>
+              </span>
               {% endif %}
-            {% endif %}
-          </div>
-        </div>
-      </div>
-
-      <!-- QUICK ACTIONS -->
-      <div class="panel anim">
-        <div class="panel-header">
-          <div class="panel-title"><span class="panel-dot" style="background:var(--accent)"></span>Quick Actions</div>
-        </div>
-        <div class="qa-grid">
-          <a href="{% url 'asset_list' %}" class="qa-btn">
-            <div class="qa-icon">📋</div>
-            <div class="qa-text-block"><div class="qa-text-main">Daftar Aset</div></div>
-          </a>
-          {% if request.user.employee.ga_profile %}
-          <a href="{% url 'asset_update' asset.id %}" class="qa-btn warn">
-            <div class="qa-icon">✏️</div>
-            <div class="qa-text-block"><div class="qa-text-main">Edit Aset</div></div>
-          </a>
-          <button onclick="openUploadModal()" class="qa-btn purp" style="text-align:left;">
-            <div class="qa-icon">📷</div>
-            <div class="qa-text-block">
-              <div class="qa-text-main">Upload Foto</div>
-              <div class="qa-text-sub">{{ photos.count }} foto</div>
             </div>
-          </button>
-          <a href="{% url 'component_list' asset.id %}" class="qa-btn purp">
-            <div class="qa-icon">🔩</div>
-            <div class="qa-text-block">
-              <div class="qa-text-main">BOM</div>
-              <div class="qa-text-sub">{{ asset.components.count }} part</div>
-            </div>
-          </a>
-          <a href="{% url 'maintenance_create' asset.id %}" class="qa-btn">
-            <div class="qa-icon">🔧</div>
-            <div class="qa-text-block"><div class="qa-text-main">Maintenance</div></div>
-          </a>
-          {% endif %}
-          {% if asset.has_financial %}
-            <a href="{% url 'financial_detail' asset.id %}" class="qa-btn succ">
-              <div class="qa-icon">💰</div>
-              <div class="qa-text-block"><div class="qa-text-main">Finansial</div></div>
-            </a>
-          {% elif request.user.employee.finance_profile %}
-            <a href="{% url 'financial_create' asset.id %}" class="qa-btn succ">
-              <div class="qa-icon">💳</div>
-              <div class="qa-text-block"><div class="qa-text-main">Input Finansial</div></div>
-            </a>
-          {% endif %}
-        </div>
-      </div>
-
-    </div><!-- /sidebar -->
-  </div><!-- /main-grid -->
-</div><!-- /wrap -->
-
-<!-- ═══════════════════════════════════════
-     UPLOAD MODAL (Bottom Sheet)
-═══════════════════════════════════════ -->
-<div class="modal-overlay" id="uploadModal" onclick="closeModalOnOverlay(event)">
-  <div class="modal">
-    <div class="modal-header">
-      <div class="modal-title">📷 Upload Foto Aset</div>
-      <button class="modal-close" onclick="closeUploadModal()">✕</button>
+          </li>
+          {% endfor %}
+        </ul>
+        {% else %}
+        <div class="empty"><strong>Belum ada foto</strong>Foto unit dan lokasi memudahkan identifikasi di lapangan.</div>
+        {% endif %}
+      </section>
     </div>
-    <form method="POST" action="{% url 'photo_upload' asset.id %}" enctype="multipart/form-data" id="uploadForm">
-      {% csrf_token %}
-      <div class="modal-body">
-        <div class="file-drop-zone" id="dropZone" onclick="document.getElementById('photoInput').click()">
-          <div class="fz-icon">📁</div>
-          <div class="fz-text">Ketuk untuk pilih foto</div>
-          <div class="fz-hint">JPG, PNG — maks 5MB</div>
-        </div>
-        <input type="file" name="photo" id="photoInput" accept="image/*" style="display:none" onchange="previewPhoto(this)">
-        <div class="preview-wrap" id="previewWrap">
-          <img id="previewImg" src="" alt="Preview">
-          <div class="preview-change" onclick="document.getElementById('photoInput').click()">
-            <span>Ganti Foto</span>
-          </div>
-        </div>
-        <div class="m-field">
-          <label class="m-label">Tipe Foto</label>
-          <select name="photo_type" class="m-control">
-            <option value="unit">📦 Foto Unit</option>
-            <option value="location">📍 Foto Lokasi</option>
-            <option value="damage">⚠️ Foto Kerusakan</option>
-            <option value="other">📌 Lainnya</option>
-          </select>
-        </div>
-        <div class="m-field">
-          <label class="m-label">Keterangan (opsional)</label>
-          <input type="text" name="caption" class="m-control" placeholder="cth. Tampak depan...">
-        </div>
-        <div class="toggle-row">
-          <label>
-            <input type="checkbox" name="is_primary" class="toggle" {% if not photos %}checked{% endif %}>
-            <div>
-              <div>Jadikan foto utama</div>
-              <div class="toggle-hint">Ditampilkan di hero aset</div>
+
+    <aside class="col-side">
+      {# ── Jadwal ── #}
+      <section class="panel" aria-labelledby="schedTitle">
+        <div class="panel-head"><h2 id="schedTitle">Jadwal maintenance</h2></div>
+        <div class="panel-body sched">
+          {% if next_schedule %}
+            {% with d=next_schedule.days_remaining %}
+            <div class="sched-next {% if next_schedule.status == 'overdue' %}late{% endif %}">
+              <svg class="sign" aria-hidden="true"><use href="#sign-{% if next_schedule.status == 'overdue' %}warning{% else %}mandatory{% endif %}"/></svg>
+              <div>
+                <span class="sched-label">{% if next_schedule.status == 'overdue' %}Terlambat{% else %}Berikutnya{% endif %}</span>
+                <strong>{{ next_schedule.scheduled_date|date:"d M Y" }}</strong>
+                <span>{% if d < 0 %}{{ d|abs_value }} hari lewat{% elif d == 0 %}hari ini{% else %}{{ d }} hari lagi{% endif %}</span>
+              </div>
             </div>
-          </label>
+            {% endwith %}
+          {% else %}
+            <p class="muted">Belum ada jadwal aktif.</p>
+          {% endif %}
+          <dl class="kv">
+            <div><dt>Interval</dt><dd>{% if effective_interval %}{{ effective_interval }} hari{% else %}belum diatur{% endif %}</dd></div>
+            <div><dt>Sumber</dt><dd>{% if asset.maintenance_config %}custom aset ini{% elif asset.asset_category %}kategori {{ asset.asset_category.name }}{% else %}—{% endif %}</dd></div>
+            <div><dt>Terakhir</dt><dd>{{ last_maintenance.tanggal_pelaksanaan|date:"d M Y"|default:"—" }}</dd></div>
+          </dl>
+          {% if emp.ga_profile %}
+            {% if asset.maintenance_config %}
+              <a class="btn sm outline full" href="{% url 'maintenance_config_update' asset_id=asset.id %}">Ubah interval</a>
+            {% else %}
+              <a class="btn sm outline full" href="{% url 'maintenance_config_create' asset_id=asset.id %}">Atur interval khusus</a>
+            {% endif %}
+          {% endif %}
         </div>
-      </div>
-      <div class="modal-footer">
-        <button type="button" class="btn btn-outline" onclick="closeUploadModal()">Batal</button>
-        <button type="submit" class="btn btn-success" id="uploadBtn" disabled>💾 Upload</button>
-      </div>
-    </form>
+      </section>
+
+      {# ── Finansial ── #}
+      <section class="panel" aria-labelledby="finTitle">
+        <div class="panel-head">
+          <h2 id="finTitle">Finansial</h2>
+          {% if asset.has_financial and emp.finance_profile %}<a href="{% url 'financial_detail' asset.id %}">Kelola</a>{% endif %}
+        </div>
+        <div class="panel-body">
+          {% if asset.has_financial %}
+          <dl class="kv money-kv">
+            <div><dt>Nilai awal</dt><dd>{{ asset.financial.nilai_awal_aset|rupiah }}</dd></div>
+            <div><dt>Nilai buku</dt><dd><strong>{{ book_value|rupiah }}</strong></dd></div>
+            <div><dt>Nilai residual</dt><dd>{{ asset.financial.nilai_residual|rupiah }}</dd></div>
+            <div><dt>Depresiasi / tahun</dt><dd>{{ asset.financial.depresiasi_tahunan|rupiah }}</dd></div>
+            <div><dt>Umur ekonomis</dt><dd>{{ asset.financial.umur_ekonomis }} th · sisa {{ asset.financial.sisa_umur_ekonomis }} th</dd></div>
+          </dl>
+          <div class="bv">
+            <div class="bv-track" role="img" aria-label="Nilai buku tersisa {{ book_value_pct }} persen"><span style="width:{{ book_value_pct }}%"></span></div>
+            <div class="bv-scale"><span>Residual</span><span>{{ book_value_pct }}% nilai tersisa</span><span>Awal</span></div>
+          </div>
+          {% else %}
+          <p class="muted">Belum ada data finansial; diisi oleh Finance.</p>
+          {% if emp.finance_profile %}<a class="btn sm full" href="{% url 'financial_create' asset.id %}">Isi data finansial</a>{% endif %}
+          {% endif %}
+        </div>
+      </section>
+
+      {# ── Tautan ── #}
+      <section class="panel">
+        <ul class="links">
+          {% if emp.ga_profile %}<li><a href="{% url 'component_list' asset.id %}">Komponen (BOM)<span>{{ components|length }} part</span></a></li>{% endif %}
+          <li><a href="{% url 'movement_dashboard' %}?q={{ asset.asset_number|urlencode }}">Histori movement<span>lihat</span></a></li>
+          {% if emp.ga_profile %}<li><a href="{% url 'assignment_create_for_asset' asset.id %}">Serahkan ke karyawan<span>assignment</span></a></li>{% endif %}
+        </ul>
+      </section>
+    </aside>
   </div>
 </div>
 
-<!-- LIGHTBOX -->
-<div class="lightbox" id="lightbox">
-  <button class="lightbox-close" onclick="closeLightbox()">✕</button>
-  <button class="lightbox-nav lightbox-prev" onclick="lightboxNav(-1)">‹</button>
-  <img class="lightbox-img" id="lightboxImg" src="" alt="">
-  <div class="lightbox-info" id="lightboxInfo"></div>
-  <button class="lightbox-nav lightbox-next" onclick="lightboxNav(1)">›</button>
-  <div class="lightbox-counter" id="lightboxCounter"></div>
-</div>
+{% if emp.ga_profile %}
+<dialog class="sheet" id="uploadDialog" aria-labelledby="uploadTitle">
+  <form method="post" action="{% url 'photo_upload' asset.id %}" enctype="multipart/form-data">
+    {% csrf_token %}
+    <div class="panel-head"><h2 id="uploadTitle">Tambah foto aset</h2><button type="button" class="icon-btn" data-close aria-label="Tutup"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button></div>
+    <div class="panel-body sheet-body">
+      <label class="drop" id="dropZone">
+        <input type="file" name="photo" id="photoInput" accept="image/*" required>
+        <span id="dropText"><strong>Pilih atau seret foto ke sini</strong>JPG atau PNG, maksimal 5 MB</span>
+      </label>
+      <div class="field"><label for="photoType">Jenis foto</label>
+        <select class="select" name="photo_type" id="photoType">
+          <option value="unit">Unit — tampilan fisik aset</option>
+          <option value="location">Lokasi — posisi penempatan</option>
+          <option value="damage">Kerusakan — dokumentasi masalah</option>
+          <option value="other">Lainnya</option>
+        </select>
+      </div>
+      <div class="field"><label for="photoCaption">Keterangan (opsional)</label><input class="input" type="text" name="caption" id="photoCaption" placeholder="mis. tampak depan, nomor seri"></div>
+      <label class="check"><input type="checkbox" name="is_primary" {% if not photos %}checked{% endif %}> Jadikan foto utama</label>
+    </div>
+    <div class="sheet-foot"><button type="button" class="btn outline" data-close>Batal</button><button type="submit" class="btn" id="uploadBtn" disabled>Unggah foto</button></div>
+  </form>
+</dialog>
+{% endif %}
 
+{% if photos %}
+<dialog class="viewer" id="viewer" aria-label="Foto aset">
+  <div class="viewer-stage" id="viewerStage"></div>
+  <div class="viewer-bar">
+    <button type="button" class="icon-btn" id="viewerPrev" aria-label="Foto sebelumnya"><i class="fa-solid fa-chevron-left" aria-hidden="true"></i></button>
+    <span id="viewerInfo"></span>
+    <button type="button" class="icon-btn" id="viewerNext" aria-label="Foto berikutnya"><i class="fa-solid fa-chevron-right" aria-hidden="true"></i></button>
+    <button type="button" class="icon-btn" data-close aria-label="Tutup"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button>
+  </div>
+</dialog>
+{% endif %}
+{% endwith %}
+
+<script id="photo-data" type="application/json">[{% for p in photos %}{"url": "{{ p.photo.url|escapejs }}", "info": "{{ p.get_photo_type_display|escapejs }}{% if p.caption %} · {{ p.caption|escapejs }}{% endif %} · {{ p.uploaded_at|date:'d M Y' }}{% if p.uploaded_by %} · {{ p.uploaded_by.nama|escapejs }}{% endif %}"}{% if not forloop.last %},{% endif %}{% endfor %}]</script>
+{% endblock %}
+
+{% block extra_scripts %}
 <script>
-  const PHOTOS = [
-    {% for photo in photos %}
-    { url:"{{ photo.photo.url }}", type:"{{ photo.get_photo_type_display }}", caption:"{{ photo.caption|default:'' }}", uploaded:"{{ photo.uploaded_at|date:'d M Y' }}", by:"{{ photo.uploaded_by.nama|default:'' }}" }{% if not forloop.last %},{% endif %}
-    {% endfor %}
-  ];
-  let currentPhoto = 0;
-
-  // Modal
-  function openUploadModal() {
-    document.getElementById('uploadModal').classList.add('open');
-    document.body.style.overflow = 'hidden';
-  }
-  function closeUploadModal() {
-    document.getElementById('uploadModal').classList.remove('open');
-    document.body.style.overflow = '';
-  }
-  function closeModalOnOverlay(e) {
-    if (e.target === document.getElementById('uploadModal')) closeUploadModal();
-  }
-
-  // Preview
-  function previewPhoto(input) {
-    if (!input.files || !input.files[0]) return;
-    const file = input.files[0];
-    if (file.size > 5 * 1024 * 1024) { alert('File terlalu besar. Maks 5MB.'); input.value=''; return; }
-    const reader = new FileReader();
-    reader.onload = e => {
-      document.getElementById('previewImg').src = e.target.result;
-      document.getElementById('previewWrap').classList.add('show');
-      document.getElementById('dropZone').style.display = 'none';
-      document.getElementById('uploadBtn').disabled = false;
-    };
-    reader.readAsDataURL(file);
-  }
-
-  // Drag & drop
-  const dz = document.getElementById('dropZone');
-  if (dz) {
-    dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('drag'); });
-    dz.addEventListener('dragleave', () => dz.classList.remove('drag'));
-    dz.addEventListener('drop', e => {
-      e.preventDefault(); dz.classList.remove('drag');
-      if (e.dataTransfer.files.length) {
-        document.getElementById('photoInput').files = e.dataTransfer.files;
-        previewPhoto(document.getElementById('photoInput'));
-      }
-    });
-  }
-
-  // Lightbox
-  function openLightbox(i) {
-    if (!PHOTOS.length) return;
-    currentPhoto = i; updateLightbox();
-    document.getElementById('lightbox').classList.add('open');
-    document.body.style.overflow = 'hidden';
-  }
-  function closeLightbox() {
-    document.getElementById('lightbox').classList.remove('open');
-    document.body.style.overflow = '';
-  }
-  function lightboxNav(d) {
-    currentPhoto = (currentPhoto + d + PHOTOS.length) % PHOTOS.length;
-    updateLightbox();
-  }
-  function updateLightbox() {
-    const p = PHOTOS[currentPhoto];
-    const img = document.getElementById('lightboxImg');
-    img.style.opacity = '0'; img.src = p.url;
-    img.onload = () => { img.style.transition = 'opacity .2s'; img.style.opacity = '1'; };
-    let info = p.type;
-    if (p.caption) info += ' · ' + p.caption;
-    if (p.uploaded) info += ' · ' + p.uploaded;
-    if (p.by) info += ' oleh ' + p.by;
-    document.getElementById('lightboxInfo').textContent = info;
-    document.getElementById('lightboxCounter').textContent = (currentPhoto+1) + ' / ' + PHOTOS.length;
-  }
-
-  // Touch swipe on lightbox
-  let touchStartX = 0;
-  document.getElementById('lightbox').addEventListener('touchstart', e => { touchStartX = e.touches[0].clientX; }, {passive:true});
-  document.getElementById('lightbox').addEventListener('touchend', e => {
-    const dx = e.changedTouches[0].clientX - touchStartX;
-    if (Math.abs(dx) > 50) lightboxNav(dx < 0 ? 1 : -1);
-  }, {passive:true});
-
-  // Keyboard
-  document.addEventListener('keydown', e => {
-    const lb = document.getElementById('lightbox').classList.contains('open');
-    const um = document.getElementById('uploadModal').classList.contains('open');
-    if (lb) { if (e.key==='ArrowLeft') lightboxNav(-1); if (e.key==='ArrowRight') lightboxNav(1); if (e.key==='Escape') closeLightbox(); }
-    if (um && e.key==='Escape') closeUploadModal();
+  // Dialog buka/tutup
+  document.querySelectorAll('[data-open]').forEach(b =>
+    b.addEventListener('click', () => document.getElementById(b.dataset.open).showModal()));
+  document.querySelectorAll('dialog').forEach(d => {
+    d.querySelectorAll('[data-close]').forEach(b => b.addEventListener('click', () => d.close()));
+    d.addEventListener('click', e => { if (e.target === d) d.close(); });
   });
-  document.getElementById('lightbox').addEventListener('click', e => { if(e.target===document.getElementById('lightbox')) closeLightbox(); });
 
-  // Book value bar
-  {% if asset.has_financial %}
-  (function(){
-    const na = parseFloat("{{ asset.financial.nilai_awal_aset|stringformat:'f' }}") || 0;
-    const bv = parseFloat("{{ asset.financial.book_value|stringformat:'f' }}") || 0;
-    const nr = parseFloat("{{ asset.financial.nilai_residual|stringformat:'f' }}") || 0;
-    const range = na - nr;
-    const pct = range > 0 ? Math.min(Math.max(((bv-nr)/range)*100, 0), 100) : 0;
-    setTimeout(() => {
-      const fill = document.getElementById('bvFill');
-      const badge = document.getElementById('bvPctBadge');
-      if (fill)  fill.style.width = pct.toFixed(1) + '%';
-      if (badge) { badge.textContent = pct.toFixed(0)+'%'; badge.style.background = pct<=25?'var(--danger)':pct<=60?'var(--warning)':'var(--success)'; }
-    }, 400);
+  // Upload: pratinjau & validasi ukuran
+  (() => {
+    const input = document.getElementById('photoInput');
+    if (!input) return;
+    const zone = document.getElementById('dropZone'), text = document.getElementById('dropText'), btn = document.getElementById('uploadBtn');
+    input.addEventListener('change', () => {
+      const f = input.files[0];
+      if (!f) return;
+      if (f.size > 5 * 1024 * 1024) { alert('Ukuran foto lebih dari 5 MB. Pilih foto yang lebih kecil.'); input.value = ''; btn.disabled = true; return; }
+      let img = zone.querySelector('img');
+      if (!img) { img = document.createElement('img'); img.alt = 'Pratinjau foto'; zone.appendChild(img); }
+      img.src = URL.createObjectURL(f); text.hidden = true; btn.disabled = false;
+    });
   })();
-  {% endif %}
-</script>
 
+  // Penampil foto
+  (() => {
+    const viewer = document.getElementById('viewer');
+    if (!viewer) return;
+    const photos = JSON.parse(document.getElementById('photo-data').textContent);
+    const stage = document.getElementById('viewerStage'), info = document.getElementById('viewerInfo');
+    const img = document.createElement('img');
+    let i = 0;
+    const show = n => {
+      i = (n + photos.length) % photos.length;
+      img.src = photos[i].url; img.alt = photos[i].info;
+      if (!img.isConnected) stage.appendChild(img);
+      info.textContent = `${i + 1} / ${photos.length} · ${photos[i].info}`;
+    };
+    document.querySelectorAll('.photo-open').forEach(b => b.addEventListener('click', () => { show(+b.dataset.index); viewer.showModal(); }));
+    document.getElementById('viewerPrev').addEventListener('click', () => show(i - 1));
+    document.getElementById('viewerNext').addEventListener('click', () => show(i + 1));
+    viewer.addEventListener('keydown', e => { if (e.key === 'ArrowLeft') show(i - 1); if (e.key === 'ArrowRight') show(i + 1); });
+  })();
+
+  // Riwayat: saring & tampilkan semua
+  (() => {
+    const rows = [...document.querySelectorAll('.history tbody tr')];
+    let showAll = false, filter = 'all';
+    const apply = () => rows.forEach((r, n) => {
+      const match = filter === 'all' || r.dataset.type === filter;
+      r.hidden = !match || (!showAll && filter === 'all' && n >= 10);
+    });
+    document.querySelectorAll('.seg .chip').forEach(c => c.addEventListener('click', () => {
+      document.querySelectorAll('.seg .chip').forEach(x => x.classList.toggle('active', x === c));
+      filter = c.dataset.filter; apply();
+    }));
+    document.getElementById('showMore')?.addEventListener('click', e => { showAll = true; apply(); e.target.closest('.more-row').remove(); });
+  })();
+</script>
 {% endblock %}

@@ -1,8 +1,9 @@
 {% extends "base.html" %}
 {% load static %}
 {% block title %}Import Aset — AssetMS{% endblock %}
+{% block extra_head %}<link rel="stylesheet" href="{% static 'css/pages/asset_import_finansial.css' %}?v=3">{% endblock %}
+
 {% block content %}
-<link rel="stylesheet" href="{% static 'css/pages/asset_import_finansial.css' %}">
 
 <div class="wrap">
   <span class="page-eyebrow">Import Data</span>
@@ -21,18 +22,16 @@
     <!-- FORM UPLOAD -->
     <div>
       <div class="card">
-        <div class="card-title">📤 Upload File Excel</div>
+        <div class="card-title">Upload File Excel</div>
         <form method="post" enctype="multipart/form-data" id="uploadForm">
           {% csrf_token %}
           <div class="upload-zone" id="uploadZone" onclick="document.getElementById('fileInput').click()">
-            <div class="upload-icon">💰</div>
             <div class="upload-label">Klik untuk pilih file</div>
             <div class="upload-sub">atau drag & drop di sini</div>
             <div class="upload-sub" style="margin-top:4px;">.xlsx / .xlsm — maks 500 baris</div>
             <input type="file" id="fileInput" name="excel_file" accept=".xlsx,.xlsm" onchange="previewFile(this)">
           </div>
           <div class="file-preview" id="filePreview">
-            <span style="font-size:20px;">📄</span>
             <div>
               <div class="file-name" id="fileName"></div>
               <div class="file-size" id="fileSize"></div>
@@ -41,7 +40,7 @@
           </div>
           <div style="display:flex;gap:8px;margin-top:14px;">
             <button type="submit" class="btn btn-primary" id="submitBtn" disabled>
-              🚀 Upload & Import
+              Upload & Import
             </button>
             <a href="{% url 'asset_list' %}" class="btn btn-outline">← Batal</a>
           </div>
@@ -49,8 +48,8 @@
       </div>
 
       <div class="card">
-        <div class="card-title">📥 Download Template</div>
-        <p style="font-size:12px;color:#6b7280;margin-bottom:14px;line-height:1.6;">
+        <div class="card-title">Download Template</div>
+        <p style="font-size:12px;color:var(--ink-3);margin-bottom:14px;line-height:1.6;">
           Download template Excel yang sudah berisi contoh data dan rules pengisian.
           Isi data di template ini, lalu upload.
         </p>
@@ -63,7 +62,7 @@
     <!-- RULES -->
     <div>
       <div class="card">
-        <div class="card-title">📋 Langkah-langkah</div>
+        <div class="card-title">Langkah-langkah</div>
         <div class="step-row">
           <div class="step-num">1</div>
           <div class="step-text">Download <strong>Template Aset</strong> di sebelah kiri</div>
@@ -87,38 +86,30 @@
       </div>
 
       <div class="card">
-        <div class="card-title">📌 Aturan Kolom</div>
+        <div class="card-title">Aturan Kolom</div>
         <div class="rules-grid">
           <div class="rule-item required">
-            <span class="rule-icon">🔵</span>
             <div><span class="rule-col">no_po</span> <span class="rule-desc">— Nomor PO. Wajib diisi.</span></div>
           </div>
           <div class="rule-item required">
-            <span class="rule-icon">🔵</span>
             <div><span class="rule-col">asset_number</span> <span class="rule-desc">— Kode unik. Tidak boleh duplikat.</span></div>
           </div>
           <div class="rule-item required">
-            <span class="rule-icon">🔵</span>
             <div><span class="rule-col">nama_asset</span> <span class="rule-desc">— Nama lengkap aset. Wajib.</span></div>
           </div>
           <div class="rule-item required">
-            <span class="rule-icon">🔵</span>
             <div><span class="rule-col">tanggal_pembelian</span> <span class="rule-desc">— Format YYYY-MM-DD. Wajib.</span></div>
           </div>
           <div class="rule-item optional">
-            <span class="rule-icon">🟢</span>
             <div><span class="rule-col">lokasi_asset</span> <span class="rule-desc">— Nama harus persis sama dengan di sistem.</span></div>
           </div>
           <div class="rule-item optional">
-            <span class="rule-icon">🟢</span>
             <div><span class="rule-col">department</span> <span class="rule-desc">— Nama departemen di sistem.</span></div>
           </div>
           <div class="rule-item optional">
-            <span class="rule-icon">🟢</span>
             <div><span class="rule-col">asset_group / asset_category</span> <span class="rule-desc">— Opsional.</span></div>
           </div>
           <div class="rule-item warning">
-            <span class="rule-icon">⚠️</span>
             <div><span class="rule-col">lifecycle_status</span> <span class="rule-desc">— active / maintenance / writeoff. Default: active.</span></div>
           </div>
         </div>

@@ -2,8 +2,9 @@
 {% load static %}
 {% block title %}Tambah Asset Category — Asset Management{% endblock %}
 
+{% block extra_head %}<link rel="stylesheet" href="{% static 'css/pages/master_assetcategory_create.css' %}?v=3">{% endblock %}
+
 {% block content %}
-<link rel="stylesheet" href="{% static 'css/pages/master_assetcategory_create.css' %}">
 
 <div class="wrap">
   <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;" class="anim">
@@ -21,7 +22,7 @@
       <!-- SECTION 1: INFO DASAR -->
       <div class="form-section">
         <div class="section-title">
-          <span class="section-icon">🏷️</span> Informasi Kategori
+Informasi Kategori
         </div>
         <div class="form-row">
           <div class="form-group">
@@ -45,7 +46,7 @@
       <!-- SECTION 2: INTERVAL MAINTENANCE -->
       <div class="form-section">
         <div class="section-title">
-          <span class="section-icon">⏱️</span> Interval Maintenance Default
+Interval Maintenance Default
         </div>
         <div class="form-row">
           <div class="form-group">
@@ -71,7 +72,7 @@
             <div class="preview-num" id="prevDays">—</div>
             <div class="preview-label">hari sekali</div>
           </div>
-          <div style="width:1px;background:#bfdbfe;height:36px;"></div>
+          <div style="width:1px;background:#A9C4E2;height:36px;"></div>
           <div>
             <div class="preview-sub" id="prevWeeks">—</div>
             <div class="preview-sub" id="prevMonths">—</div>
@@ -93,7 +94,7 @@
       <!-- SECTION 3: CHECKLIST / DESKRIPSI -->
       <div class="form-section">
         <div class="section-title">
-          <span class="section-icon">📋</span> Checklist / Deskripsi Maintenance
+Checklist / Deskripsi Maintenance
         </div>
         <div class="form-group">
           <label>Checklist Pekerjaan</label>
@@ -106,60 +107,60 @@
         <div class="checklist-helper">
           <div class="checklist-helper-title">Template Siap Pakai (klik untuk isi otomatis):</div>
           <span class="template-btn" onclick="setChecklist('ac')">❄️ AC</span>
-          <span class="template-btn" onclick="setChecklist('laptop')">💻 Laptop</span>
-          <span class="template-btn" onclick="setChecklist('printer')">🖨️ Printer</span>
-          <span class="template-btn" onclick="setChecklist('genset')">⚙️ Genset</span>
-          <span class="template-btn" onclick="setChecklist('dispenser')">💧 Dispenser</span>
-          <span class="template-btn" onclick="setChecklist('ups')">🔋 UPS</span>
-          <span class="template-btn" onclick="setChecklist('cctv')">📷 CCTV</span>
-          <span class="template-btn" onclick="setChecklist('router')">📡 Router/Switch</span>
-          <span class="template-btn" onclick="setChecklist('kulkas')">🧊 Kulkas</span>
-          <span class="template-btn" onclick="setChecklist('pompa')">💧 Pompa Air</span>
-          <span class="template-btn" onclick="setChecklist('proyektor')">📽️ Proyektor</span>
-          <span class="template-btn" onclick="setChecklist('fotokopi')">🖨️ Fotokopi</span>
+          <span class="template-btn" onclick="setChecklist('laptop')">Laptop</span>
+          <span class="template-btn" onclick="setChecklist('printer')">Printer</span>
+          <span class="template-btn" onclick="setChecklist('genset')">Genset</span>
+          <span class="template-btn" onclick="setChecklist('dispenser')">Dispenser</span>
+          <span class="template-btn" onclick="setChecklist('ups')">UPS</span>
+          <span class="template-btn" onclick="setChecklist('cctv')">CCTV</span>
+          <span class="template-btn" onclick="setChecklist('router')">Router/Switch</span>
+          <span class="template-btn" onclick="setChecklist('kulkas')">Kulkas</span>
+          <span class="template-btn" onclick="setChecklist('pompa')">Pompa Air</span>
+          <span class="template-btn" onclick="setChecklist('proyektor')">Proyektor</span>
+          <span class="template-btn" onclick="setChecklist('fotokopi')">Fotokopi</span>
         </div>
 
         <!-- CUSTOM CHECKLIST GENERATOR -->
-        <div id="customGeneratorBox" style="margin-top:10px;border:1.5px dashed #bfdbfe;border-radius:10px;overflow:hidden;">
+        <div id="customGeneratorBox" style="margin-top:10px;border:1.5px dashed #A9C4E2;border-radius:var(--r);overflow:hidden;">
           <button type="button" onclick="toggleCustomGen()"
-            style="width:100%;padding:10px 14px;background:#eff6ff;border:none;
+            style="width:100%;padding:10px 14px;background:var(--mandatory-tint);border:none;
               display:flex;align-items:center;justify-content:space-between;
               cursor:pointer;font-family:var(--sans);font-size:12px;font-weight:700;color:var(--accent);">
-            <span>✨ Generate Checklist Custom (untuk kategori baru)</span>
-            <span id="customGenArrow" style="font-size:14px;transition:transform .2s;">▾</span>
+            <span>Generate Checklist Custom (untuk kategori baru)</span>
+            <span id="customGenArrow" style="font-size:12px;transition:transform .2s;"><i class="fa-solid fa-chevron-down" aria-hidden="true"></i></span>
           </button>
 
           <div id="customGenBody" style="display:none;padding:14px;background:#f8fbff;">
-            <div style="font-size:11px;color:var(--muted);font-family:var(--mono);margin-bottom:10px;">
+            <div style="font-size:12px;color:var(--muted);font-family:var(--mono);margin-bottom:10px;">
               Ketik nama kategori baru, lalu klik Generate — checklist otomatis dibuat berdasarkan nama tersebut.
             </div>
             <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
               <input type="text" id="customCatInput"
                 placeholder="Contoh: Router, Water Heater, Tangki BBM, Mesin Cuci..."
                 style="flex:1;min-width:200px;padding:8px 12px;border:1.5px solid var(--border);
-                  border-radius:8px;font-size:13px;font-family:var(--sans);outline:none;transition:border-color .15s;"
+                  border-radius:var(--r);font-size:13px;font-family:var(--sans);outline:none;transition:border-color .15s;"
                 onfocus="this.style.borderColor='var(--accent)'"
                 onblur="this.style.borderColor='var(--border)'"
                 onkeydown="if(event.key==='Enter'){event.preventDefault();generateCustom();}">
               <button type="button" onclick="generateCustom()"
                 style="padding:8px 16px;background:var(--accent);color:#fff;border:none;
-                  border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;font-family:var(--sans);
+                  border-radius:var(--r);font-size:12px;font-weight:700;cursor:pointer;font-family:var(--sans);
                   white-space:nowrap;transition:background .15s;"
                 onmouseover="this.style.background='var(--accent2)'"
                 onmouseout="this.style.background='var(--accent)'">
-                ✨ Generate
+                Generate
               </button>
             </div>
             <div id="customGenPreview" style="display:none;margin-top:12px;">
-              <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;
+              <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;
                 color:var(--muted);margin-bottom:6px;font-family:var(--mono);">Preview Checklist:</div>
               <div id="customGenResult" style="background:var(--surface);border:1px solid var(--border);
-                border-radius:8px;padding:12px 14px;font-size:12px;line-height:1.9;color:var(--text-soft);
+                border-radius:var(--r);padding:12px 14px;font-size:12px;line-height:1.9;color:var(--text-soft);
                 font-family:var(--mono);white-space:pre-line;max-height:160px;overflow-y:auto;"></div>
               <button type="button" onclick="applyCustom()"
                 style="margin-top:8px;padding:7px 16px;background:var(--success);color:#fff;border:none;
-                  border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;font-family:var(--sans);">
-                ✅ Pakai Checklist Ini
+                  border-radius:var(--r);font-size:12px;font-weight:700;cursor:pointer;font-family:var(--sans);">
+                Pakai Checklist Ini
               </button>
             </div>
           </div>
@@ -168,7 +169,7 @@
 
       <div class="form-footer">
         <a href="{% url 'assetcategory_list' %}" class="btn btn-outline">← Batal</a>
-        <button type="submit" class="btn btn-primary">💾 Simpan Kategori</button>
+        <button type="submit" class="btn btn-primary">Simpan Kategori</button>
       </div>
 
     </div>

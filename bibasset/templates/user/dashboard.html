@@ -2,20 +2,20 @@
 {% load static %}
 {% block title %}Dashboard — {{ request.user.employee.nama }}{% endblock %}
 
+{% block extra_head %}<link rel="stylesheet" href="{% static 'css/pages/user_dashboard.css' %}?v=3">{% endblock %}
+
 {% block content %}
-<link rel="stylesheet" href="{% static 'css/pages/user_dashboard.css' %}">
 
 <div class="db-wrap">
 
   <!-- TOP BAR -->
   <div class="db-topbar anim">
     <div class="db-greeting">
-      <span class="db-greeting-eyebrow">{{ request.user.employee.department|default:"PT Borneo Indobara" }}</span>
-      <h1>Asset <em>Management</em></h1>
+      <h1>Halo, {{ request.user.employee.nama|default:request.user.username }}</h1>
+      <p class="page-sub">{{ request.user.employee.department|default:"PT Borneo Indobara" }} · aset yang Anda pegang dan laporan kerusakan Anda</p>
     </div>
     <div class="db-topbar-right">
-      <span class="role-pill user">● User</span>
-      <div class="db-date-badge" id="liveClock">—</div>
+      <a href="{% url 'damage_report_create' %}" class="btn btn-primary"><i class="fa-solid fa-circle-exclamation" aria-hidden="true"></i>Lapor kerusakan</a>
     </div>
   </div>
 
@@ -23,21 +23,18 @@
   <div class="db-stats anim">
     <div class="db-stat blue">
       <div class="db-stat-bg-shape"></div>
-      <span class="db-stat-icon">📦</span>
       <div class="db-stat-number count-up">{{ total_held }}</div>
       <div class="db-stat-label">Aset Dipegang</div>
       <div class="db-stat-sub">Unit aktif saat ini</div>
     </div>
     <div class="db-stat {% if pending_count > 0 %}alert-amber{% else %}slate{% endif %}">
       <div class="db-stat-bg-shape"></div>
-      <span class="db-stat-icon">⏳</span>
       <div class="db-stat-number count-up">{{ pending_count }}</div>
       <div class="db-stat-label">Laporan Aktif</div>
       <div class="db-stat-sub">Sedang diproses GA</div>
     </div>
     <div class="db-stat slate">
       <div class="db-stat-bg-shape"></div>
-      <span class="db-stat-icon">📋</span>
       <div class="db-stat-number count-up">{{ my_reports|length }}</div>
       <div class="db-stat-label">Total Laporan</div>
       <div class="db-stat-sub">Sepanjang waktu</div>
@@ -48,7 +45,6 @@
   {% if pending_count > 0 %}
   <div class="alert-banner warning anim">
     <div class="alert-banner-left">
-      <div class="alert-banner-icon">⏳</div>
       <div>
         <h3>{{ pending_count }} laporan kerusakan sedang diproses.</h3>
         <p>Tim GA sedang menindaklanjuti — pantau status di riwayat laporan Anda.</p>
@@ -98,13 +94,13 @@
                   <div class="asset-name">{{ assignment.asset.nama_asset }}</div>
                   <div class="asset-num">{{ assignment.asset.asset_number }}</div>
                 </td>
-                <td class="hide-mobile" style="font-size:11px;color:var(--text-soft);">
+                <td class="hide-mobile" style="font-size:12px;color:var(--text-soft);">
                   {% if assignment.asset.asset_category %}
                     <div style="font-weight:600;">{{ assignment.asset.asset_category.name }}</div>
-                    <div style="font-size:9px;color:var(--muted);font-family:var(--mono);">{{ assignment.asset.asset_group.name|default:"" }}</div>
+                    <div style="font-size:12px;color:var(--muted);font-family:var(--mono);">{{ assignment.asset.asset_group.name|default:"" }}</div>
                   {% else %}—{% endif %}
                 </td>
-                <td class="hide-mobile" style="font-size:11px;color:var(--text-soft);">
+                <td class="hide-mobile" style="font-size:12px;color:var(--text-soft);">
                   {{ assignment.asset.lokasi_asset|default:"—" }}
                 </td>
                 <td>
@@ -119,9 +115,9 @@
                 <td>
                   {% if assignment.asset.lifecycle_status == 'active' %}
                     <a href="{% url 'damage_report_create_for_asset' assignment.asset.id %}"
-                       class="action-btn danger">⚠ Lapor</a>
+                       class="action-btn danger">Lapor</a>
                   {% else %}
-                    <span style="font-size:10px;color:var(--muted);font-family:var(--mono);">diproses</span>
+                    <span style="font-size:12px;color:var(--muted);font-family:var(--mono);">diproses</span>
                   {% endif %}
                 </td>
               </tr>
@@ -131,7 +127,6 @@
         </div>
         {% else %}
         <div class="empty-state">
-          <div class="empty-icon">📦</div>
           <div style="font-weight:700;color:var(--text-soft);margin-bottom:3px;font-size:12px;">Belum ada aset</div>
           <p>Hubungi GA untuk serah terima aset.</p>
         </div>
@@ -188,7 +183,7 @@
               </div>
               {% if report.ga_notes and report.report_status != 'pending' %}
               <div class="report-ga-note">
-                💬 {{ report.ga_notes|truncatechars:80 }}
+                {{ report.ga_notes|truncatechars:80 }}
               </div>
               {% endif %}
             </div>
@@ -197,7 +192,6 @@
         </div>
         {% else %}
         <div class="empty-state">
-          <div class="empty-icon">🎉</div>
           <div style="font-weight:700;color:var(--text-soft);margin-bottom:3px;font-size:12px;">Belum ada laporan</div>
           <p>Semua aset Anda dalam kondisi baik.</p>
         </div>
@@ -257,21 +251,21 @@
         </div>
         <div>
           <div class="db-info-item">
-            <div class="db-info-label">📦 Aset Dipegang</div>
+            <div class="db-info-label">Aset Dipegang</div>
             <div style="display:flex;align-items:center;gap:6px;">
               <span class="db-info-val">{{ total_held }}</span>
               <span class="badge active">Active</span>
             </div>
           </div>
           <div class="db-info-item">
-            <div class="db-info-label">⏳ Menunggu</div>
+            <div class="db-info-label">Menunggu</div>
             <div style="display:flex;align-items:center;gap:6px;">
               <span class="db-info-val">{{ pending_count }}</span>
               <span class="badge pending">Pending</span>
             </div>
           </div>
           <div class="db-info-item">
-            <div class="db-info-label">📋 Total Laporan</div>
+            <div class="db-info-label">Total Laporan</div>
             <div style="display:flex;align-items:center;gap:6px;">
               <span class="db-info-val">{{ my_reports|length }}</span>
             </div>
@@ -289,14 +283,14 @@
         </div>
         <div class="db-menu-grid">
           <a href="{% url 'damage_report_create' %}" class="db-menu-btn danger">
-            <span class="bm-icon">⚠️</span> Laporkan Kerusakan
+Laporkan Kerusakan
             {% if pending_count > 0 %}<span class="bm-badge">{{ pending_count }}</span>{% endif %}
           </a>
           <a href="{% url 'user_damage_report_list' %}" class="db-menu-btn warning">
-            <span class="bm-icon">📋</span> Riwayat Laporan Saya
+Riwayat Laporan Saya
           </a>
           <a href="{% url 'logout' %}" class="db-menu-btn danger">
-            <span class="bm-icon">🚪</span> Logout
+Logout
           </a>
         </div>
       </div>
@@ -306,14 +300,6 @@
 </div>
 
 <script>
-  function tick() {
-    const now = new Date();
-    document.getElementById('liveClock').textContent =
-      now.toLocaleDateString('id-ID',{weekday:'short',day:'2-digit',month:'short',year:'numeric'}) +
-      ' · ' + now.toLocaleTimeString('id-ID',{hour:'2-digit',minute:'2-digit'});
-  }
-  tick(); setInterval(tick, 10000);
-
   document.querySelectorAll('.count-up').forEach(el => {
     const target = parseInt(el.textContent);
     if (isNaN(target) || target === 0) return;

@@ -2,8 +2,9 @@
 {% load static %}
 {% block title %}Edit Komponen — {{ component.component_name }}{% endblock %}
 
+{% block extra_head %}<link rel="stylesheet" href="{% static 'css/pages/components_update.css' %}?v=3">{% endblock %}
+
 {% block content %}
-<link rel="stylesheet" href="{% static 'css/pages/components_update.css' %}">
 
 <div class="wrap">
 
@@ -22,7 +23,7 @@
 
   <!-- EDIT BANNER -->
   <div class="edit-banner anim">
-    ✏️ Mode edit — <strong>{{ component.part_number }}</strong> · {{ component.component_name }}
+    Mode edit — <strong>{{ component.part_number }}</strong> · {{ component.component_name }}
   </div>
 
   <!-- PAGE HEADER -->
@@ -41,7 +42,6 @@
     <!-- SECTION 1: INFORMASI DASAR -->
     <div class="form-section anim">
       <div class="section-header">
-        <div class="section-icon blue">ℹ️</div>
         <span class="section-label">Informasi Dasar</span>
       </div>
       <div class="section-body">
@@ -86,7 +86,7 @@
             <input type="checkbox" name="is_critical" id="criticalCheck"
               {% if component.is_critical %}checked{% endif %} style="display:none;">
             <div class="critical-alert {% if component.is_critical %}show{% endif %}" id="criticalAlert">
-              ⚠️ Komponen kritis — jika rusak, aset tidak dapat beroperasi.
+              Komponen kritis — jika rusak, aset tidak dapat beroperasi.
             </div>
           </div>
         </div>
@@ -97,7 +97,6 @@
     <!-- SECTION 2: SUPPLIER & HARGA -->
     <div class="form-section anim">
       <div class="section-header">
-        <div class="section-icon green">💰</div>
         <span class="section-label">Supplier &amp; Harga</span>
       </div>
       <div class="section-body">
@@ -120,7 +119,6 @@
     <!-- SECTION 3: MAINTENANCE INFO -->
     <div class="form-section anim">
       <div class="section-header">
-        <div class="section-icon amber">🔧</div>
         <span class="section-label">Informasi Maintenance</span>
       </div>
       <div class="section-body">
@@ -141,7 +139,7 @@
 
     <!-- SUBMIT -->
     <div class="submit-row anim">
-      <button type="submit" class="btn btn-warning">✏️ Update Komponen</button>
+      <button type="submit" class="btn btn-warning">Update Komponen</button>
       <a href="{% url 'component_list' asset.id %}" class="btn btn-secondary">Batal</a>
     </div>
 

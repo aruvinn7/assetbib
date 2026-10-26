@@ -1,8 +1,9 @@
 {% extends "base.html" %}
 {% load static %}
 {% block title %}Hasil Import — AssetMS{% endblock %}
+{% block extra_head %}<link rel="stylesheet" href="{% static 'css/pages/asset_import_result.css' %}?v=3">{% endblock %}
+
 {% block content %}
-<link rel="stylesheet" href="{% static 'css/pages/asset_import_result.css' %}">
 
 <div class="wrap">
 
@@ -11,10 +12,10 @@
     <span class="page-eyebrow">Import {{ import_type }}</span>
     <h1 class="page-title">Hasil <em>Import</em> {{ import_type }}</h1>
     <div style="display:flex;gap:8px;flex-wrap:wrap;">
-      <a href="{% url list_url %}" class="btn btn-primary">📋 Lihat Daftar Aset</a>
+      <a href="{% url list_url %}" class="btn btn-primary">Lihat Daftar Aset</a>
       <a href="{% url back_url %}" class="btn btn-outline">⬆ Import Lagi</a>
       {% if import_type == 'Aset' %}
-      <a href="{% url 'import_finansial' %}" class="btn btn-success">💰 Lanjut Import Finansial</a>
+      <a href="{% url 'import_finansial' %}" class="btn btn-success">Lanjut Import Finansial</a>
       {% endif %}
     </div>
   </div>
@@ -23,40 +24,39 @@
   <div class="stat-row anim">
     <div class="stat-mini blue">
       <div class="stat-mini-num">{{ result_rows|length }}</div>
-      <div class="stat-mini-label">📦 Total Baris</div>
+      <div class="stat-mini-label">Total Baris</div>
     </div>
     <div class="stat-mini green">
       <div class="stat-mini-num">{{ success_count }}</div>
-      <div class="stat-mini-label">✅ Berhasil</div>
+      <div class="stat-mini-label">Berhasil</div>
     </div>
     <div class="stat-mini red">
       <div class="stat-mini-num">{{ rejected_count }}</div>
-      <div class="stat-mini-label">✖ Tertolak</div>
+      <div class="stat-mini-label">Tertolak</div>
     </div>
     <div class="stat-mini amber">
       <div class="stat-mini-num">{{ warn_count }}</div>
-      <div class="stat-mini-label">⚠️ Auto-fix</div>
+      <div class="stat-mini-label">Auto-fix</div>
     </div>
   </div>
 
   {% if rejected_count > 0 %}
   <div style="display:flex;align-items:center;gap:10px;padding:10px 14px;
-    background:#fff5f5;border:1.5px solid #fca5a5;border-radius:10px;margin-bottom:12px;
-    font-size:12px;color:#991b1b;" class="anim">
-    <span style="font-size:18px;flex-shrink:0;">⚠️</span>
+    background:var(--danger-tint);border:1.5px solid #E7A5AF;border-radius:var(--r);margin-bottom:12px;
+    font-size:12px;color:var(--danger);" class="anim">
     <div>
       <strong>{{ rejected_count }} baris tertolak</strong> — perbaiki data di Excel sesuai keterangan merah, lalu upload ulang hanya baris yang bermasalah.
-      <button onclick="showFilter('rejected')" style="background:none;border:none;color:#e02424;font-weight:800;cursor:pointer;margin-left:4px;font-family:var(--sans);font-size:12px;">Tampilkan saja yang tertolak →</button>
+      <button onclick="showFilter('rejected')" style="background:none;border:none;color:var(--danger);font-weight:800;cursor:pointer;margin-left:4px;font-family:var(--sans);font-size:12px;">Tampilkan saja yang tertolak →</button>
     </div>
   </div>
   {% endif %}
 
   <!-- FILTER TABS -->
   <div class="toolbar anim">
-    <span style="font-size:10px;font-weight:700;color:var(--muted);font-family:var(--mono);">TAMPILKAN:</span>
+    <span style="font-size:12px;font-weight:700;color:var(--muted);font-family:var(--mono);">TAMPILKAN:</span>
     <button onclick="showFilter('all')"      class="filter-tab active" id="tab-all">Semua ({{ result_rows|length }})</button>
-    <button onclick="showFilter('success')"  class="filter-tab green"  id="tab-success">✅ Berhasil ({{ success_count }})</button>
-    <button onclick="showFilter('rejected')" class="filter-tab red"    id="tab-rejected">✖ Tertolak ({{ rejected_count }})</button>
+    <button onclick="showFilter('success')"  class="filter-tab green"  id="tab-success">Berhasil ({{ success_count }})</button>
+    <button onclick="showFilter('rejected')" class="filter-tab red"    id="tab-rejected">Tertolak ({{ rejected_count }})</button>
   </div>
 
   <!-- TABLE CARD -->
@@ -67,8 +67,8 @@
         Semua Baris — <span id="visibleCount">{{ result_rows|length }}</span> item
       </div>
       <div style="display:flex;align-items:center;gap:8px;">
-        <span style="font-size:10px;color:var(--muted);font-family:var(--mono);">
-          ⚪ Kosong = belum diisi &nbsp;|&nbsp; <span style="color:var(--accent);">⟳ auto-fix</span> = nama dikoreksi otomatis
+        <span style="font-size:12px;color:var(--muted);font-family:var(--mono);">
+          Kosong = belum diisi &nbsp;|&nbsp; <span style="color:var(--accent);">⟳ auto-fix</span> = nama dikoreksi otomatis
         </span>
       </div>
     </div>
@@ -103,16 +103,16 @@
             data-haswarn="{% if row.warnings %}1{% else %}0{% endif %}">
 
           <!-- # -->
-          <td style="font-family:var(--mono);font-size:10px;color:var(--muted);white-space:nowrap;">
+          <td style="font-family:var(--mono);font-size:12px;color:var(--muted);white-space:nowrap;">
             {{ row.row_num }}
           </td>
 
           <!-- STATUS -->
           <td style="white-space:nowrap;">
             {% if row.status == 'rejected' %}
-              <span class="badge-rejected">✖ Tertolak</span>
+              <span class="badge-rejected">Tertolak</span>
             {% elif row.warnings %}
-              <span class="badge-warn">⚠ Auto-fix</span>
+              <span class="badge-warn">Auto-fix</span>
             {% else %}
               <span class="badge-ok">✓ OK</span>
             {% endif %}
@@ -121,7 +121,7 @@
           <!-- NO PO -->
           <td>
             {% if row.no_po %}
-              <span class="val-filled" style="font-family:var(--mono);font-size:10px;">{{ row.no_po }}</span>
+              <span class="val-filled" style="font-family:var(--mono);font-size:12px;">{{ row.no_po }}</span>
             {% else %}
               <span class="val-empty">— belum diisi</span>
             {% endif %}
@@ -130,14 +130,14 @@
           <!-- ASSET NUMBER -->
           <td>
             {% if row.asset_number %}
-              <span style="font-family:var(--mono);font-size:10px;font-weight:700;">{{ row.asset_number }}</span>
+              <span style="font-family:var(--mono);font-size:12px;font-weight:700;">{{ row.asset_number }}</span>
             {% else %}
               <span class="val-empty">— belum diisi</span>
             {% endif %}
             {# Keterangan tertolak muncul di bawah asset_number agar mudah dibaca #}
             {% if row.status == 'rejected' %}
             <div class="reject-box">
-              <span>🚫 {{ row.reject_reason }}</span>
+              <span>{{ row.reject_reason }}</span>
             </div>
             {% endif %}
           </td>
@@ -145,7 +145,7 @@
           <!-- NAMA ASET -->
           <td style="max-width:200px;">
             {% if row.nama_asset %}
-              <div style="font-weight:700;font-size:11px;line-height:1.3;">{{ row.nama_asset }}</div>
+              <div style="font-weight:700;font-size:12px;line-height:1.3;">{{ row.nama_asset }}</div>
             {% else %}
               <span class="val-empty">— belum diisi</span>
             {% endif %}
@@ -154,7 +154,7 @@
           <!-- TGL PEMBELIAN -->
           <td>
             {% if row.tanggal_pembelian %}
-              <span style="font-family:var(--mono);font-size:10px;">{{ row.tanggal_pembelian|date:"d M Y" }}</span>
+              <span style="font-family:var(--mono);font-size:12px;">{{ row.tanggal_pembelian|date:"d M Y" }}</span>
             {% else %}
               <span class="val-empty">— format salah</span>
             {% endif %}
@@ -163,7 +163,7 @@
           <!-- LOKASI -->
           <td style="max-width:160px;">
             {% if row.lokasi_asset %}
-              <span class="val-filled" style="font-size:10px;line-height:1.3;display:block;">{{ row.lokasi_asset }}</span>
+              <span class="val-filled" style="font-size:12px;line-height:1.3;display:block;">{{ row.lokasi_asset }}</span>
             {% else %}
               <span class="val-empty">— belum diisi</span>
             {% endif %}
@@ -172,8 +172,8 @@
           <!-- DEPARTEMEN -->
           <td>
             {% if row.department %}
-              <span style="font-size:10px;font-weight:600;color:var(--text-soft);background:var(--surface2);
-                padding:2px 7px;border-radius:5px;border:1px solid var(--border);white-space:nowrap;">
+              <span style="font-size:12px;font-weight:600;color:var(--text-soft);background:var(--surface2);
+                padding:2px 7px;border-radius:var(--r);border:1px solid var(--border);white-space:nowrap;">
                 {{ row.department }}
               </span>
             {% else %}
@@ -184,7 +184,7 @@
           <!-- ASSET GROUP -->
           <td>
             {% if row.asset_group %}
-              <span style="font-size:10px;color:var(--text-soft);">{{ row.asset_group }}</span>
+              <span style="font-size:12px;color:var(--text-soft);">{{ row.asset_group }}</span>
             {% else %}
               <span class="val-empty">— belum diisi</span>
             {% endif %}
@@ -193,7 +193,7 @@
           <!-- ASSET CATEGORY -->
           <td>
             {% if row.asset_category %}
-              <span style="font-size:10px;color:var(--text-soft);">{{ row.asset_category }}</span>
+              <span style="font-size:12px;color:var(--text-soft);">{{ row.asset_category }}</span>
             {% else %}
               <span class="val-empty">— belum diisi</span>
             {% endif %}
@@ -211,7 +211,7 @@
         {# Warning notes untuk auto-fix — muncul sebagai baris tipis di bawah baris data #}
         {% if row.warnings and row.status != 'rejected' %}
         <tr class="result-row" data-status="{{ row.status }}" data-haswarn="1"
-            style="background:#fffbeb;">
+            style="background:var(--warning-tint);">
           <td></td>
           <td></td>
           <td colspan="9" style="padding:3px 10px 6px;">
@@ -248,9 +248,9 @@
           </div>
           <div class="mc-meta">
             {% if row.status == 'rejected' %}
-              <span class="badge-rejected">✖ Tertolak</span>
+              <span class="badge-rejected">Tertolak</span>
             {% elif row.warnings %}
-              <span class="badge-warn">⚠ Auto-fix</span>
+              <span class="badge-warn">Auto-fix</span>
             {% else %}
               <span class="badge-ok">✓ OK</span>
             {% endif %}
@@ -260,20 +260,20 @@
             {% elif row.lifecycle_status == 'writeoff' %}<span class="pill writeoff">Write Off</span>{% endif %}
 
             {% if row.tanggal_pembelian %}
-              <span style="font-size:9px;color:var(--muted);font-family:var(--mono);">{{ row.tanggal_pembelian|date:"d M Y" }}</span>
+              <span style="font-size:12px;color:var(--muted);font-family:var(--mono);">{{ row.tanggal_pembelian|date:"d M Y" }}</span>
             {% else %}
               <span class="val-empty">tgl salah</span>
             {% endif %}
           </div>
           {% if row.department or row.lokasi_asset %}
-          <div style="font-size:9px;color:var(--text-soft);margin-top:4px;">
-            {% if row.department %}🏢 {{ row.department }}{% endif %}
-            {% if row.lokasi_asset %} · 📍 {{ row.lokasi_asset }}{% endif %}
+          <div style="font-size:12px;color:var(--text-soft);margin-top:4px;">
+            {% if row.department %}{{ row.department }}{% endif %}
+            {% if row.lokasi_asset %} · {{ row.lokasi_asset }}{% endif %}
           </div>
           {% endif %}
           {% if row.status == 'rejected' %}
           <div class="reject-box" style="margin-top:5px;">
-            <span>🚫 {{ row.reject_reason }}</span>
+            <span>{{ row.reject_reason }}</span>
           </div>
           {% endif %}
           {% for w in row.warnings %}
@@ -288,15 +288,15 @@
 
     <!-- EMPTY STATE (saat filter tidak ada hasil) -->
     <div id="filterEmpty" style="display:none;padding:48px 24px;text-align:center;">
-      <div style="font-size:36px;margin-bottom:10px;">🔍</div>
+      <div style="font-size:36px;margin-bottom:10px;"></div>
       <div style="font-size:14px;font-weight:800;color:var(--text-soft);">Tidak ada data untuk filter ini</div>
     </div>
 
     {% else %}
     <div style="padding:48px 24px;text-align:center;">
-      <div style="font-size:36px;margin-bottom:10px;">📭</div>
+      <div style="font-size:36px;margin-bottom:10px;"></div>
       <div style="font-size:14px;font-weight:800;color:var(--text-soft);">Tidak ada data yang diproses</div>
-      <div style="font-size:11px;color:var(--muted);font-family:var(--mono);">Pastikan file tidak kosong</div>
+      <div style="font-size:12px;color:var(--muted);font-family:var(--mono);">Pastikan file tidak kosong</div>
     </div>
     {% endif %}
   </div>

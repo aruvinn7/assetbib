@@ -4,8 +4,9 @@
 {% load math_filter %}
 {% block title %}Edit {{ asset.asset_number }} — Asset Management{% endblock %}
 
+{% block extra_head %}<link rel="stylesheet" href="{% static 'css/pages/asset_update.css' %}?v=3">{% endblock %}
+
 {% block content %}
-<link rel="stylesheet" href="{% static 'css/pages/asset_update.css' %}">
 
 <div class="wrap">
 
@@ -34,7 +35,6 @@
 
   <!-- EDIT BANNER -->
   <div class="edit-banner anim">
-    <span style="font-size:16px;">✏️</span>
     Kamu sedang mengedit aset <strong>{{ asset.asset_number }}</strong>.
     Perubahan akan langsung tersimpan setelah klik "Simpan Perubahan".
   </div>
@@ -172,9 +172,9 @@
             <div class="form-group" style="margin-bottom:0;">
               <label class="form-label" for="status">Status Aset <span class="req">*</span></label>
               <select name="status" id="status" class="form-select">
-                <option value="active"      {% if asset.lifecycle_status == 'active' %}selected{% endif %}>🟢 Active — Beroperasi normal</option>
-                <option value="maintenance" {% if asset.lifecycle_status == 'maintenance' %}selected{% endif %}>🔧 Maintenance — Sedang dalam perbaikan</option>
-                <option value="writeoff"   {% if asset.lifecycle_status == 'writeoff' %}selected{% endif %}>✖ Write Off — Sudah tidak digunakan</option>
+                <option value="active"      {% if asset.lifecycle_status == 'active' %}selected{% endif %}>Active — Beroperasi normal</option>
+                <option value="maintenance" {% if asset.lifecycle_status == 'maintenance' %}selected{% endif %}>Maintenance — Sedang dalam perbaikan</option>
+                <option value="writeoff"   {% if asset.lifecycle_status == 'writeoff' %}selected{% endif %}>Write Off — Sudah tidak digunakan</option>
               </select>
             </div>
           </div>
@@ -182,13 +182,13 @@
 
         <!-- FORM ACTIONS -->
         <div class="form-actions anim">
-          <button type="submit" class="btn btn-warning">💾 Simpan Perubahan</button>
+          <button type="submit" class="btn btn-warning">Simpan Perubahan</button>
           <a href="{% url 'asset_detail' asset.id %}" class="btn btn-outline">Batal</a>
           {% if request.user.employee.ga_profile %}
           <a href="{% url 'asset_delete' asset.id %}" class="btn btn-danger"
              style="margin-left:auto;"
              onclick="return confirm('Hapus aset {{ asset.nama_asset|escapejs }}? Tindakan ini tidak bisa dibatalkan.')">
-            🗑 Hapus Aset
+            Hapus Aset
           </a>
           {% endif %}
         </div>
@@ -220,11 +220,11 @@
           <span class="ir-value">
             {% with hs=asset.health_status %}
             <span class="health-pill {{ hs }}">
-              {% if hs == 'critical' %}🔴 Critical
-              {% elif hs == 'waspada' %}🟠 Waspada
-              {% elif hs == 'warning' %}🟡 Warning
-              {% elif hs == 'normal' %}🟢 Normal
-              {% else %}⚪ No Data{% endif %}
+              {% if hs == 'critical' %}Critical
+              {% elif hs == 'waspada' %}Waspada
+              {% elif hs == 'warning' %}Warning
+              {% elif hs == 'normal' %}Normal
+              {% else %}No Data{% endif %}
             </span>
             {% endwith %}
           </span>
@@ -255,29 +255,29 @@
           {% if next_schedule %}
             {% if next_schedule.status == 'overdue' %}
             <div class="sched-box overdue">
-              <div class="sched-label overdue">🔴 Terlambat</div>
+              <div class="sched-label overdue">Terlambat</div>
               <div class="sched-date overdue">{{ next_schedule.scheduled_date|date:"d M Y" }}</div>
               <div class="sched-sub">{{ next_schedule.days_remaining }} hari lewat batas</div>
             </div>
             {% else %}
             <div class="sched-box upcoming">
-              <div class="sched-label upcoming">🔵 Jadwal Berikutnya</div>
+              <div class="sched-label upcoming">Jadwal Berikutnya</div>
               <div class="sched-date upcoming">{{ next_schedule.scheduled_date|date:"d M Y" }}</div>
               <div class="sched-sub">dalam {{ next_schedule.days_remaining }} hari</div>
             </div>
             {% endif %}
           {% else %}
-            <div class="sched-box none">📅 Belum ada jadwal aktif</div>
+            <div class="sched-box none">Belum ada jadwal aktif</div>
           {% endif %}
 
           {% if asset.maintenance_config %}
-          <div style="margin-top:8px;padding:10px 12px;background:#ecfeff;border:1px solid #a5f3fc;border-radius:8px;">
-            <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:#0e7490;font-family:var(--mono);margin-bottom:3px;">⚙️ Interval Custom</div>
+          <div style="margin-top:8px;padding:10px 12px;background:#ecfeff;border:1px solid #a5f3fc;border-radius:var(--r);">
+            <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:#0e7490;font-family:var(--mono);margin-bottom:3px;">Interval Custom</div>
             <div style="font-size:14px;font-weight:900;font-family:var(--mono);">{{ asset.maintenance_config.custom_interval_days }} hari</div>
           </div>
           {% elif effective_interval %}
-          <div style="margin-top:8px;padding:10px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;">
-            <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--muted);font-family:var(--mono);margin-bottom:3px;">📋 Interval Standar</div>
+          <div style="margin-top:8px;padding:10px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--r);">
+            <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--muted);font-family:var(--mono);margin-bottom:3px;">Interval Standar</div>
             <div style="font-size:14px;font-weight:900;font-family:var(--mono);">{{ effective_interval }} hari</div>
           </div>
           {% endif %}
@@ -290,7 +290,7 @@
           <span class="card-dot" style="background:var(--warning);"></span>
           <span class="card-label">Riwayat Terakhir</span>
           {% if maintenance_records.count > 0 %}
-          <span style="margin-left:auto;font-size:10px;color:var(--muted);font-family:var(--mono);">
+          <span style="margin-left:auto;font-size:12px;color:var(--muted);font-family:var(--mono);">
             {{ maintenance_records.count }} total
           </span>
           {% endif %}
@@ -300,27 +300,27 @@
           <div class="mh-mini">
             <div class="mh-dot {{ r.maintenance_type }}"></div>
             <div style="flex:1;min-width:0;">
-              <div style="font-size:10px;font-weight:700;color:var(--muted);font-family:var(--mono);margin-bottom:2px;">
+              <div style="font-size:12px;font-weight:700;color:var(--muted);font-family:var(--mono);margin-bottom:2px;">
                 {{ r.get_maintenance_type_display|truncatechars:20 }}
               </div>
-              <div style="font-weight:700;font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
+              <div style="font-weight:700;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
                 {{ r.deskripsi_pekerjaan|truncatechars:40 }}
               </div>
-              <div style="font-size:10px;color:var(--muted);font-family:var(--mono);margin-top:2px;">
+              <div style="font-size:12px;color:var(--muted);font-family:var(--mono);margin-top:2px;">
                 {{ r.tanggal_pelaksanaan|date:"d M Y" }}
               </div>
             </div>
           </div>
           {% endfor %}
           {% if maintenance_records.count > 3 %}
-          <div style="padding:8px 14px;font-size:10px;color:var(--muted);font-family:var(--mono);
+          <div style="padding:8px 14px;font-size:12px;color:var(--muted);font-family:var(--mono);
             border-top:1px solid var(--border);text-align:center;">
             + {{ maintenance_records.count|add:"-3" }} record lainnya
           </div>
           {% endif %}
         {% else %}
           <div style="padding:20px 14px;text-align:center;color:var(--muted);
-            font-size:11px;font-family:var(--mono);">📭 Belum ada riwayat</div>
+            font-size:12px;font-family:var(--mono);">Belum ada riwayat</div>
         {% endif %}
       </div>
 
@@ -332,46 +332,46 @@
         </div>
         <div style="padding:10px 12px;display:flex;flex-direction:column;gap:6px;">
           <a href="{% url 'asset_detail' asset.id %}"
-             style="display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:7px;
+             style="display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:var(--r);
                border:1.5px solid var(--border);background:var(--surface2);text-decoration:none;
                color:var(--text);font-size:12px;font-weight:700;transition:all .15s;"
              onmouseover="this.style.borderColor='var(--accent)'"
              onmouseout="this.style.borderColor='var(--border)'">
-            📋 <span>Lihat Detail Lengkap</span>
+            <span>Lihat Detail Lengkap</span>
           </a>
           <a href="{% url 'component_list' asset.id %}"
-             style="display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:7px;
+             style="display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:var(--r);
                border:1.5px solid var(--border);background:var(--surface2);text-decoration:none;
                color:var(--text);font-size:12px;font-weight:700;transition:all .15s;"
              onmouseover="this.style.borderColor='var(--purple)'"
              onmouseout="this.style.borderColor='var(--border)'">
-            🔩 <span>Bill of Materials</span>
+            <span>Bill of Materials</span>
           </a>
           <a href="{% url 'maintenance_create' asset.id %}"
-             style="display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:7px;
+             style="display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:var(--r);
                border:1.5px solid var(--border);background:var(--surface2);text-decoration:none;
                color:var(--text);font-size:12px;font-weight:700;transition:all .15s;"
              onmouseover="this.style.borderColor='var(--warning)'"
              onmouseout="this.style.borderColor='var(--border)'">
-            🔧 <span>Catat Maintenance Baru</span>
+            <span>Catat Maintenance Baru</span>
           </a>
           {% if asset.maintenance_config %}
           <a href="{% url 'maintenance_config_update' asset_id=asset.id %}"
-             style="display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:7px;
+             style="display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:var(--r);
                border:1.5px solid var(--border);background:var(--surface2);text-decoration:none;
                color:var(--text);font-size:12px;font-weight:700;transition:all .15s;"
              onmouseover="this.style.borderColor='var(--accent)'"
              onmouseout="this.style.borderColor='var(--border)'">
-            ⚙️ <span>Ubah Custom Interval</span>
+            <span>Ubah Custom Interval</span>
           </a>
           {% else %}
           <a href="{% url 'maintenance_config_create' asset_id=asset.id %}"
-             style="display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:7px;
+             style="display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:var(--r);
                border:1.5px solid var(--border);background:var(--surface2);text-decoration:none;
                color:var(--text);font-size:12px;font-weight:700;transition:all .15s;"
              onmouseover="this.style.borderColor='var(--accent)'"
              onmouseout="this.style.borderColor='var(--border)'">
-            ⚙️ <span>Set Custom Interval</span>
+            <span>Set Custom Interval</span>
           </a>
           {% endif %}
         </div>

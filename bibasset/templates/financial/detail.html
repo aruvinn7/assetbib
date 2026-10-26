@@ -3,8 +3,9 @@
 {% load rupiah %}
 {% block title %}Finansial — {{ asset.asset_number }}{% endblock %}
 
+{% block extra_head %}<link rel="stylesheet" href="{% static 'css/pages/financial_detail.css' %}?v=3">{% endblock %}
+
 {% block content %}
-<link rel="stylesheet" href="{% static 'css/pages/financial_detail.css' %}">
 
 <div class="wrap">
 
@@ -27,7 +28,7 @@
     </div>
     <div class="header-actions">
       {% if request.user.employee.finance_profile %}
-        <a href="{% url 'financial_update' asset.id %}" class="btn btn-warning">✏️ Edit Finansial</a>
+        <a href="{% url 'financial_update' asset.id %}" class="btn btn-warning">Edit Finansial</a>
       {% endif %}
       <a href="{% url 'asset_detail' asset.id %}" class="btn btn-outline">← Kembali ke Aset</a>
     </div>
@@ -36,7 +37,6 @@
   <!-- ASSET IDENTITY CARD -->
   <div class="asset-id-card anim">
     <div class="asset-id-left">
-      <div class="asset-id-icon">📦</div>
       <div>
         <div class="asset-id-num">{{ asset.asset_number }}</div>
         <div class="asset-id-name">{{ asset.nama_asset }}</div>
@@ -54,8 +54,8 @@
       {% else %}
         <span class="pill writeoff">Write Off</span>
       {% endif %}
-      <div style="font-size:11px;color:var(--muted);font-family:var(--mono);">
-        📍 {{ asset.lokasi_asset|default:"—" }}
+      <div style="font-size:12px;color:var(--muted);font-family:var(--mono);">
+        {{ asset.lokasi_asset|default:"—" }}
       </div>
     </div>
   </div>
@@ -74,7 +74,7 @@
             Nilai &amp; Depresiasi
           </div>
           {% if request.user.employee.finance_profile %}
-            <a href="{% url 'financial_update' asset.id %}" class="btn btn-warning btn-sm">✏️ Edit</a>
+            <a href="{% url 'financial_update' asset.id %}" class="btn btn-warning btn-sm">Edit</a>
           {% endif %}
         </div>
 
@@ -212,23 +212,23 @@
         <div style="padding:14px;display:flex;flex-direction:column;gap:8px;">
           {% if request.user.employee.finance_profile %}
           <a href="{% url 'financial_update' asset.id %}"
-            style="display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:9px;
-              border:1.5px solid #fcd34d;background:#fffbeb;text-decoration:none;
+            style="display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:var(--r);
+              border:1.5px solid #E3CF7E;background:var(--warning-tint);text-decoration:none;
               color:var(--warning);font-size:13px;font-weight:700;transition:all .15s;">
-            <span>✏️</span><span>Edit Data Finansial</span>
+            <span></span><span>Edit Data Finansial</span>
           </a>
           {% endif %}
           <a href="{% url 'asset_detail' asset.id %}"
-            style="display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:9px;
+            style="display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:var(--r);
               border:1.5px solid var(--border);background:var(--surface2);text-decoration:none;
               color:var(--text-soft);font-size:13px;font-weight:700;transition:all .15s;">
-            <span>📦</span><span>Detail Aset</span>
+            <span></span><span>Detail Aset</span>
           </a>
           <a href="{% url 'asset_list' %}"
-            style="display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:9px;
+            style="display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:var(--r);
               border:1.5px solid var(--border);background:var(--surface2);text-decoration:none;
               color:var(--text-soft);font-size:13px;font-weight:700;transition:all .15s;">
-            <span>📋</span><span>Daftar Aset</span>
+            <span></span><span>Daftar Aset</span>
           </a>
         </div>
       </div>

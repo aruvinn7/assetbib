@@ -2,8 +2,9 @@
 {% load static %}
 {% block title %}Input Maintenance — {{ asset.nama_asset }}{% endblock %}
 
+{% block extra_head %}<link rel="stylesheet" href="{% static 'css/pages/maintenance_create.css' %}?v=3">{% endblock %}
+
 {% block content %}
-<link rel="stylesheet" href="{% static 'css/pages/maintenance_create.css' %}">
 
 <div class="wrap">
 
@@ -15,7 +16,6 @@
 
   <!-- ASSET BANNER -->
   <div class="asset-banner anim">
-    <div class="asset-banner-icon">🔧</div>
     <div>
       <div class="asset-banner-num">{{ asset.asset_number }}</div>
       <div class="asset-banner-name">{{ asset.nama_asset }}</div>
@@ -30,7 +30,7 @@
         {% if interval %}
           <div class="interval-chip">Interval: setiap {{ interval }} hari</div>
           {% if asset.maintenance_config %}
-            <div style="font-size:10px;color:var(--muted);margin-top:4px;font-family:var(--mono);">custom override</div>
+            <div style="font-size:12px;color:var(--muted);margin-top:4px;font-family:var(--mono);">custom override</div>
           {% endif %}
         {% endif %}
       {% endwith %}
@@ -41,7 +41,6 @@
   {% if active_schedule %}
     {% if active_schedule.status == 'overdue' %}
     <div class="schedule-alert overdue anim">
-      <span class="schedule-alert-icon">🚨</span>
       <div>
         <strong>Jadwal ini sudah OVERDUE!</strong><br>
         Dijadwalkan: {{ active_schedule.scheduled_date|date:"d M Y" }} —
@@ -51,7 +50,6 @@
     </div>
     {% else %}
     <div class="schedule-alert upcoming anim">
-      <span class="schedule-alert-icon">📅</span>
       <div>
         <strong>Melaksanakan jadwal maintenance.</strong>
         Dijadwalkan: {{ active_schedule.scheduled_date|date:"d M Y" }}.
@@ -65,7 +63,6 @@
   {% if checklist_hint %}
   <div class="form-card anim" style="margin-bottom:18px;">
     <div class="form-card-header">
-      <span style="font-size:16px;">📋</span>
       <div class="form-card-title">Checklist Standar — {{ asset.asset_category.name }}</div>
     </div>
     <div style="padding:16px 22px;">
@@ -87,7 +84,6 @@
   <!-- FORM -->
   <div class="form-card anim">
     <div class="form-card-header">
-      <span style="font-size:16px;">📝</span>
       <div class="form-card-title">Detail Pelaksanaan Maintenance</div>
     </div>
 
@@ -131,7 +127,6 @@
             <div class="result-option">
               <input type="radio" name="hasil" id="hasil_ok" value="ok" checked>
               <label for="hasil_ok" class="result-label success-label">
-                <span class="result-icon">✅</span>
                 <div>
                   <div class="result-text">Baik</div>
                   <div class="result-sub">Tidak ada masalah</div>
@@ -142,7 +137,6 @@
             <div class="result-option">
               <input type="radio" name="hasil" id="hasil_minor" value="minor_issue">
               <label for="hasil_minor" class="result-label warning-label">
-                <span class="result-icon">⚠️</span>
                 <div>
                   <div class="result-text">Minor Issue</div>
                   <div class="result-sub">Masih bisa beroperasi</div>
@@ -153,7 +147,6 @@
             <div class="result-option">
               <input type="radio" name="hasil" id="hasil_major" value="major_issue">
               <label for="hasil_major" class="result-label danger-label">
-                <span class="result-icon">🚨</span>
                 <div>
                   <div class="result-text">Major Issue</div>
                   <div class="result-sub">Perlu tindak lanjut segera</div>
@@ -164,7 +157,6 @@
             <div class="result-option">
               <input type="radio" name="hasil" id="hasil_replaced" value="replaced_component">
               <label for="hasil_replaced" class="result-label">
-                <span class="result-icon">🔄</span>
                 <div>
                   <div class="result-text">Komponen Diganti</div>
                   <div class="result-sub">Ada penggantian part</div>
@@ -194,7 +186,7 @@
       <div class="form-footer">
         <a href="{% url 'maintenance_list' %}" class="btn btn-outline">← Batal</a>
         <button type="submit" class="btn btn-primary">
-          💾 Simpan & Generate Jadwal Berikutnya
+          Simpan & Generate Jadwal Berikutnya
         </button>
       </div>
     </form>

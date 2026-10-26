@@ -1,1179 +1,331 @@
 {% extends "base.html" %}
-{% load static %}
-{% block title %}Dashboard — Asset Management{% endblock %}
+{% load static math_filter %}
+{% block legacy_css %}{% endblock %}
+{% block title %}Ringkasan{% endblock %}
 {% block nav_dashboard %}active{% endblock %}
 
 {% block extra_head %}
+<link rel="stylesheet" href="{% static 'css/pages/dashboard.css' %}?v=3">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js" defer></script>
-<link rel="stylesheet" href="{% static 'css/pages/dashboard.css' %}">
 {% endblock %}
 
 {% block content %}
-<div class="db-wrap">
+{% with is_ga=request.user.employee.ga_profile %}
+<div class="page">
 
-  <!-- ═══════════ TOPBAR ═══════════ -->
-  <div class="db-topbar anim">
-    <div class="db-greeting">
-      <div class="db-greeting-eyebrow">PT Borneo Indobara · Asset Management</div>
-      <h1>Selamat Datang, <em>{{ request.user.employee.nama|default:request.user.username }}</em></h1>
+  <div class="page-head">
+    <div>
+      <h1><span id="greet">Halo</span>, {{ request.user.employee.nama|default:request.user.username }}</h1>
+      <div class="sub"><span id="todayLabel">Hari ini</span> · {{ total_asset }} aset terdaftar, {{ total_with_location }} sudah berlokasi</div>
     </div>
-    <div class="db-topbar-right">
-      <span class="live-dot">Live</span>
-
-      <!-- NOTIFICATION BELL -->
-      <div class="db-notif-wrapper">
-        <button class="db-notif-btn" id="notifBtn" onclick="toggleNotif()" title="Notifikasi">
-          <i class="fa-solid fa-bell"></i>
-          <span class="db-notif-badge" id="notifBadge" style="display:none;">0</span>
-        </button>
-        <div class="db-notif-panel" id="notifPanel">
-          <div class="db-notif-header">
-            <span class="db-notif-title">🔔 Notifikasi</span>
-            <button class="db-notif-clear" onclick="clearNotifs()">Tandai semua dibaca</button>
-          </div>
-          <div class="db-notif-list" id="notifList">
-            <div class="db-notif-empty">Memuat...</div>
-          </div>
-        </div>
-      </div>
-
-      <div class="db-date-badge" id="liveClock">—</div>
+    {% if is_ga %}
+    <div class="page-actions">
+      <a href="{% url 'import_asset' %}" class="btn outline"><i class="fa-solid fa-file-arrow-up" aria-hidden="true"></i>Import Excel</a>
+      <a href="{% url 'asset_create' %}" class="btn"><i class="fa-solid fa-plus" aria-hidden="true"></i>Tambah aset</a>
     </div>
+    {% endif %}
   </div>
 
-  <!-- ═══════════ STAT CARDS ═══════════ -->
-  <div class="db-stats anim">
-    <a class="db-stat blue" href="{% url 'asset_list' %}">
-      <div class="db-stat-bg"></div>
-      <span class="db-stat-icon"><i class="fa-solid fa-box-archive"></i></span>
-      <div class="db-stat-num count-up">{{ total_asset }}</div>
-      <div class="db-stat-label">Total Aset</div>
-      <div class="db-stat-sub">Lihat semua →</div>
+  {# ── Papan status: bentuk rambu = arti ── #}
+  <div class="boards" aria-label="Status aset">
+    <a class="board safe" href="{% url 'asset_list' %}?status=active">
+      <span class="board-sign"><svg class="sign" aria-hidden="true"><use href="#sign-safe-rev"/></svg></span>
+      <span class="board-body"><span class="board-num">{{ active_count }}</span><span class="board-label">Aktif</span><span class="board-note">dari {{ total_asset }} aset</span></span>
     </a>
-    <div class="db-stat green">
-      <div class="db-stat-bg"></div>
-      <span class="db-stat-icon"><i class="fa-solid fa-circle-check"></i></span>
-      <div class="db-stat-num count-up">{{ active_count }}</div>
-      <div class="db-stat-label">Aktif</div>
-      <div class="db-stat-sub">lifecycle: active</div>
-    </div>
-    <div class="db-stat slate">
-      <div class="db-stat-bg"></div>
-      <span class="db-stat-icon"><i class="fa-solid fa-coins"></i></span>
-      <div class="db-stat-num count-up">{{ total_financial }}</div>
-      <div class="db-stat-label">Tervaluasi</div>
-      <div class="db-stat-sub">Ada data finansial</div>
-    </div>
-    <a class="db-stat {% if overdue_count > 0 %}alert-red{% else %}amber{% endif %}"
-       href="{% url 'maintenance_list' %}">
-      <div class="db-stat-bg"></div>
-      <span class="db-stat-icon"><i class="fa-solid fa-triangle-exclamation"></i></span>
-      <div class="db-stat-num count-up">{{ overdue_count }}</div>
-      <div class="db-stat-label">Overdue</div>
-      <div class="db-stat-sub">Maintenance terlambat</div>
+    <a class="board mandatory" href="{% url 'asset_list' %}?status=maintenance">
+      <span class="board-sign"><svg class="sign" aria-hidden="true"><use href="#sign-mandatory-rev"/></svg></span>
+      <span class="board-body"><span class="board-num">{{ maintenance_status_count }}</span><span class="board-label">Sedang maintenance</span><span class="board-note">{{ writeoff_count }} sudah write off</span></span>
     </a>
-    <a class="db-stat amber" href="{% url 'maintenance_list' %}">
-      <div class="db-stat-bg"></div>
-      <span class="db-stat-icon"><i class="fa-solid fa-bell"></i></span>
-      <div class="db-stat-num count-up">{{ upcoming_soon_count }}</div>
-      <div class="db-stat-label">Upcoming 7hr</div>
-      <div class="db-stat-sub">Jatuh tempo minggu ini</div>
+    <a class="board warning" href="{% if is_ga %}{% url 'maintenance_list' %}?status=overdue{% else %}{% url 'asset_list' %}{% endif %}">
+      <span class="board-sign"><svg class="sign" aria-hidden="true"><use href="#sign-warning"/></svg></span>
+      <span class="board-body"><span class="board-num">{{ overdue_count }}</span><span class="board-label">Jadwal terlambat</span><span class="board-note">{{ upcoming_soon_count }} jatuh tempo ≤ 7 hari</span></span>
+    </a>
+    <a class="board danger" href="{% url 'asset_list' %}?health=critical">
+      <span class="board-sign"><svg class="sign" aria-hidden="true"><use href="#sign-danger"/></svg></span>
+      <span class="board-body"><span class="board-num">{{ critical_health_count }}</span><span class="board-label">Aset critical</span><span class="board-note">biaya perbaikan &gt; ambang</span></span>
+    </a>
+    <a class="board {% if pending_damage_count %}danger{% else %}safe{% endif %}" href="{% if is_ga %}{% url 'ga_damage_report_list' %}{% else %}{% url 'asset_list' %}{% endif %}">
+      <span class="board-sign"><svg class="sign" aria-hidden="true"><use href="#sign-{% if pending_damage_count %}danger{% else %}safe-rev{% endif %}"/></svg></span>
+      <span class="board-body"><span class="board-num">{{ pending_damage_count }}</span><span class="board-label">Laporan kerusakan baru</span><span class="board-note">{{ critical_damage_count }} berstatus kritis</span></span>
     </a>
   </div>
 
-  <!-- ═══════════ LOCATION WIDGET ═══════════ -->
-  {% if roots %}
-  <div class="lw-wrap anim">
-    <div class="db-section-label">
-      <span>📍 Sebaran Aset per Lokasi</span>
-      <a href="{% url 'location_dashboard' %}">Lihat Detail →</a>
-    </div>
-    <div class="lw-summary">
-      <a href="{% url 'location_dashboard' %}" class="lw-sum-card">
-        <span class="lw-sum-icon">📍</span>
-        <div>
-          <div class="lw-sum-num" style="color:var(--accent);">{{ total_with_location }}</div>
-          <div class="lw-sum-label">Aset Berlokasi</div>
-        </div>
-      </a>
-      <div class="lw-sum-card" style="cursor:default;">
-        <span class="lw-sum-icon">🗺️</span>
-        <div>
-          <div class="lw-sum-num" style="color:var(--text);">{{ roots|length }}</div>
-          <div class="lw-sum-label">Area Utama</div>
-        </div>
-      </div>
-      {% if total_without_location > 0 %}
-      <a href="{% url 'asset_list' %}?no_location=1" class="lw-sum-card"
-         style="border-color:#fca5a5;background:linear-gradient(135deg,#fff 60%,#fef2f2);">
-        <span class="lw-sum-icon">❓</span>
-        <div>
-          <div class="lw-sum-num" style="color:var(--warning);">{{ total_without_location }}</div>
-          <div class="lw-sum-label">Tanpa Lokasi</div>
-        </div>
-      </a>
-      {% endif %}
-    </div>
-    <div class="lw-grid">
-      {% for loc in roots %}{% if loc.total_assets > 0 or loc.children_list %}
-      <a href="{% url 'location_dashboard' %}?location={{ loc.pk }}" class="lw-tile">
-        <div class="lw-tile-top">
-          <div class="lw-tile-name">{{ loc.name }}</div>
-          <div class="lw-tile-total">{{ loc.total_assets }}</div>
-        </div>
-        <div class="lw-bar-wrap">
-          <div class="lw-bar"
-            style="width:{% if loc.total_assets > 0 %}{% widthratio loc.total_active loc.total_assets 100 %}{% else %}0{% endif %}%"></div>
-        </div>
-        <div class="lw-pills">
-          {% if loc.total_active > 0 %}<span class="lw-pill g">✅ {{ loc.total_active }}</span>{% endif %}
-          {% if loc.total_maint > 0 %}<span class="lw-pill b">🔧 {{ loc.total_maint }}</span>{% endif %}
-          {% if loc.total_writeoff > 0 %}<span class="lw-pill gr">⚫ {{ loc.total_writeoff }}</span>{% endif %}
-          <span class="lw-tile-arrow">→</span>
-        </div>
-      </a>
-      {% endif %}{% endfor %}
-      {% if total_without_location > 0 %}
-      <a href="{% url 'asset_list' %}?no_location=1" class="lw-tile unlocated">
-        <div class="lw-tile-top">
-          <div class="lw-tile-name">Tanpa Lokasi</div>
-          <div class="lw-tile-total">{{ total_without_location }}</div>
-        </div>
-        <div class="lw-bar-wrap"><div class="lw-bar" style="width:100%;"></div></div>
-        <div class="lw-pills">
-          <span class="lw-pill" style="background:#fef3c7;color:var(--warning);">❓ Belum assign</span>
-          <span class="lw-tile-arrow" style="color:var(--warning);">→</span>
-        </div>
-      </a>
-      {% endif %}
-      <a href="{% url 'location_dashboard' %}" class="lw-tile see-all">
-        <div style="font-size:22px;margin-bottom:4px;">🗺️</div>
-        <div class="lw-see-all-text">Dashboard<br>Lokasi Lengkap →</div>
-      </a>
-    </div>
-  </div>
-  {% endif %}
+  <div class="dash-grid">
 
-  <!-- ═══════════ CHARTS ROW ═══════════ -->
-  <div class="db-section-label anim"><span>📈 Analitik & Tren</span></div>
-  <div class="db-charts-row anim">
-
-    <!-- Chart 1: Tren Maintenance 6 bulan -->
-    <div class="db-card">
-      <div class="db-card-header">
-        <div class="db-card-title">
-          <span class="db-card-title-dot" style="background:var(--accent)"></span>
-          Tren Maintenance (6 Bulan)
-        </div>
-        <a href="{% url 'maintenance_list' %}" class="db-card-link">Semua →</a>
+    {# ── Antrean kerja ── #}
+    <section class="panel {% if overdue_count %}hazard {% endif %}queue" aria-labelledby="queueTitle">
+      <div class="panel-head">
+        <h2 id="queueTitle">Antrean kerja</h2>
+        {% if is_ga %}<a href="{% url 'maintenance_list' %}">Semua jadwal</a>{% endif %}
       </div>
-      <div class="chart-wrap" style="height:200px;">
-        <canvas id="chartMaintTrend"></canvas>
-      </div>
-    </div>
-
-    <!-- Chart 2: Komposisi Status Aset -->
-    <div class="db-card">
-      <div class="db-card-header">
-        <div class="db-card-title">
-          <span class="db-card-title-dot" style="background:var(--success)"></span>
-          Komposisi Status Aset
-        </div>
-      </div>
-      <div class="chart-wrap" style="height:200px;display:flex;align-items:center;gap:12px;">
-        <canvas id="chartStatusDonut" style="max-width:160px;max-height:160px;"></canvas>
-        <div style="display:flex;flex-direction:column;gap:8px;flex:1;min-width:0;">
-          <div class="health-ring-item">
-            <div class="health-ring-dot" style="background:var(--success);"></div>
-            <span class="health-ring-label">Aktif</span>
-            <span class="health-ring-val">{{ active_count }}</span>
-          </div>
-          <div class="health-ring-item">
-            <div class="health-ring-dot" style="background:var(--accent);"></div>
-            <span class="health-ring-label">Maintenance</span>
-            <span class="health-ring-val">{{ maintenance_status_count }}</span>
-          </div>
-          <div class="health-ring-item">
-            <div class="health-ring-dot" style="background:#94a3b8;"></div>
-            <span class="health-ring-label">Write Off</span>
-            <span class="health-ring-val">{{ writeoff_count }}</span>
-          </div>
-          <div style="margin-top:4px;padding-top:8px;border-top:1px solid var(--border);">
-            <div style="font-size:9px;color:var(--muted);font-family:var(--mono);margin-bottom:4px;">
-              Coverage Finansial
-            </div>
-            <div style="background:var(--border);border-radius:99px;height:5px;overflow:hidden;">
-              <div style="height:100%;border-radius:99px;background:var(--success);
-                width:{% if total_asset > 0 %}{% widthratio total_financial total_asset 100 %}{% else %}0{% endif %}%;
-                transition:width .8s ease;"></div>
-            </div>
-            <div style="font-size:9px;color:var(--muted);font-family:var(--mono);margin-top:3px;text-align:right;">
-              {% if total_asset > 0 %}{% widthratio total_financial total_asset 100 %}{% else %}0{% endif %}%
-              ({{ total_financial }}/{{ total_asset }})
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Chart 3: Aset baru per bulan -->
-    <div class="db-card">
-      <div class="db-card-header">
-        <div class="db-card-title">
-          <span class="db-card-title-dot" style="background:var(--warning)"></span>
-          Aset Baru (6 Bulan)
-        </div>
-      </div>
-      <div class="chart-wrap" style="height:200px;">
-        <canvas id="chartNewAssets"></canvas>
-      </div>
-    </div>
-
-  </div>
-
-  <!-- Chart baris ke-2: Biaya Maintenance -->
-  <div class="db-charts-row anim" style="grid-template-columns:1fr 1fr;margin-top:0;">
-
-    <!-- Chart 4: Biaya Maintenance Preventive vs Corrective -->
-    <div class="db-card">
-      <div class="db-card-header">
-        <div class="db-card-title">
-          <span class="db-card-title-dot" style="background:var(--purple)"></span>
-          Biaya Maintenance (6 Bulan)
-        </div>
-        <a href="{% url 'maintenance_list' %}" class="db-card-link">Detail →</a>
-      </div>
-      <div class="chart-wrap" style="height:200px;">
-        <canvas id="chartMaintCost"></canvas>
-      </div>
-    </div>
-
-    <!-- Chart 5: Rasio Preventive vs Corrective (biaya) -->
-    <div class="db-card">
-      <div class="db-card-header">
-        <div class="db-card-title">
-          <span class="db-card-title-dot" style="background:#7c3aed"></span>
-          Komposisi Biaya Maintenance
-        </div>
-      </div>
-      <div class="chart-wrap" style="height:200px;display:flex;align-items:center;gap:16px;">
-        <canvas id="chartCostDonut" style="max-width:150px;max-height:150px;"></canvas>
-        <div style="display:flex;flex-direction:column;gap:10px;flex:1;min-width:0;">
-          <div class="health-ring-item">
-            <div class="health-ring-dot" style="background:#1a56db;"></div>
-            <span class="health-ring-label">Preventive</span>
-            <span class="health-ring-val" id="costPrevLabel">Rp —</span>
-          </div>
-          <div class="health-ring-item">
-            <div class="health-ring-dot" style="background:#e02424;"></div>
-            <span class="health-ring-label">Corrective</span>
-            <span class="health-ring-val" id="costCorrLabel">Rp —</span>
-          </div>
-          <div class="health-ring-item">
-            <div class="health-ring-dot" style="background:#9ca3af;"></div>
-            <span class="health-ring-label">Inspeksi</span>
-            <span class="health-ring-val" id="costInspLabel">Rp —</span>
-          </div>
-          <div style="padding-top:8px;border-top:1px solid var(--border);">
-            <div style="font-size:9px;color:var(--muted);font-family:var(--mono);">Total 6 Bulan</div>
-            <div id="costTotalLabel" style="font-size:14px;font-weight:900;font-family:var(--mono);color:var(--text);margin-top:2px;">—</div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-  </div>
-
-  <!-- ═══════════ GROUP BREAKDOWN ═══════════ -->
-  {% if asset_groups %}
-  <div class="db-section-label anim">
-    <span>📊 Inventaris per Kelompok Aset</span>
-  </div>
-  <div class="db-groups anim">
-    {% for group in asset_groups %}
-    <div class="db-group-card" id="group-{{ group.pk }}">
-      <div class="db-group-header" onclick="toggleGroup({{ group.pk }})">
-        <div class="db-group-left">
-          <div class="db-group-icon">
-            {% if 'ac' in group.name|lower or 'pendingin' in group.name|lower %}🌬️
-            {% elif 'kulkas' in group.name|lower or 'refriger' in group.name|lower %}🧊
-            {% elif 'komputer' in group.name|lower or 'laptop' in group.name|lower %}💻
-            {% elif 'printer' in group.name|lower %}🖨️
-            {% elif 'kendaraan' in group.name|lower or 'mobil' in group.name|lower %}🚗
-            {% elif 'furnitur' in group.name|lower or 'meja' in group.name|lower %}🪑
-            {% elif 'elektronik' in group.name|lower %}⚡
-            {% elif 'genset' in group.name|lower %}🔋
-            {% elif 'cctv' in group.name|lower or 'kamera' in group.name|lower %}📷
-            {% else %}📦{% endif %}
-          </div>
-          <div>
-            <div class="db-group-name">{{ group.name }}</div>
-            <div class="db-group-sub">{{ group.categories_with_stats|length }} kategori</div>
-          </div>
-        </div>
-        <div class="db-group-right">
-          <div class="db-group-total">{{ group.total }}</div>
-          <div class="db-group-pills">
-            {% if group.active > 0 %}<span class="gpill green">✅ {{ group.active }}</span>{% endif %}
-            {% if group.maintenance > 0 %}<span class="gpill blue">🔧 {{ group.maintenance }}</span>{% endif %}
-            {% if group.writeoff > 0 %}<span class="gpill gray">⚫ {{ group.writeoff }}</span>{% endif %}
-          </div>
-          <span class="db-group-chevron" id="chevron-{{ group.pk }}">›</span>
-        </div>
-      </div>
-      <div class="db-group-progress">
-        <div class="db-group-progress-bar"
-          style="width:{% if group.total > 0 %}{% widthratio group.active group.total 100 %}{% else %}0{% endif %}%"></div>
-      </div>
-      <div class="db-group-categories" id="cats-{{ group.pk }}" style="display:none;">
-        {% for cat in group.categories_with_stats %}{% if cat.total > 0 %}
-        <a href="{% url 'asset_list' %}?group={{ group.pk }}&category={{ cat.pk }}" class="db-cat-row">
-          <div class="db-cat-left">
-            <div class="db-cat-dot"></div>
-            <div class="db-cat-name">{{ cat.name }}</div>
-          </div>
-          <div class="db-cat-right">
-            <div class="db-cat-stats">
-              {% if cat.active > 0 %}<span class="cstat green">{{ cat.active }} aktif</span>{% endif %}
-              {% if cat.maintenance > 0 %}<span class="cstat blue">{{ cat.maintenance }} maint.</span>{% endif %}
-              {% if cat.writeoff > 0 %}<span class="cstat gray">{{ cat.writeoff }} W/O</span>{% endif %}
-            </div>
-            <div class="db-cat-total">{{ cat.total }}</div>
-            <span class="db-cat-arrow">→</span>
-          </div>
-        </a>
-        {% endif %}{% empty %}
-        <div style="padding:12px 16px;font-size:11px;color:var(--muted);font-family:var(--mono);">Belum ada kategori.</div>
-        {% endfor %}
-      </div>
-    </div>
-    {% endfor %}
-  </div>
-  {% endif %}
-
-  <!-- ═══════════ OVERDUE BANNER ═══════════ -->
-  {% if overdue_count > 0 %}
-  <div class="db-alert-banner anim">
-    <div class="db-alert-left">
-      <div class="db-alert-icon">🚨</div>
-      <div>
-        <div class="db-alert-title">{{ overdue_count }} Aset Melewati Jadwal Maintenance!</div>
-        <div class="db-alert-sub">Segera lakukan tindakan — maintenance tertunda meningkatkan risiko kerusakan.</div>
-      </div>
-    </div>
-    <a href="{% url 'maintenance_list' %}?status=overdue" class="btn-danger-sm">Lihat Sekarang →</a>
-  </div>
-  {% endif %}
-
-  <!-- ═══════════ MAIN LAYOUT ═══════════ -->
-  <div class="db-main">
-
-    <!-- LEFT COLUMN -->
-    <div style="display:flex;flex-direction:column;gap:14px;">
-
-      <!-- MAINTENANCE SCHEDULE -->
-      <div class="db-card anim">
-        <div class="db-card-header">
-          <div class="db-card-title">
-            <span class="db-card-title-dot" style="background:var(--warning)"></span>
-            Jadwal Maintenance Kritis
-            {% if overdue_count > 0 %}<span class="badge overdue">{{ overdue_count }}</span>{% endif %}
-          </div>
-          <a href="{% url 'maintenance_list' %}" class="db-card-link">Semua →</a>
-        </div>
-
-        {% if critical_schedules %}
-        <!-- Desktop -->
-        <div style="overflow-x:auto;" class="desktop-tbl">
-          <table class="db-tbl">
-            <thead>
-              <tr>
-                <th>Aset</th>
-                <th class="hide-sm">Lokasi</th>
-                <th>Tgl Jadwal</th>
-                <th>Status</th>
-                <th>Aksi</th>
-              </tr>
-            </thead>
-            <tbody>
-              {% for sch in critical_schedules %}
-              <tr onclick="window.location='{% url 'asset_detail' sch.asset.id %}'">
-                <td>
-                  <div class="db-tbl-name">{{ sch.asset.nama_asset }}</div>
-                  <div class="db-tbl-sub">{{ sch.asset.asset_number }}</div>
-                </td>
-                <td class="hide-sm" style="font-size:11px;color:var(--text-soft);">
-                  {{ sch.asset.lokasi_asset|default:"—" }}
-                </td>
-                <td>
-                  <div style="font-family:var(--mono);font-size:11px;font-weight:600;color:var(--text-soft);">
-                    {{ sch.scheduled_date|date:"d M Y" }}
-                  </div>
-                  {% if sch.status == 'overdue' %}
-                    <div style="font-size:9px;color:var(--danger);font-family:var(--mono);">
-                      {{ sch.days_remaining|default:"-" }}h terlambat
-                    </div>
-                  {% else %}
-                    <div style="font-size:9px;color:var(--warning);font-family:var(--mono);">
-                      {{ sch.days_remaining }} hari lagi
-                    </div>
-                  {% endif %}
-                </td>
-                <td>
-                  {% if sch.status == 'overdue' %}<span class="badge overdue">Overdue</span>
-                  {% else %}<span class="badge soon">Segera</span>{% endif %}
-                </td>
-                <td onclick="event.stopPropagation()">
-                  {% if request.user.employee.ga_profile %}
-                    <a href="{% url 'maintenance_create' sch.asset.id %}" class="action-btn success">+ Input</a>
-                  {% else %}
-                    <a href="{% url 'asset_detail' sch.asset.id %}" class="action-btn">Detail</a>
-                  {% endif %}
-                </td>
-              </tr>
-              {% endfor %}
-            </tbody>
-          </table>
-        </div>
-        <!-- Mobile -->
-        <div class="ms-list">
+      {% if critical_schedules %}
+      <div class="table-wrap">
+        <table class="table">
+          <thead><tr><th>Status</th><th>Aset</th><th>Lokasi</th><th class="num">Jadwal</th>{% if is_ga %}<th><span class="visually-hidden">Aksi</span></th>{% endif %}</tr></thead>
+          <tbody>
           {% for sch in critical_schedules %}
-          <div class="ms-card">
-            <div class="ms-dot {% if sch.status == 'overdue' %}overdue{% else %}soon{% endif %}"></div>
-            <div class="ms-body">
-              <div class="ms-name">{{ sch.asset.nama_asset }}</div>
-              <div class="ms-sub">{{ sch.asset.asset_number }} · {{ sch.asset.lokasi_asset|default:"—" }}</div>
-              <div class="ms-meta">
-                {% if sch.status == 'overdue' %}
-                  <span class="badge overdue">Overdue</span>
-                  <span style="font-size:9px;color:var(--danger);font-family:var(--mono);">{{ sch.days_remaining|default:"-" }}h terlambat</span>
-                {% else %}
-                  <span class="badge soon">Segera</span>
-                  <span style="font-size:9px;color:var(--warning);font-family:var(--mono);">{{ sch.days_remaining }} hari lagi</span>
-                {% endif %}
-                {% if request.user.employee.ga_profile %}
-                  <a href="{% url 'maintenance_create' sch.asset.id %}" class="ms-action">+ Input →</a>
-                {% endif %}
-              </div>
-            </div>
-          </div>
+            {% with d=sch.days_remaining %}
+            <tr>
+              <td class="q-status">{% if sch.status == 'overdue' %}{% include "components/_status.html" with kind="warning" label="Terlambat" %}{% elif d <= 7 %}{% include "components/_status.html" with kind="mandatory" label="Segera" %}{% else %}{% include "components/_status.html" with kind="none" label="Terjadwal" %}{% endif %}</td>
+              <td class="q-asset"><a class="row-link" href="{% url 'asset_detail' sch.asset.id %}">{{ sch.asset.nama_asset }}</a><div class="cell-sub">{{ sch.asset.asset_number }}{% if sch.asset.asset_category %} · {{ sch.asset.asset_category.name }}{% endif %}</div></td>
+              <td class="loc">{% include "components/_location.html" with loc=sch.asset.lokasi_asset %}</td>
+              <td class="num q-when">{{ sch.scheduled_date|date:"d M Y" }}<div class="cell-sub {% if d < 0 %}late{% endif %}">{% if d < 0 %}{{ d|abs_value }} hari terlambat{% elif d == 0 %}hari ini{% else %}{{ d }} hari lagi{% endif %}</div></td>
+              {% if is_ga %}<td class="num q-act"><a class="btn sm outline" href="{% url 'maintenance_create' sch.asset.id %}">Catat</a></td>{% endif %}
+            </tr>
+            {% endwith %}
           {% endfor %}
-        </div>
-        {% else %}
-        <div class="empty-state">
-          <div class="empty-icon">🎉</div>
-          <div style="font-weight:700;color:var(--text-soft);margin-bottom:3px;font-size:12px;">Semua jadwal aman!</div>
-          <p>Tidak ada maintenance overdue atau jatuh tempo dalam 7 hari.</p>
-        </div>
-        {% endif %}
+          </tbody>
+        </table>
       </div>
-
-      <!-- DAMAGE REPORTS -->
-      {% if pending_damage_count > 0 %}
-      <div class="db-card anim">
-        <div class="db-card-header">
-          <div class="db-card-title">
-            <span class="db-card-title-dot" style="background:var(--danger)"></span>
-            Laporan Kerusakan Masuk
-            <span class="badge overdue">{{ pending_damage_count }} Baru</span>
-            {% if critical_damage_count > 0 %}
-              <span class="badge" style="background:#1f2937;color:#f9fafb;">⚡ {{ critical_damage_count }} Kritis</span>
-            {% endif %}
-          </div>
-          <a href="{% url 'ga_damage_report_list' %}" class="db-card-link">Semua →</a>
-        </div>
-        <div style="overflow-x:auto;" class="desktop-tbl">
-          <table class="db-tbl">
-            <thead>
-              <tr>
-                <th>Aset</th>
-                <th>Judul</th>
-                <th class="hide-sm">Pelapor</th>
-                <th>Severity</th>
-                <th>Aksi</th>
-              </tr>
-            </thead>
-            <tbody>
-              {% for report in pending_damage_reports %}
-              <tr {% if report.severity == 'critical' %}style="background:#fff5f5;"{% endif %}
-                  onclick="window.location='{% url 'ga_damage_report_detail' report.pk %}'">
-                <td>
-                  <div class="db-tbl-name">{{ report.asset.nama_asset }}</div>
-                  <div class="db-tbl-sub">{{ report.asset.asset_number }}</div>
-                </td>
-                <td style="font-size:11px;max-width:180px;">{{ report.title|truncatechars:40 }}</td>
-                <td class="hide-sm" style="font-size:11px;color:var(--text-soft);">{{ report.reported_by.nama|default:"—" }}</td>
-                <td>
-                  <span class="badge {% if report.severity == 'critical' %}overdue{% elif report.severity == 'high' %}soon{% else %}maint{% endif %}">
-                    {{ report.get_severity_display }}
-                  </span>
-                </td>
-                <td onclick="event.stopPropagation()">
-                  <a href="{% url 'ga_damage_report_detail' report.pk %}" class="action-btn primary">Tangani</a>
-                </td>
-              </tr>
-              {% endfor %}
-            </tbody>
-          </table>
-        </div>
-      </div>
+      {% else %}
+      <div class="empty"><strong>Tidak ada jadwal mendesak</strong>Semua jadwal maintenance masih jauh.</div>
       {% endif %}
 
-      <!-- RECENT ASSETS -->
-      <div class="db-card anim">
-        <div class="db-card-header">
-          <div class="db-card-title">
-            <span class="db-card-title-dot" style="background:var(--accent)"></span>
-            Aset Terbaru Ditambahkan
-          </div>
-          <a href="{% url 'asset_list' %}" class="db-card-link">Semua Aset →</a>
+      <div class="queue-sub">
+        <div class="panel-head">
+          <h2>Laporan kerusakan aktif</h2>
+          {% if is_ga %}<a href="{% url 'ga_damage_report_list' %}">Semua laporan</a>{% endif %}
         </div>
-        {% if recent_assets %}
-        <div style="overflow-x:auto;" class="desktop-tbl">
-          <table class="db-tbl">
-            <thead>
-              <tr>
-                <th>No. Aset</th>
-                <th>Nama</th>
-                <th class="hide-sm">Kategori</th>
-                <th class="hide-sm">Lokasi</th>
-                <th>Status</th>
-                <th>Maint.</th>
-                <th>Aksi</th>
-              </tr>
-            </thead>
+        {% if pending_damage_reports %}
+        <div class="table-wrap">
+          <table class="table">
+            <thead><tr><th>Tingkat</th><th>Aset</th><th>Masalah</th><th>Pelapor</th><th class="num">Masuk</th></tr></thead>
             <tbody>
-              {% for asset in recent_assets %}
-              <tr onclick="window.location='{% url 'asset_detail' asset.pk %}'">
-                <td><span style="font-family:var(--mono);font-size:10px;color:var(--muted);">{{ asset.asset_number }}</span></td>
-                <td style="max-width:180px;">
-                  <div class="db-tbl-name" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
-                    {{ asset.nama_asset }}
-                  </div>
-                  <div class="db-tbl-sub">PO: {{ asset.no_po|default:"—" }}</div>
-                </td>
-                <td class="hide-sm" style="font-size:11px;color:var(--text-soft);">
-                  {% if asset.asset_category %}
-                    <div style="font-weight:600;">{{ asset.asset_category.name }}</div>
-                    <div style="font-size:9px;color:var(--muted);font-family:var(--mono);">{{ asset.asset_group.name }}</div>
-                  {% else %}—{% endif %}
-                </td>
-                <td class="hide-sm" style="font-size:11px;color:var(--text-soft);">{{ asset.lokasi_asset|default:"—" }}</td>
-                <td>
-                  {% if asset.lifecycle_status == 'active' %}<span class="badge active">Active</span>
-                  {% elif asset.lifecycle_status == 'maintenance' %}<span class="badge maint">Maint.</span>
-                  {% else %}<span class="badge writeoff">W/O</span>{% endif %}
-                </td>
-                <td>
-                  {% with status=asset.maintenance_status %}
-                    {% if status == 'overdue' %}<span class="maint-dot overdue">Overdue</span>
-                    {% elif status == 'upcoming_soon' %}<span class="maint-dot soon">Segera</span>
-                    {% elif status == 'on_track' %}<span class="maint-dot ok">OK</span>
-                    {% else %}<span class="maint-dot none">—</span>{% endif %}
-                  {% endwith %}
-                </td>
-                <td onclick="event.stopPropagation()">
-                  <a href="{% url 'asset_detail' asset.pk %}" class="action-btn">Detail</a>
-                </td>
+            {% for report in pending_damage_reports %}
+              <tr>
+                <td>{% if report.severity == 'critical' %}{% include "components/_status.html" with kind="danger" label="Kritis" %}{% elif report.severity == 'high' %}{% include "components/_status.html" with kind="danger" label="Parah" %}{% elif report.severity == 'medium' %}{% include "components/_status.html" with kind="warning" label="Sedang" %}{% else %}{% include "components/_status.html" with kind="warning" label="Ringan" %}{% endif %}</td>
+                <td>{% if is_ga %}<a class="row-link" href="{% url 'ga_damage_report_detail' report.pk %}">{{ report.asset.nama_asset }}</a>{% else %}{{ report.asset.nama_asset }}{% endif %}<div class="cell-sub">{{ report.asset.asset_number }}</div></td>
+                <td>{{ report.title|truncatechars:48 }}</td>
+                <td>{{ report.reported_by.nama|default:"—" }}</td>
+                <td class="num">{{ report.reported_at|date:"d M Y" }}</td>
               </tr>
-              {% endfor %}
+            {% endfor %}
             </tbody>
           </table>
         </div>
-        <!-- Mobile -->
-        <div class="ms-list">
-          {% for asset in recent_assets %}
-          <div class="ms-card" onclick="window.location='{% url 'asset_detail' asset.pk %}'" style="cursor:pointer;">
-            <div class="ms-dot" style="background:{% if asset.lifecycle_status == 'active' %}var(--success){% elif asset.lifecycle_status == 'maintenance' %}var(--accent){% else %}var(--muted){% endif %};"></div>
-            <div class="ms-body">
-              <div class="ms-name">{{ asset.nama_asset }}</div>
-              <div class="ms-sub">{{ asset.asset_number }} · {{ asset.lokasi_asset|default:"—" }}</div>
-              <div class="ms-meta">
-                {% if asset.lifecycle_status == 'active' %}<span class="badge active">Active</span>
-                {% elif asset.lifecycle_status == 'maintenance' %}<span class="badge maint">Maint.</span>
-                {% else %}<span class="badge writeoff">W/O</span>{% endif %}
-                <span class="ms-action">Detail →</span>
-              </div>
-            </div>
-          </div>
-          {% endfor %}
-        </div>
         {% else %}
-        <div class="empty-state">
-          <div class="empty-icon">📦</div>
-          <div style="font-weight:700;color:var(--text-soft);margin-bottom:3px;font-size:12px;">Belum ada aset</div>
-          <p>Tambahkan aset pertama untuk memulai.</p>
-        </div>
+        <div class="empty"><strong>Tidak ada laporan aktif</strong>Belum ada kerusakan yang dilaporkan karyawan.</div>
         {% endif %}
       </div>
+    </section>
 
-    </div><!-- /LEFT -->
-
-    <!-- RIGHT SIDEBAR -->
-    <div class="db-sidebar-flex" style="display:flex;flex-direction:column;gap:14px;">
-
-      <!-- USER INFO -->
-      <div class="db-card anim">
-        <div class="db-card-header">
-          <div class="db-card-title">
-            <span class="db-card-title-dot" style="background:var(--warning)"></span>
-            Info Pengguna
-          </div>
-        </div>
-        <div class="db-sysinfo">
-          <div class="db-sysinfo-row">
-            <span class="db-sysinfo-key">Username</span>
-            <span class="db-sysinfo-val">{{ request.user.username }}</span>
-          </div>
-          {% if request.user.employee %}
-          <div class="db-sysinfo-row">
-            <span class="db-sysinfo-key">Nama</span>
-            <span class="db-sysinfo-val">{{ request.user.employee.nama }}</span>
-          </div>
-          <div class="db-sysinfo-row">
-            <span class="db-sysinfo-key">ID</span>
-            <span class="db-sysinfo-val">{{ request.user.employee.employee_id }}</span>
-          </div>
-          <div class="db-sysinfo-row">
-            <span class="db-sysinfo-key">Jabatan</span>
-            <span class="db-sysinfo-val">{{ request.user.employee.jabatan }}</span>
-          </div>
-          <div class="db-sysinfo-row">
-            <span class="db-sysinfo-key">Dept</span>
-            <span class="db-sysinfo-val">{{ request.user.employee.department.name|default:"—" }}</span>
-          </div>
-          {% endif %}
-          <div class="db-sysinfo-row" style="padding-top:6px;border-top:1px solid var(--border);margin-top:2px;">
-            <span class="db-sysinfo-key">Last Login</span>
-            <span class="db-sysinfo-val">{{ request.user.last_login|date:"d M Y · H:i" }}</span>
-          </div>
-        </div>
+    {# ── Lokasi ── #}
+    <section class="panel" aria-labelledby="locTitle">
+      <div class="panel-head">
+        <h2 id="locTitle">Aset per lokasi</h2>
+        {% if is_ga %}<a href="{% url 'location_dashboard' %}">Detail lokasi</a>{% endif %}
       </div>
+      <ul class="loc-list">
+        {% for loc in roots %}{% if loc.total_assets > 0 %}
+        <li>
+          <a href="{% if is_ga %}{% url 'location_dashboard' %}?location={{ loc.pk }}{% else %}{% url 'asset_list' %}?location={{ loc.pk }}{% endif %}">
+            <span class="loc-name">{{ loc.name }}</span>
+            <span class="loc-total">{{ loc.total_assets }}</span>
+            <span class="loc-bar" aria-hidden="true">
+              <i class="s" style="width:{% widthratio loc.total_active loc.total_assets 100 %}%"></i><i class="m" style="width:{% widthratio loc.total_maint loc.total_assets 100 %}%"></i><i class="o" style="width:{% widthratio loc.total_writeoff loc.total_assets 100 %}%"></i>
+            </span>
+            <span class="loc-meta">{{ loc.total_active }} aktif{% if loc.total_maint %} · {{ loc.total_maint }} maintenance{% endif %}{% if loc.total_writeoff %} · {{ loc.total_writeoff }} write off{% endif %}{% if loc.children_list %} · {{ loc.children_list|length }} area{% endif %}</span>
+          </a>
+        </li>
+        {% endif %}{% endfor %}
+        {% if total_without_location %}
+        <li class="no-loc">
+          <a href="{% url 'asset_list' %}">
+            <span class="loc-name">{% include "components/_status.html" with kind="warning" label="Tanpa lokasi" %}</span>
+            <span class="loc-total">{{ total_without_location }}</span>
+            <span class="loc-meta">belum ditempatkan di lokasi mana pun</span>
+          </a>
+        </li>
+        {% endif %}
+      </ul>
+      <div class="legend" aria-hidden="true"><span><i class="s"></i>Aktif</span><span><i class="m"></i>Maintenance</span><span><i class="o"></i>Write off</span></div>
+    </section>
+  </div>
 
-      <!-- STATUS ASET -->
-      <div class="db-card anim">
-        <div class="db-card-header">
-          <div class="db-card-title">
-            <span class="db-card-title-dot" style="background:var(--success)"></span>
-            Status Aset
-          </div>
-        </div>
-        <div>
-          <div class="db-info-item">
-            <div class="db-info-label"><i class="fa-solid fa-circle-check" style="color:var(--success);font-size:12px;"></i> Aktif</div>
-            <div style="display:flex;align-items:center;gap:6px;">
-              <span class="db-info-val">{{ active_count }}</span>
-              <span class="badge active">Active</span>
-            </div>
-          </div>
-          <div class="db-info-item">
-            <div class="db-info-label"><i class="fa-solid fa-wrench" style="color:var(--accent);font-size:12px;"></i> Maintenance</div>
-            <div style="display:flex;align-items:center;gap:6px;">
-              <span class="db-info-val">{{ maintenance_status_count }}</span>
-              <span class="badge maint">Maint.</span>
-            </div>
-          </div>
-          <div class="db-info-item">
-            <div class="db-info-label"><i class="fa-solid fa-circle-xmark" style="color:var(--muted);font-size:12px;"></i> Write Off</div>
-            <div style="display:flex;align-items:center;gap:6px;">
-              <span class="db-info-val">{{ writeoff_count }}</span>
-              <span class="badge writeoff">W/O</span>
-            </div>
-          </div>
-          <div class="db-info-item">
-            <div class="db-info-label"><i class="fa-solid fa-circle-question" style="color:var(--warning);font-size:12px;"></i> Blm Valuasi</div>
-            <div style="display:flex;align-items:center;gap:6px;">
-              <span class="db-info-val">{{ unvalued_count }}</span>
-              <span class="badge no-val">No Val.</span>
-            </div>
-          </div>
-        </div>
+  {# ── Tren ── #}
+  <div class="dash-grid trend">
+    <section class="panel">
+      <div class="panel-head"><h2>Maintenance 6 bulan terakhir</h2><span class="meta">jumlah pekerjaan</span></div>
+      <div class="panel-body"><div class="chart-box"><canvas id="maintChart" aria-label="Grafik jumlah maintenance per bulan"></canvas></div></div>
+    </section>
+    <section class="panel">
+      <div class="panel-head"><h2>Biaya maintenance</h2><span class="meta">rupiah per bulan</span></div>
+      <div class="panel-body"><div class="chart-box"><canvas id="costChart" aria-label="Grafik biaya maintenance per bulan"></canvas></div></div>
+    </section>
+  </div>
+
+  {# ── Komposisi status & aset baru ── #}
+  <div class="dash-grid trend">
+    <section class="panel">
+      <div class="panel-head"><h2>Komposisi status aset</h2><span class="meta">{{ total_asset }} aset</span></div>
+      <div class="panel-body donut-wrap">
+        <div class="chart-box donut"><canvas id="statusChart" aria-label="Diagram komposisi status aset"></canvas></div>
+        <ul class="donut-legend">
+          <li><i style="background:var(--safe)"></i>Aktif<strong>{{ active_count }}</strong></li>
+          <li><i style="background:var(--mandatory)"></i>Maintenance<strong>{{ maintenance_status_count }}</strong></li>
+          <li><i style="background:var(--off)"></i>Write off<strong>{{ writeoff_count }}</strong></li>
+          <li class="donut-note">{{ unvalued_count }} aset belum punya data finansial</li>
+        </ul>
       </div>
+    </section>
+    <section class="panel">
+      <div class="panel-head"><h2>Aset baru 6 bulan terakhir</h2><span class="meta">jumlah aset dicatat</span></div>
+      <div class="panel-body"><div class="chart-box"><canvas id="newAssetChart" aria-label="Grafik aset baru per bulan"></canvas></div></div>
+    </section>
+  </div>
 
-      <!-- QUICK MENU -->
-      <div class="db-card anim">
-        <div class="db-card-header">
-          <div class="db-card-title">
-            <span class="db-card-title-dot" style="background:var(--accent)"></span>
-            Quick Menu
-          </div>
-        </div>
-        <div class="db-menu-grid">
-          <a href="{% url 'asset_list' %}" class="db-menu-btn">
-            <span class="bm-icon"><i class="fa-solid fa-box-archive"></i></span> Daftar Aset
-          </a>
-          <a href="{% url 'location_dashboard' %}" class="db-menu-btn">
-            <span class="bm-icon"><i class="fa-solid fa-location-dot"></i></span> Aset per Lokasi
-          </a>
-          {% if request.user.employee.ga_profile %}
-          <a href="{% url 'asset_create' %}" class="db-menu-btn success">
-            <span class="bm-icon"><i class="fa-solid fa-plus"></i></span> Tambah Aset
-          </a>
-          <a href="{% url 'movement_dashboard' %}" class="db-menu-btn">
-            <span class="bm-icon"><i class="fa-solid fa-arrows-rotate"></i></span> Histori Movement
-          </a>
-          <a href="{% url 'assignment_list' %}" class="db-menu-btn">
-            <span class="bm-icon"><i class="fa-solid fa-handshake"></i></span> Serah Terima
-          </a>
-          {% endif %}
-          {% if request.user.employee.finance_profile %}
-          <a href="{% url 'asset_list' %}" class="db-menu-btn warning">
-            <span class="bm-icon"><i class="fa-solid fa-coins"></i></span> Input Finansial
-          </a>
-          {% endif %}
-          <a href="{% url 'logout' %}" class="db-menu-btn danger">
-            <span class="bm-icon"><i class="fa-solid fa-right-from-bracket"></i></span> Logout
-          </a>
-        </div>
-      </div>
+  {# ── Grup ── #}
+  {% if asset_groups %}
+  <section class="panel groups" aria-labelledby="groupTitle">
+    <div class="panel-head"><h2 id="groupTitle">Aset per grup</h2><span class="meta">{{ unvalued_count }} aset belum punya data finansial</span></div>
+    <div class="table-wrap">
+      <table class="table">
+        <thead><tr><th>Grup / kategori</th><th class="num">Total</th><th class="num">Aktif</th><th class="num">Maintenance</th><th class="num">Write off</th></tr></thead>
+        {% for group in asset_groups %}
+        <tbody class="group" id="grp-{{ group.pk }}">
+          <tr class="group-row">
+            <td>
+              <button type="button" class="expand" aria-expanded="false" aria-controls="grp-{{ group.pk }}" aria-label="Tampilkan kategori {{ group.name }}"><i class="fa-solid fa-chevron-right" aria-hidden="true"></i></button>
+              <a class="row-link" href="{% url 'asset_list' %}?group={{ group.pk }}">{{ group.name }}</a>
+              <span class="cell-sub">{{ group.categories_with_stats|length }} kategori</span>
+            </td>
+            <td class="num"><strong>{{ group.total }}</strong></td><td class="num">{{ group.active }}</td><td class="num">{{ group.maintenance|default:"—" }}</td><td class="num">{{ group.writeoff|default:"—" }}</td>
+          </tr>
+          {% for cat in group.categories_with_stats %}{% if cat.total > 0 %}
+          <tr class="cat-row">
+            <td><a href="{% url 'asset_list' %}?group={{ group.pk }}&category={{ cat.pk }}">{{ cat.name }}</a></td>
+            <td class="num">{{ cat.total }}</td><td class="num">{{ cat.active }}</td><td class="num">{{ cat.maintenance|default:"—" }}</td><td class="num">{{ cat.writeoff|default:"—" }}</td>
+          </tr>
+          {% endif %}{% endfor %}
+        </tbody>
+        {% endfor %}
+      </table>
+    </div>
+  </section>
+  {% endif %}
 
-    </div><!-- /SIDEBAR -->
-  </div><!-- /db-main -->
+  {# ── Aset terbaru ── #}
+  <section class="panel" aria-labelledby="recentTitle">
+    <div class="panel-head"><h2 id="recentTitle">Aset terakhir ditambahkan</h2><a href="{% url 'asset_list' %}">Daftar aset</a></div>
+    {% if recent_assets %}
+    <div class="table-wrap">
+      <table class="table">
+        <thead><tr><th>Aset</th><th>Kategori</th><th>Lokasi</th><th>Status</th><th>Maintenance</th></tr></thead>
+        <tbody>
+        {% for asset in recent_assets %}
+          <tr>
+            <td><a class="row-link" href="{% url 'asset_detail' asset.pk %}">{{ asset.nama_asset }}</a><div class="cell-sub">{{ asset.asset_number }} · PO {{ asset.no_po|default:"—" }}</div></td>
+            <td>{{ asset.asset_category.name|default:"—" }}<div class="cell-sub">{{ asset.asset_group.name|default:"" }}</div></td>
+            <td class="loc">{% include "components/_location.html" with loc=asset.lokasi_asset %}</td>
+            <td>{% include "components/_lifecycle.html" with status=asset.lifecycle_status %}</td>
+            <td>{% with ms=asset.maintenance_status %}{% if ms == 'overdue' %}{% include "components/_status.html" with kind="warning" label="Terlambat" %}{% elif ms == 'upcoming_soon' %}{% include "components/_status.html" with kind="mandatory" label="Segera" %}{% elif ms == 'on_track' %}{% include "components/_status.html" with kind="safe" label="Sesuai jadwal" %}{% else %}{% include "components/_status.html" with kind="none" label="Belum diatur" %}{% endif %}{% endwith %}</td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="empty"><strong>Belum ada aset</strong>{% if is_ga %}Tambahkan aset atau import dari Excel.{% endif %}</div>
+    {% endif %}
+  </section>
 
-</div><!-- /db-wrap -->
-
-<!-- Close notif panel on outside click -->
-<div id="notifOverlay" onclick="closeNotif()"
-     style="display:none;position:fixed;inset:0;z-index:499;"></div>
-
+</div>
+{% endwith %}
 {% endblock %}
 
 {% block extra_scripts %}
-{# json_script = cara aman Django mengirim data ke JS (auto-escape </script>, dsb.) #}
 {{ maint_trend_labels|json_script:"maint-labels" }}
 {{ maint_trend_data|json_script:"maint-data" }}
-{{ new_asset_data|json_script:"new-asset-data" }}
 {{ maint_cost_data|json_script:"maint-cost-data" }}
+{{ new_asset_data|json_script:"new-asset-data" }}
+{{ status_counts|json_script:"status-counts" }}
 <script>
-// ═══════════════════════════════════════════════════════
-// LIVE CLOCK
-// ═══════════════════════════════════════════════════════
-function tick() {
-  const now = new Date();
-  document.getElementById('liveClock').textContent =
-    now.toLocaleDateString('id-ID', {weekday:'short',day:'2-digit',month:'short',year:'numeric'}) +
-    ' · ' + now.toLocaleTimeString('id-ID', {hour:'2-digit',minute:'2-digit'});
-}
-tick(); setInterval(tick, 10000);
+  const h = new Date().getHours();
+  document.getElementById('greet').textContent = h < 11 ? 'Selamat pagi' : h < 15 ? 'Selamat siang' : h < 18 ? 'Selamat sore' : 'Selamat malam';
+  document.getElementById('todayLabel').textContent =
+    new Date().toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
 
-// ═══════════════════════════════════════════════════════
-// COUNT-UP ANIMATION
-// ═══════════════════════════════════════════════════════
-document.querySelectorAll('.count-up').forEach(el => {
-  const target = parseInt(el.textContent);
-  if (isNaN(target) || target === 0) return;
-  let current = 0;
-  const step = Math.max(1, Math.ceil(target / 30));
-  const timer = setInterval(() => {
-    current = Math.min(current + step, target);
-    el.textContent = current;
-    if (current >= target) clearInterval(timer);
-  }, 25);
-});
-
-// ═══════════════════════════════════════════════════════
-// TOGGLE GROUP CATEGORIES
-// ═══════════════════════════════════════════════════════
-function toggleGroup(pk) {
-  const cats    = document.getElementById('cats-' + pk);
-  const chevron = document.getElementById('chevron-' + pk);
-  const isOpen  = cats.style.display !== 'none';
-  cats.style.display = isOpen ? 'none' : 'block';
-  chevron.classList.toggle('open', !isOpen);
-}
-
-// ═══════════════════════════════════════════════════════
-// SIDEBAR LAYOUT (tablet responsive)
-// ═══════════════════════════════════════════════════════
-function adjustSidebar() {
-  const s = document.querySelector('.db-sidebar-flex');
-  if (!s) return;
-  if (window.innerWidth <= 1100 && window.innerWidth > 600) {
-    s.style.display = 'grid';
-    s.style.gridTemplateColumns = 'repeat(2, 1fr)';
-    s.style.gap = '14px';
-    s.style.flexDirection = '';
-  } else {
-    s.style.display = 'flex';
-    s.style.flexDirection = 'column';
-    s.style.gridTemplateColumns = '';
-  }
-}
-adjustSidebar();
-window.addEventListener('resize', adjustSidebar);
-
-// ═══════════════════════════════════════════════════════
-// NOTIFICATION SYSTEM
-// ═══════════════════════════════════════════════════════
-let notifData = [];
-let notifRead = new Set(JSON.parse(localStorage.getItem('notifRead') || '[]'));
-
-function buildNotifications() {
-  // Notifikasi dibangun dari data Django yang sudah ada di context
-  const notifs = [];
-  const now    = new Date();
-
-  {% if overdue_count > 0 %}
-  notifs.push({
-    id: 'overdue-{{ overdue_count }}',
-    type: 'danger',
-    text: '{{ overdue_count }} aset melewati jadwal maintenance',
-    sub: 'Tindakan segera diperlukan',
-    href: "{% url 'maintenance_list' %}?status=overdue",
-    time: 'Hari ini'
+  // Grup aset: buka/tutup daftar kategori
+  document.querySelectorAll('.groups .expand').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const open = btn.closest('tbody').classList.toggle('open');
+      btn.setAttribute('aria-expanded', open);
+    });
   });
-  {% endif %}
 
-  {% if upcoming_soon_count > 0 %}
-  notifs.push({
-    id: 'upcoming-{{ upcoming_soon_count }}',
-    type: 'warning',
-    text: '{{ upcoming_soon_count }} maintenance jatuh tempo dalam 7 hari',
-    sub: 'Jadwalkan segera',
-    href: "{% url 'maintenance_list' %}",
-    time: 'Hari ini'
-  });
-  {% endif %}
+  document.addEventListener('DOMContentLoaded', () => {
+    const read = id => JSON.parse(document.getElementById(id).textContent);
+    const labels = read('maint-labels'), maint = read('maint-data'), cost = read('maint-cost-data');
+    const newAssets = read('new-asset-data'), status = read('status-counts');
 
-  {% if pending_damage_count > 0 %}
-  notifs.push({
-    id: 'damage-{{ pending_damage_count }}',
-    type: 'danger',
-    text: '{{ pending_damage_count }} laporan kerusakan menunggu tindak lanjut',
-    sub: '{% if critical_damage_count > 0 %}{{ critical_damage_count }} di antaranya kritis{% else %}Perlu ditangani GA{% endif %}',
-    href: "{% url 'ga_damage_report_list' %}",
-    time: 'Terbaru'
-  });
-  {% endif %}
+    // Tanpa data → tampilkan keadaan kosong, bukan sumbu 0–1 yang menyesatkan
+    const sum = obj => Object.values(obj).flat().reduce((a, b) => a + b, 0);
+    const emptyChart = (id, text) => {
+      document.getElementById(id).closest('.chart-box').outerHTML =
+        `<div class="empty chart-empty"><strong>Belum ada data</strong>${text}</div>`;
+    };
+    const noMaint = sum(maint) === 0, noCost = sum(cost) === 0;
+    if (noMaint) emptyChart('maintChart', 'Tidak ada maintenance tercatat dalam 6 bulan terakhir.');
+    if (noCost) emptyChart('costChart', 'Tidak ada biaya maintenance dalam 6 bulan terakhir.');
+    const noNew = sum(newAssets) === 0, noStatus = sum(status) === 0;
+    if (noNew) emptyChart('newAssetChart', 'Tidak ada aset baru dalam 6 bulan terakhir.');
+    if (noStatus) emptyChart('statusChart', 'Belum ada aset terdaftar.');
+    if (typeof Chart === 'undefined') return;
+    const css = getComputedStyle(document.documentElement);
+    const c = name => css.getPropertyValue(name).trim();
 
-  {% if total_without_location > 0 %}
-  notifs.push({
-    id: 'noloc-{{ total_without_location }}',
-    type: 'info',
-    text: '{{ total_without_location }} aset belum memiliki lokasi',
-    sub: 'Assign lokasi untuk tracking lebih baik',
-    href: "{% url 'asset_list' %}?no_location=1",
-    time: ''
-  });
-  {% endif %}
+    Chart.defaults.font.family = c('--sans');
+    Chart.defaults.font.size = 13;
+    Chart.defaults.color = c('--ink-3');
+    const brand = c('--brand-500'), brandSoft = c('--brand-200');
 
-  {% if unvalued_count > 0 %}
-  notifs.push({
-    id: 'noval-{{ unvalued_count }}',
-    type: 'info',
-    text: '{{ unvalued_count }} aset belum tervaluasi secara finansial',
-    sub: 'Input data finansial untuk coverage lengkap',
-    href: "{% url 'asset_list' %}",
-    time: ''
-  });
-  {% endif %}
+    const common = {
+      responsive: true, maintainAspectRatio: false, animation: false,
+      plugins: { legend: { position: 'bottom', labels: { boxWidth: 10, boxHeight: 10, usePointStyle: true, pointStyle: 'circle', color: c('--ink-2') } },
+                 tooltip: { backgroundColor: c('--ink'), cornerRadius: 8, padding: 10 } },
+      scales: {
+        x: { stacked: true, grid: { display: false }, border: { display: false } },
+        y: { stacked: true, beginAtZero: true, grid: { color: c('--rule') }, border: { display: false }, ticks: { precision: 0 } },
+      },
+    };
+    const rupiah = v => v >= 1e6 ? 'Rp ' + (v / 1e6).toLocaleString('id-ID', { maximumFractionDigits: 1 }) + ' jt'
+                                 : 'Rp ' + Number(v).toLocaleString('id-ID');
 
-  return notifs;
-}
-
-function renderNotifs() {
-  notifData = buildNotifications();
-  const unread = notifData.filter(n => !notifRead.has(n.id));
-  const badge  = document.getElementById('notifBadge');
-  const list   = document.getElementById('notifList');
-
-  if (unread.length > 0) {
-    badge.textContent = unread.length > 9 ? '9+' : unread.length;
-    badge.style.display = 'flex';
-  } else {
-    badge.style.display = 'none';
-  }
-
-  if (notifData.length === 0) {
-    list.innerHTML = '<div class="db-notif-empty">✅ Tidak ada notifikasi aktif</div>';
-    return;
-  }
-
-  list.innerHTML = notifData.map(n => `
-    <a href="${n.href}" class="db-notif-item ${notifRead.has(n.id) ? '' : 'unread'}"
-       onclick="markRead('${n.id}')">
-      <div class="db-notif-dot ${n.type}"></div>
-      <div style="flex:1;min-width:0;">
-        <div class="db-notif-text">${n.text}</div>
-        <div class="db-notif-time">${n.sub}${n.time ? ' · ' + n.time : ''}</div>
-      </div>
-    </a>
-  `).join('');
-}
-
-function markRead(id) {
-  notifRead.add(id);
-  localStorage.setItem('notifRead', JSON.stringify([...notifRead]));
-  renderNotifs();
-}
-
-function clearNotifs() {
-  notifData.forEach(n => notifRead.add(n.id));
-  localStorage.setItem('notifRead', JSON.stringify([...notifRead]));
-  renderNotifs();
-}
-
-function toggleNotif() {
-  const panel   = document.getElementById('notifPanel');
-  const overlay = document.getElementById('notifOverlay');
-  const isOpen  = panel.classList.toggle('open');
-  overlay.style.display = isOpen ? 'block' : 'none';
-}
-
-function closeNotif() {
-  document.getElementById('notifPanel').classList.remove('open');
-  document.getElementById('notifOverlay').style.display = 'none';
-}
-
-// Poll setiap 2 menit: reload badge count dari server
-// (lightweight — hanya fetch angka, tidak reload halaman)
-function pollNotifications() {
-  // Re-render dari data yang sudah ada (context Django)
-  // Untuk real-time penuh, endpoint JSON /api/dashboard/notifications/ bisa ditambah
-  renderNotifs();
-}
-
-renderNotifs();
-setInterval(pollNotifications, 120000); // 2 menit
-
-// ═══════════════════════════════════════════════════════
-// CHARTS (Chart.js — load setelah DOMContentLoaded)
-// ═══════════════════════════════════════════════════════
-document.addEventListener('DOMContentLoaded', () => {
-
-  // Data dari Django context
-  const readJSON    = id => JSON.parse(document.getElementById(id).textContent);
-  const maintLabels = readJSON('maint-labels');
-  const maintData   = readJSON('maint-data');
-  const newLabels   = maintLabels;
-  const newData     = readJSON('new-asset-data');
-  const costData    = readJSON('maint-cost-data');
-
-  // Helper format Rupiah ringkas
-  function fmtRp(val) {
-    if (val >= 1_000_000_000) return 'Rp ' + (val/1_000_000_000).toFixed(1) + 'M';
-    if (val >= 1_000_000)     return 'Rp ' + (val/1_000_000).toFixed(1) + 'jt';
-    if (val >= 1_000)         return 'Rp ' + (val/1_000).toFixed(0) + 'rb';
-    return 'Rp ' + val;
-  }
-
-  const chartDefaults = {
-    font: { family: "'JetBrains Mono', monospace", size: 10 },
-    color: '#9ca3af',
-  };
-  Chart.defaults.font  = chartDefaults.font;
-  Chart.defaults.color = chartDefaults.color;
-
-  // ── Chart 1: Tren Maintenance ─────────────────────────
-  const ctxMaint = document.getElementById('chartMaintTrend');
-  if (ctxMaint) {
-    new Chart(ctxMaint, {
+    if (!noMaint) new Chart(document.getElementById('maintChart'), {
       type: 'bar',
-      data: {
-        labels: maintLabels,
-        datasets: [
-          {
-            label: 'Preventive',
-            data: maintData.preventive,
-            backgroundColor: 'rgba(26,86,219,.75)',
-            borderRadius: 4,
-            borderSkipped: false,
-          },
-          {
-            label: 'Corrective',
-            data: maintData.corrective,
-            backgroundColor: 'rgba(224,36,36,.65)',
-            borderRadius: 4,
-            borderSkipped: false,
-          },
-        ]
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: {
-          legend: {
-            position: 'bottom',
-            labels: { boxWidth: 10, padding: 10, font: { size: 10 } }
-          },
-          tooltip: { mode: 'index', intersect: false }
-        },
-        scales: {
-          x: { stacked: true, grid: { display: false } },
-          y: { stacked: true, beginAtZero: true, ticks: { stepSize: 1 } }
-        }
-      }
+      data: { labels, datasets: [
+        { label: 'Preventive', data: maint.preventive, backgroundColor: brand, borderRadius: 4, maxBarThickness: 36 },
+        { label: 'Corrective', data: maint.corrective, backgroundColor: brandSoft, borderRadius: 4, maxBarThickness: 36 },
+      ]},
+      options: common,
     });
-  }
-
-  // ── Chart 2: Status Donut ────────────────────────────
-  const ctxDonut = document.getElementById('chartStatusDonut');
-  if (ctxDonut) {
-    const active = {{ active_count }};
-    const maint  = {{ maintenance_status_count }};
-    const wo     = {{ writeoff_count }};
-    new Chart(ctxDonut, {
-      type: 'doughnut',
-      data: {
-        labels: ['Aktif', 'Maintenance', 'Write Off'],
-        datasets: [{
-          data: [active, maint, wo],
-          backgroundColor: ['#057a55', '#1a56db', '#94a3b8'],
-          borderWidth: 2,
-          borderColor: '#ffffff',
-        }]
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: true,
-        cutout: '68%',
-        plugins: {
-          legend: { display: false },
-          tooltip: { callbacks: {
-            label: ctx => ` ${ctx.label}: ${ctx.parsed} aset`
-          }}
-        }
-      }
+    if (!noCost) new Chart(document.getElementById('costChart'), {
+      type: 'bar',
+      data: { labels, datasets: [
+        { label: 'Preventive', data: cost.preventive, backgroundColor: brand, borderRadius: 4, maxBarThickness: 36 },
+        { label: 'Corrective', data: cost.corrective, backgroundColor: brandSoft, borderRadius: 4, maxBarThickness: 36 },
+        { label: 'Inspection', data: cost.inspection, backgroundColor: c('--rule'), borderRadius: 4, maxBarThickness: 36 },
+      ]},
+      options: { ...common,
+        scales: { ...common.scales, y: { ...common.scales.y, ticks: { callback: rupiah } } },
+        plugins: { ...common.plugins, tooltip: { ...common.plugins.tooltip, callbacks: { label: ctx => ctx.dataset.label + ': ' + rupiah(ctx.parsed.y) } } } },
     });
-  }
-
-  // ── Chart 3: Aset Baru per Bulan ─────────────────────
-  const ctxNew = document.getElementById('chartNewAssets');
-  if (ctxNew) {
-    new Chart(ctxNew, {
+    if (!noNew) new Chart(document.getElementById('newAssetChart'), {
       type: 'line',
-      data: {
-        labels: newLabels,
-        datasets: [{
-          label: 'Aset baru',
-          data: newData,
-          borderColor: '#d97706',
-          backgroundColor: 'rgba(217,119,6,.1)',
-          borderWidth: 2,
-          pointBackgroundColor: '#d97706',
-          pointRadius: 4,
-          pointHoverRadius: 6,
-          fill: true,
-          tension: 0.3,
-        }]
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: {
-          legend: { display: false },
-          tooltip: { mode: 'index', intersect: false }
-        },
-        scales: {
-          x: { grid: { display: false } },
-          y: { beginAtZero: true, ticks: { stepSize: 1 } }
-        }
-      }
+      data: { labels, datasets: [{
+        label: 'Aset baru', data: newAssets, borderColor: brand, borderWidth: 2, tension: .35, fill: true,
+        backgroundColor: ctx => { const g = ctx.chart.ctx.createLinearGradient(0, 0, 0, ctx.chart.height); g.addColorStop(0, 'rgba(70,95,255,.25)'); g.addColorStop(1, 'rgba(70,95,255,0)'); return g; },
+        pointBackgroundColor: '#fff', pointBorderColor: brand, pointRadius: 4,
+      }]},
+      options: { ...common, plugins: { ...common.plugins, legend: { display: false } },
+        scales: { x: { grid: { display: false }, border: { display: false } }, y: { beginAtZero: true, grid: { color: c('--rule') }, border: { display: false }, ticks: { precision: 0 } } } },
     });
-  }
-
-  // ── Chart 4: Biaya Maintenance per Bulan ─────────────
-  const ctxCost = document.getElementById('chartMaintCost');
-  if (ctxCost) {
-    new Chart(ctxCost, {
-      type: 'bar',
-      data: {
-        labels: maintLabels,
-        datasets: [
-          {
-            label: 'Preventive',
-            data: costData.preventive,
-            backgroundColor: 'rgba(26,86,219,.75)',
-            borderRadius: 4,
-            borderSkipped: false,
-          },
-          {
-            label: 'Corrective',
-            data: costData.corrective,
-            backgroundColor: 'rgba(224,36,36,.65)',
-            borderRadius: 4,
-            borderSkipped: false,
-          },
-          {
-            label: 'Inspeksi',
-            data: costData.inspection,
-            backgroundColor: 'rgba(156,163,175,.6)',
-            borderRadius: 4,
-            borderSkipped: false,
-          },
-        ]
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: {
-          legend: {
-            position: 'bottom',
-            labels: { boxWidth: 10, padding: 10, font: { size: 10 } }
-          },
-          tooltip: {
-            mode: 'index',
-            intersect: false,
-            callbacks: {
-              label: ctx => ` ${ctx.dataset.label}: ${fmtRp(ctx.parsed.y)}`
-            }
-          }
-        },
-        scales: {
-          x: { stacked: true, grid: { display: false } },
-          y: {
-            stacked: true,
-            beginAtZero: true,
-            ticks: {
-              callback: v => fmtRp(v)
-            }
-          }
-        }
-      }
-    });
-  }
-
-  // ── Chart 5: Donut komposisi biaya ───────────────────
-  const ctxCostDonut = document.getElementById('chartCostDonut');
-  if (ctxCostDonut) {
-    const sumPrev = costData.preventive.reduce((a,b) => a+b, 0);
-    const sumCorr = costData.corrective.reduce((a,b) => a+b, 0);
-    const sumInsp = costData.inspection.reduce((a,b) => a+b, 0);
-    const total   = sumPrev + sumCorr + sumInsp;
-
-    // Isi label sidebar
-    document.getElementById('costPrevLabel').textContent  = fmtRp(sumPrev);
-    document.getElementById('costCorrLabel').textContent  = fmtRp(sumCorr);
-    document.getElementById('costInspLabel').textContent  = fmtRp(sumInsp);
-    document.getElementById('costTotalLabel').textContent = fmtRp(total);
-
-    new Chart(ctxCostDonut, {
+    if (!noStatus) new Chart(document.getElementById('statusChart'), {
       type: 'doughnut',
-      data: {
-        labels: ['Preventive', 'Corrective', 'Inspeksi'],
-        datasets: [{
-          data: [sumPrev, sumCorr, sumInsp],
-          backgroundColor: ['#1a56db', '#e02424', '#9ca3af'],
-          borderWidth: 2,
-          borderColor: '#ffffff',
-        }]
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: true,
-        cutout: '68%',
-        plugins: {
-          legend: { display: false },
-          tooltip: {
-            callbacks: {
-              label: ctx => ` ${ctx.label}: ${fmtRp(ctx.parsed)}`
-            }
-          }
-        }
-      }
+      data: { labels: ['Aktif', 'Maintenance', 'Write off'], datasets: [{ data: status, backgroundColor: [c('--safe'), c('--mandatory'), c('--off')], borderWidth: 2, borderColor: '#fff' }] },
+      options: { responsive: true, maintainAspectRatio: false, animation: false, cutout: '72%',
+        plugins: { legend: { display: false }, tooltip: { backgroundColor: c('--ink'), cornerRadius: 8, padding: 10 } } },
     });
-  }
-
-}); // end DOMContentLoaded     
+  });
 </script>
 {% endblock %}
