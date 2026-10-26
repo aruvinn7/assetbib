@@ -4,6 +4,7 @@ from django.db.models import Count, Prefetch, Q, Sum
 from django.db.models.functions import TruncMonth
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import render
+from django.utils import timezone
 
 from ..decorators import role_required
 from ..roles import is_ga
@@ -129,7 +130,8 @@ def _build_chart_data():
     corrective  = [maint_map.get((m, 'corrective'), 0) for m in months]
 
     # Aggregate new assets
-    asset_map = {row['month'].replace(day=1): row['count'] for row in asset_qs}
+    # created_at adalah DateTimeField → TruncMonth mengembalikan datetime, samakan ke date
+    asset_map = {timezone.localtime(row['month']).date().replace(day=1): row['count'] for row in asset_qs}
     new_assets = [asset_map.get(m, 0) for m in months]
 
     # Aggregate biaya per tipe
