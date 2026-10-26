@@ -15,6 +15,8 @@ urlpatterns = [
     # ===========================
     path('', views.dashboard, name='dashboard'),
     path('dashboard/location/', views.location_dashboard, name='location_dashboard'),
+    path('dashboard/nilai-aset/', views.value_dashboard, name='value_dashboard'),
+    path('dashboard/kinerja-maintenance/', views.performance_dashboard, name='performance_dashboard'),
     
     # ===========================
     # ASSET
@@ -23,6 +25,8 @@ urlpatterns = [
     path('asset/create/', views.asset_create, name='asset_create'),
     path('asset/<int:pk>/detail/', views.asset_detail, name='asset_detail'),
     path('asset/<int:pk>/ringkas/', views.asset_quickview, name='asset_quickview'),
+    path('asset/<int:pk>/write-off/', views.asset_write_off, name='asset_write_off'),
+    path('asset/<int:pk>/write-off/batal/', views.asset_write_off_cancel, name='asset_write_off_cancel'),
     path('asset/cari/', views.asset_search, name='asset_search'),
     path('asset/<int:pk>/update/', views.asset_update, name='asset_update'),
     path('asset/<int:pk>/delete/', views.asset_delete, name='asset_delete'),

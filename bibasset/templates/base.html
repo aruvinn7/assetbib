@@ -13,7 +13,7 @@
 
   {# CSS library per halaman (mis. Bootstrap) — dimuat sebelum base.css supaya tema tetap menang #}
   {% block vendor_css %}{% endblock %}
-  <link rel="stylesheet" href="{% static 'css/base.css' %}?v=5">
+  <link rel="stylesheet" href="{% static 'css/base.css' %}?v=6">
 
   {# Pulihkan sidebar ringkas sebelum render supaya tidak berkedip #}
   <script>try { if (localStorage.getItem('sbMini') === '1') document.documentElement.classList.add('sb-mini-pending'); } catch (e) {}</script>
@@ -69,6 +69,12 @@
       {% if emp.finance_profile %}
       <li><a href="{% url 'asset_list' %}?financial=no" class="menu-item {% block nav_financial %}{% endblock %}"><i class="mi-icon fa-solid fa-coins" aria-hidden="true"></i><span class="mi-text">Belum dinilai</span></a></li>
       {% endif %}
+    </ul>
+
+    <h2 class="menu-label">Analitik</h2>
+    <ul class="menu">
+      <li><a href="{% url 'performance_dashboard' %}" class="menu-item"><i class="mi-icon fa-solid fa-chart-line" aria-hidden="true"></i><span class="mi-text">Kinerja maintenance</span></a></li>
+      <li><a href="{% url 'value_dashboard' %}" class="menu-item"><i class="mi-icon fa-solid fa-scale-balanced" aria-hidden="true"></i><span class="mi-text">Nilai aset</span></a></li>
     </ul>
 
     <h2 class="menu-label">Data</h2>

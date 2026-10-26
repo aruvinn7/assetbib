@@ -7,7 +7,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 
 from ..decorators import role_required
 from ..forms import AssignmentForm, flash_form_errors
-from ..models import Asset, AssetAssignment, Employee
+from ..models import Asset, AssetAssignment, Employee, record_movement
 from ..roles import is_ga
 
 
@@ -55,6 +55,13 @@ def assignment_create(request, asset_id=None):
                     assigned_date=form.cleaned_data['assigned_date'] or date.today(),
                     notes=form.cleaned_data['notes'],
                 )
+                # Pemegang berubah → otomatis tercatat di histori movement
+                record_movement(
+                    asset, held_by=assignee,
+                    department=assignee.department or asset.owned_by_department,
+                    location=asset.lokasi_asset, recorded_by=request.user.employee,
+                    notes=f"Serah terima ke {assignee.nama}",
+                )
             messages.success(request, f"✅ Aset '{asset.nama_asset}' berhasil diserahkan ke {assignee.nama}.")
             return redirect('assignment_list')
         flash_form_errors(request, form)
@@ -80,7 +87,14 @@ def assignment_return(request, pk):
         assignment.status        = 'returned'
         assignment.returned_date = date.today()
         assignment.notes        += f"\n[Dikembalikan: {request.POST.get('return_notes', '')}]"
-        assignment.save(update_fields=['status', 'returned_date', 'notes'])
+        with transaction.atomic():
+            assignment.save(update_fields=['status', 'returned_date', 'notes'])
+            asset = assignment.asset
+            record_movement(
+                asset, held_by=None, department=asset.owned_by_department,
+                location=asset.lokasi_asset, recorded_by=request.user.employee,
+                notes=f"Dikembalikan oleh {assignment.assigned_to.nama}",
+            )
         messages.success(
             request,
             f"Aset '{assignment.asset.nama_asset}' berhasil dikembalikan oleh {assignment.assigned_to.nama}."

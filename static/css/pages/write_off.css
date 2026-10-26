@@ -1,0 +1,34 @@
+/* Halaman write off aset */
+.wo-grid { display: grid; grid-template-columns: minmax(0, 3fr) minmax(300px, 2fr); gap: 20px; align-items: start; max-width: 1160px; }
+.wo-body { display: grid; gap: 20px; }
+.reason-pick { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.reason-pick .rp { padding: 12px 14px; }
+.reason-pick .rp strong { font-weight: 500; }
+.confirm { display: flex; gap: 10px; align-items: flex-start; font-size: 14px; color: var(--ink-2); padding: 12px 14px; border-radius: var(--r); background: var(--danger-tint); cursor: pointer; }
+.confirm input { margin-top: 3px; width: 16px; height: 16px; accent-color: var(--danger); flex: none; }
+
+/* Tombol aksi merusak: solid merah (lebih tegas dari .btn.danger yang outline) */
+.btn.danger-solid { background: var(--danger); border-color: var(--danger); color: #fff; }
+.btn.danger-solid:hover { background: var(--danger-ink); border-color: var(--danger-ink); }
+
+.wo-side { display: grid; gap: 20px; }
+.wo-facts { margin: 0; padding: 4px 20px 8px; }
+.wo-facts > div { display: grid; grid-template-columns: 136px 1fr; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--rule-soft); font-size: 14px; }
+.wo-facts > div:last-child { border-bottom: 0; }
+.wo-facts dt { color: var(--ink-3); }
+.wo-facts dd { margin: 0; color: var(--ink); display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.wo-facts .dim { color: var(--ink-3); font-size: 13px; }
+.wo-facts .em dd strong, #gainVal { font-size: 18px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.wo-effects { list-style: none; margin: 0; padding: 8px 20px 16px; display: grid; gap: 12px; }
+.wo-effects li { display: flex; gap: 12px; font-size: 14px; color: var(--ink-2); line-height: 1.45; }
+.wo-effects i { width: 18px; margin-top: 3px; color: var(--ink-3); text-align: center; flex: none; }
+.wo-effects strong { color: var(--ink); font-weight: 600; }
+
+@media (max-width: 1100px) {
+  .wo-grid { grid-template-columns: minmax(0, 1fr); }
+  .wo-side { order: -1; }
+}
+@media (max-width: 560px) {
+  .reason-pick { grid-template-columns: minmax(0, 1fr); }
+  .wo-facts > div { grid-template-columns: 116px 1fr; }
+}

@@ -13,7 +13,7 @@ from django.shortcuts import redirect, render
 
 from ..decorators import role_required
 from ..models import (
-    Asset, AssetCategory, AssetFinancial, AssetGroup,
+    Asset, AssetCategory, AssetFinancial, AssetGroup, AssetWriteOff,
     Department, Location, MaintenanceSchedule,
 )
 from ..roles import is_ga
@@ -356,13 +356,19 @@ def import_asset(request):
         schedules = []
         for asset in created:
             interval = asset.asset_category.default_interval_in_days() if asset.asset_category else None
-            if interval:
+            if interval and asset.lifecycle_status != 'writeoff':
                 schedules.append(MaintenanceSchedule(
                     asset=asset,
                     scheduled_date=asset.tanggal_pembelian + timedelta(days=int(interval)),
                     status='upcoming',
                 ))
         MaintenanceSchedule.objects.bulk_create(schedules, batch_size=200)
+        # Aset yang diimport langsung berstatus write off tetap butuh catatan write off
+        AssetWriteOff.objects.bulk_create([
+            AssetWriteOff(asset=a, tanggal=date.today(), alasan='lainnya', created_by=created_by,
+                          keterangan='Diimport dari Excel dengan status write off. Lengkapi alasan bila perlu.')
+            for a in created if a.lifecycle_status == 'writeoff'
+        ])
     success_count = len(created)
 
     rejected_count = sum(1 for r in result_rows if r['status'] == 'rejected')

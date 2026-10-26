@@ -1,5 +1,4 @@
 # views/damage_reports.py  [OPTIMIZED]
-from datetime import date
 
 from django.contrib import messages
 from django.db import transaction
@@ -270,11 +269,8 @@ def ga_damage_report_resolve(request, pk):
             return redirect('ga_damage_report_detail', pk=pk)
         flash_form_errors(request, form)
 
-    return render(request, 'ga/damage_report_resolve.html', {
-        'report': report,
-        'today':  date.today(),
-        'posted': request.POST.dict() if request.method == 'POST' else None,
-    })
+    # Form penyelesaian ada di halaman detail laporan; kesalahan ditampilkan di sana
+    return redirect('ga_damage_report_detail', pk=pk)
 
 
 @role_required(is_ga)

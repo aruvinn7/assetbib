@@ -3,7 +3,7 @@
 {% block legacy_css %}{% endblock %}
 {% block title %}{{ asset.nama_asset }} · {{ asset.asset_number }}{% endblock %}
 {% block nav_assets %}active{% endblock %}
-{% block extra_head %}<link rel="stylesheet" href="{% static 'css/pages/asset_detail.css' %}?v=3">{% endblock %}
+{% block extra_head %}<link rel="stylesheet" href="{% static 'css/pages/asset_detail.css' %}?v=4">{% endblock %}
 
 {% block content %}
 {% with emp=request.user.employee %}
@@ -27,12 +27,39 @@
     {% if emp.ga_profile %}
     <div class="page-actions">
       <a href="{% url 'asset_update' asset.id %}" class="btn outline">Edit aset</a>
+      {% if asset.lifecycle_status != 'writeoff' %}
+      <a href="{% url 'asset_write_off' asset.id %}" class="btn danger"><i class="fa-solid fa-box-archive" aria-hidden="true"></i>Write off</a>
       <a href="{% url 'maintenance_create' asset.id %}" class="btn" data-quick-maint><i class="fa-solid fa-plus" aria-hidden="true"></i>Catat maintenance</a>
+      {% endif %}
     </div>
     {% elif not asset.has_financial and emp.finance_profile %}
     <div class="page-actions"><a href="{% url 'financial_create' asset.id %}" class="btn">Isi data finansial</a></div>
     {% endif %}
   </div>
+
+  {% if asset.lifecycle_status == 'writeoff' %}
+  <section class="panel wo-banner" aria-labelledby="woTitle">
+    <div class="wo-banner-main">
+      {% include "components/_status.html" with kind="off" label="Write off" %}
+      <div>
+        {% if wo %}
+        <h2 id="woTitle">Di-write off {{ wo.tanggal|date:"d M Y" }} · {{ wo.get_alasan_display }}</h2>
+        <p>{{ wo.keterangan }}</p>
+        <p class="wo-meta">Dicatat oleh {{ wo.created_by.nama|default:"sistem" }}{% if wo.nilai_buku is not None %} · nilai buku dihapus {{ wo.nilai_buku|rupiah }}{% endif %}{% if wo.nilai_jual is not None %} · hasil penjualan {{ wo.nilai_jual|rupiah }}{% endif %}</p>
+        {% else %}
+        <h2 id="woTitle">Aset ini berstatus write off</h2>
+        <p>Belum ada catatan write off resmi (tanggal & alasan).</p>
+        {% endif %}
+      </div>
+    </div>
+    {% if emp.ga_profile %}
+    <form method="post" action="{% url 'asset_write_off_cancel' asset.id %}" onsubmit="return confirm('Batalkan write off? Aset akan aktif lagi dan jadwal maintenance dibuat ulang.')">
+      {% csrf_token %}
+      <button type="submit" class="btn sm outline">Batalkan write off</button>
+    </form>
+    {% endif %}
+  </section>
+  {% endif %}
 
   <div class="overview">
     {# ── Foto utama + galeri ringkas ── #}

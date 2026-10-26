@@ -173,3 +173,12 @@
   .budget-scale .word { display: none; }
   .budget-legend { display: block; }
 }
+
+/* Catatan write off resmi */
+.wo-banner { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; padding: 16px 20px; margin-bottom: 20px; background: var(--off-tint); border-color: var(--rule); }
+.wo-banner-main { display: flex; gap: 12px; align-items: flex-start; min-width: 0; }
+.wo-banner-main .tag { background: var(--panel); flex: none; margin-top: 2px; }
+.wo-banner h2 { font-size: 16px; font-weight: 600; color: var(--ink); }
+.wo-banner p { font-size: 14px; color: var(--ink-2); margin-top: 4px; max-width: 75ch; }
+.wo-banner .wo-meta { font-size: 13px; color: var(--ink-3); }
+@media (max-width: 640px) { .wo-banner { flex-direction: column; } .wo-banner-main { flex-direction: column; } }

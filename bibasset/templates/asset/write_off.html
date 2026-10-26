@@ -1,0 +1,144 @@
+{% extends "base.html" %}
+{% load static rupiah %}
+{% block legacy_css %}{% endblock %}
+{% block title %}Write off · {{ asset.nama_asset }}{% endblock %}
+{% block nav_assets %}active{% endblock %}
+{% block extra_head %}<link rel="stylesheet" href="{% static 'css/pages/write_off.css' %}?v=1">{% endblock %}
+
+{% block content %}
+<div class="page">
+  <div class="crumbs">
+    <a href="{% url 'asset_list' %}">Daftar aset</a><i class="fa-solid fa-chevron-right" aria-hidden="true" style="font-size:10px"></i>
+    <a href="{% url 'asset_detail' asset.id %}">{{ asset.asset_number }}</a><i class="fa-solid fa-chevron-right" aria-hidden="true" style="font-size:10px"></i>Write off
+  </div>
+
+  <div class="page-head">
+    <div>
+      <h1>Write off aset</h1>
+      <div class="sub">{{ asset.nama_asset }} · {{ asset.asset_number }}</div>
+    </div>
+  </div>
+
+  <div class="wo-grid">
+    <form method="post" class="panel wo-form" novalidate>
+      {% csrf_token %}
+      <div class="panel-body wo-body">
+        {% if form.non_field_errors %}<p class="field-error" role="alert">{{ form.non_field_errors.0 }}</p>{% endif %}
+
+        <fieldset class="qm-field">
+          <legend>Alasan <span class="req" aria-hidden="true">*</span></legend>
+          <div class="reason-pick">
+            {% for value, label in reasons %}
+            <label class="rp"><input type="radio" name="alasan" value="{{ value }}" required {% if cur_reason == value %}checked{% endif %}><span><strong>{{ label }}</strong></span></label>
+            {% endfor %}
+          </div>
+          {% if form.alasan.errors %}<p class="field-error">Pilih alasan write off.</p>{% endif %}
+        </fieldset>
+
+        <div class="qm-row">
+          <div class="field">
+            <label for="woDate">Tanggal write off <span class="req" aria-hidden="true">*</span></label>
+            <input class="input" type="date" id="woDate" name="tanggal" required
+                   value="{% firstof form.data.tanggal today|date:'Y-m-d' %}" min="{{ asset.tanggal_pembelian|date:'Y-m-d' }}" max="{{ today|date:'Y-m-d' }}"
+                   {% if form.tanggal.errors %}aria-invalid="true"{% endif %}>
+            {% if form.tanggal.errors %}<p class="field-error">{{ form.tanggal.errors.0 }}</p>{% else %}<p class="field-hint">Tanggal aset berhenti dipakai, sesuai berita acara.</p>{% endif %}
+          </div>
+          <div class="field" id="saleField" {% if cur_reason != 'dijual' %}hidden{% endif %}>
+            <label for="woSale">Hasil penjualan <span class="opt">opsional</span></label>
+            <div class="input-affix"><span aria-hidden="true">Rp</span>
+              <input class="input" type="number" id="woSale" name="nilai_jual" min="0" step="1000" inputmode="numeric" value="{{ form.data.nilai_jual|default:'' }}">
+            </div>
+            {% if form.nilai_jual.errors %}<p class="field-error">{{ form.nilai_jual.errors.0 }}</p>{% else %}<p class="field-hint">Untuk menghitung laba/rugi pelepasan.</p>{% endif %}
+          </div>
+        </div>
+
+        <div class="field">
+          <label for="woNote">Keterangan <span class="req" aria-hidden="true">*</span></label>
+          <textarea class="textarea" id="woNote" name="keterangan" rows="4" required
+                    placeholder="Kondisi aset, hasil diagnosa, nomor berita acara, siapa yang menyetujui…"
+                    {% if form.keterangan.errors %}aria-invalid="true"{% endif %}>{{ form.data.keterangan|default:'' }}</textarea>
+          {% if form.keterangan.errors %}<p class="field-error">{{ form.keterangan.errors.0 }}</p>{% endif %}
+        </div>
+
+        <label class="confirm">
+          <input type="checkbox" name="konfirmasi" required {% if form.data.konfirmasi %}checked{% endif %}>
+          <span>Saya sudah memeriksa kondisi aset ini dan memahami akibatnya. Write off masih bisa dibatalkan dari halaman detail aset bila keliru.</span>
+        </label>
+        {% if form.konfirmasi.errors %}<p class="field-error">{{ form.konfirmasi.errors.0 }}</p>{% endif %}
+      </div>
+      <div class="dlg-foot">
+        <a class="dlg-link" href="{% url 'asset_detail' asset.id %}">Kembali ke detail aset</a>
+        <div class="dlg-actions">
+          <a href="{% url 'asset_detail' asset.id %}" class="btn outline">Batal</a>
+          <button type="submit" class="btn danger-solid">Write off aset</button>
+        </div>
+      </div>
+    </form>
+
+    <aside class="wo-side">
+      <section class="panel">
+        <div class="panel-head"><h2>Kondisi aset</h2></div>
+        <dl class="wo-facts">
+          <div><dt>Status</dt><dd>{% include "components/_lifecycle.html" with status=asset.lifecycle_status %}</dd></div>
+          <div><dt>Kesehatan</dt><dd>{% include "components/_health.html" with health=health %}{% if ratio is not None %}<span class="dim">{{ ratio|floatformat:0 }}% biaya</span>{% endif %}</dd></div>
+          <div><dt>Kerusakan</dt><dd>{{ asset.jumlah_corrective }}× tercatat</dd></div>
+          <div><dt>Umur</dt><dd>{{ asset.umur_asset_detail.years }} th {{ asset.umur_asset_detail.months }} bln{% if fin %} <span class="dim">dari {{ fin.umur_ekonomis }} th umur ekonomis</span>{% endif %}</dd></div>
+          <div><dt>Nilai perolehan</dt><dd>{% if fin %}{{ fin.nilai_awal_aset|rupiah }}{% else %}<span class="dim">Belum dinilai</span>{% endif %}</dd></div>
+          <div class="em"><dt>Nilai buku dihapus</dt>
+            <dd>{% if fin %}<strong id="bookAt">{{ book_today|rupiah }}</strong><span class="dim" id="bookAtNote">per {{ today|date:"d M Y" }}</span>{% else %}<span class="dim">Isi data finansial dulu agar nilai buku tercatat</span>{% endif %}</dd></div>
+          <div id="gainRow" hidden><dt>Laba/rugi pelepasan</dt><dd><strong id="gainVal">—</strong></dd></div>
+        </dl>
+      </section>
+
+      <section class="panel">
+        <div class="panel-head"><h2>Yang akan terjadi</h2></div>
+        <ul class="wo-effects">
+          <li><i class="fa-solid fa-ban" aria-hidden="true"></i><span>Status menjadi <strong>Write off</strong>; aset tidak bisa dicatat maintenance lagi.</span></li>
+          <li><i class="fa-solid fa-calendar-xmark" aria-hidden="true"></i><span>{% if schedule_count %}<strong>{{ schedule_count }} jadwal</strong> maintenance aktif dihentikan.{% else %}Tidak ada jadwal aktif.{% endif %}</span></li>
+          <li><i class="fa-solid fa-user-minus" aria-hidden="true"></i><span>{% if holder %}Dikembalikan dari <strong>{{ holder.nama }}</strong>.{% else %}Tidak sedang dipegang karyawan.{% endif %}</span></li>
+          <li><i class="fa-solid fa-clipboard-check" aria-hidden="true"></i><span>{% if report_count %}<strong>{{ report_count }} laporan kerusakan</strong> aktif ditutup.{% else %}Tidak ada laporan kerusakan aktif.{% endif %}</span></li>
+          <li><i class="fa-solid fa-coins" aria-hidden="true"></i><span>Nilai buku berhenti menyusut dan dikeluarkan dari dashboard Nilai aset.</span></li>
+        </ul>
+      </section>
+    </aside>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+{% if fin %}
+{# Nilai buku pada tanggal terpilih — rumus sama dengan AssetFinancial.book_value() #}
+<script>
+  (() => {
+    const fin = { awal: {{ fin.nilai_awal_aset|stringformat:"f" }}, residu: {{ fin.nilai_residual|stringformat:"f" }}, umur: {{ fin.umur_ekonomis }}, beli: '{{ asset.tanggal_pembelian|date:"Y-m-d" }}' };
+    const dateEl = document.getElementById('woDate'), saleEl = document.getElementById('woSale');
+    const fmt = v => 'Rp ' + Math.round(v).toLocaleString('id-ID');
+    const bookAt = d => {
+      const days = Math.max((new Date(d) - new Date(fin.beli)) / 864e5, 0);
+      const years = Math.min(Math.round(days / 365.25 * 10) / 10, fin.umur);
+      return Math.max(fin.awal - (fin.awal - fin.residu) / fin.umur * years, fin.residu);
+    };
+    const update = () => {
+      if (!dateEl.value) return;
+      const v = bookAt(dateEl.value);
+      document.getElementById('bookAt').textContent = fmt(v);
+      document.getElementById('bookAtNote').textContent = 'per ' + new Date(dateEl.value).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' });
+      const sale = document.getElementById('saleField').hidden ? null : Number(saleEl.value || 0);
+      const row = document.getElementById('gainRow');
+      row.hidden = sale === null;
+      if (sale !== null) {
+        const g = sale - v;
+        document.getElementById('gainVal').textContent = (g >= 0 ? 'Laba ' : 'Rugi ') + fmt(Math.abs(g));
+      }
+    };
+    dateEl.addEventListener('input', update);
+    saleEl.addEventListener('input', update);
+    document.querySelectorAll('input[name=alasan]').forEach(r => r.addEventListener('change', () => {
+      document.getElementById('saleField').hidden = r.value !== 'dijual' || !r.checked;
+      update();
+    }));
+    update();
+  })();
+</script>
+{% endif %}
+{% endblock %}

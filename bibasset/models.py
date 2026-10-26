@@ -531,8 +531,16 @@ class AssetFinancial(models.Model):
             return Decimal('0')
         return (self.nilai_awal_aset - self.nilai_residual) / Decimal(self.umur_ekonomis)
 
-    def umur_terpakai(self):
-        days_elapsed   = (date.today() - self.asset.tanggal_pembelian).days
+    def _as_of(self, on=None):
+        """Tanggal acuan penyusutan: hari ini, tapi berhenti di tanggal write off."""
+        if on is None:
+            on = date.today()
+            if self.asset.lifecycle_status == 'writeoff' and hasattr(self.asset, 'write_off'):
+                on = min(on, self.asset.write_off.tanggal)
+        return on
+
+    def umur_terpakai(self, on=None):
+        days_elapsed   = max((self._as_of(on) - self.asset.tanggal_pembelian).days, 0)
         years_elapsed  = Decimal(days_elapsed) / Decimal('365.25')
         years_elapsed  = years_elapsed.quantize(Decimal('0.1'), rounding=ROUND_HALF_UP)
         return min(years_elapsed, Decimal(self.umur_ekonomis))
@@ -543,12 +551,51 @@ class AssetFinancial(models.Model):
         )
         return max(sisa, Decimal('0.00'))
 
-    def book_value(self):
-        value = self.nilai_awal_aset - self.depresiasi_tahunan() * self.umur_terpakai()
+    def book_value(self, on=None):
+        """Nilai buku hari ini (atau pada tanggal `on`); aset write off berhenti di tanggal write off."""
+        value = self.nilai_awal_aset - self.depresiasi_tahunan() * self.umur_terpakai(on)
         return max(value, self.nilai_residual)
 
     def __str__(self):
         return f"Financial - {self.asset.asset_number}"
+
+
+class AssetWriteOff(models.Model):
+    """
+    Catatan resmi penghapusan aset. Dibuat lewat write_off_asset(), bukan dengan
+    mengubah status langsung, supaya tanggal, alasan, dan nilai buku saat itu tersimpan.
+    """
+    REASON = [
+        ('rusak',      'Rusak berat / tidak ekonomis diperbaiki'),
+        ('usang',      'Usang / habis umur pakai'),
+        ('hilang',     'Hilang atau dicuri'),
+        ('dijual',     'Dijual / dilelang'),
+        ('dihibahkan', 'Dihibahkan / didonasikan'),
+        ('lainnya',    'Lainnya'),
+    ]
+
+    asset           = models.OneToOneField(Asset, on_delete=models.CASCADE, related_name='write_off')
+    tanggal         = models.DateField()
+    alasan          = models.CharField(max_length=20, choices=REASON)
+    keterangan      = models.TextField()
+    # Snapshot saat write off — tidak ikut berubah bila data finansial diedit belakangan
+    nilai_perolehan = models.DecimalField(max_digits=15, decimal_places=2, null=True, blank=True)
+    nilai_buku      = models.DecimalField(max_digits=15, decimal_places=2, null=True, blank=True)
+    nilai_jual      = models.DecimalField(max_digits=15, decimal_places=2, null=True, blank=True)
+    created_by      = models.ForeignKey(Employee, on_delete=models.SET_NULL, null=True, blank=True)
+    created_at      = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-tanggal', '-id']
+
+    def __str__(self):
+        return f"Write off {self.asset.asset_number} ({self.tanggal})"
+
+    def gain_loss(self):
+        """Laba (+) / rugi (−) pelepasan = hasil penjualan − nilai buku. None bila belum dinilai."""
+        if self.nilai_buku is None:
+            return None
+        return (self.nilai_jual or Decimal('0')) - self.nilai_buku
 
 
 # ================================================================
@@ -1041,3 +1088,43 @@ def record_movement(asset, held_by, department, location, recorded_by=None, note
         notes=notes,
         recorded_by=recorded_by,
     )
+
+
+@transaction.atomic
+def write_off_asset(asset, tanggal, alasan, keterangan, by=None, nilai_jual=None):
+    """
+    Write off resmi: simpan catatan + nilai buku saat itu, lalu tutup semua yang
+    masih berjalan (jadwal, pemegang, laporan kerusakan) dan catat di histori movement.
+    """
+    fin = getattr(asset, 'financial', None) if hasattr(asset, 'financial') else None
+    wo = AssetWriteOff.objects.create(
+        asset=asset, tanggal=tanggal, alasan=alasan, keterangan=keterangan, nilai_jual=nilai_jual,
+        nilai_perolehan=fin.nilai_awal_aset if fin else None,
+        nilai_buku=fin.book_value(tanggal) if fin else None,
+        created_by=by,
+    )
+    Asset.objects.filter(pk=asset.pk).update(lifecycle_status='writeoff')
+    asset.lifecycle_status = 'writeoff'
+
+    active = asset.schedules.filter(status__in=['upcoming', 'overdue'])
+    active.filter(notes='').update(notes=f'Dihentikan: aset di-write off {tanggal:%d %b %Y}')
+    active.update(status='skipped')
+    AssetAssignment.objects.filter(asset=asset, status='active').update(status='returned', returned_date=tanggal)
+    DamageReport.objects.filter(asset=asset, report_status__in=['pending', 'acknowledged', 'in_progress']).update(
+        report_status='resolved', resolved_at=timezone.now(), handled_by=by,
+        ga_notes='Ditutup karena aset di-write off.',
+    )
+    record_movement(asset, held_by=None, department=asset.owned_by_department, location=asset.lokasi_asset,
+                    recorded_by=by, notes=f'Write off: {wo.get_alasan_display()}')
+    return wo
+
+
+@transaction.atomic
+def cancel_write_off(asset, by=None):
+    """Batalkan write off yang keliru: aset aktif lagi dan jadwal maintenance dibuat ulang."""
+    AssetWriteOff.objects.filter(asset=asset).delete()
+    Asset.objects.filter(pk=asset.pk).update(lifecycle_status='active')
+    asset.lifecycle_status = 'active'
+    _generate_next_schedule(asset)
+    record_movement(asset, held_by=None, department=asset.owned_by_department, location=asset.lokasi_asset,
+                    recorded_by=by, notes='Write off dibatalkan')

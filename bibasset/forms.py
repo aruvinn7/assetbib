@@ -9,7 +9,7 @@ from django.contrib import messages
 
 from .models import (
     Asset, AssetCategory, AssetComponent, AssetFinancial, AssetGroup,
-    AssetMaintenanceConfig, ComponentReplacement, DamageReport, Department,
+    AssetMaintenanceConfig, AssetWriteOff, ComponentReplacement, DamageReport, Department,
     Employee, Location, MaintenanceRecord,
 )
 
@@ -63,11 +63,49 @@ class AssetForm(AliasModelForm):
 
 
 class AssetUpdateForm(AssetForm):
-    aliases = {'department': 'owned_by_department', 'status': 'lifecycle_status'}
+    # Status tidak diubah dari form edit: 'maintenance' diatur otomatis oleh laporan kerusakan,
+    # 'writeoff' lewat alur write off resmi (WriteOffForm).
+    pass
 
-    class Meta(AssetForm.Meta):
-        fields = AssetForm.Meta.fields + ['lifecycle_status']
-        labels = {**AssetForm.Meta.labels, 'lifecycle_status': 'Status'}
+
+class WriteOffForm(forms.ModelForm):
+    konfirmasi = forms.BooleanField(
+        required=True, error_messages={'required': 'Centang konfirmasi untuk melanjutkan.'})
+
+    class Meta:
+        model = AssetWriteOff
+        fields = ['tanggal', 'alasan', 'keterangan', 'nilai_jual']
+        labels = {'tanggal': 'Tanggal write off', 'alasan': 'Alasan', 'keterangan': 'Keterangan',
+                  'nilai_jual': 'Hasil penjualan'}
+
+    def __init__(self, *args, asset=None, **kwargs):
+        self.asset = asset
+        super().__init__(*args, **kwargs)
+        self.fields['nilai_jual'].required = False
+
+    def clean_tanggal(self):
+        from datetime import date
+        tanggal = self.cleaned_data['tanggal']
+        if tanggal > date.today():
+            raise forms.ValidationError('Tidak boleh di masa depan.')
+        if self.asset and tanggal < self.asset.tanggal_pembelian:
+            raise forms.ValidationError('Tidak boleh sebelum tanggal pembelian aset.')
+        return tanggal
+
+    def clean_keterangan(self):
+        text = self.cleaned_data['keterangan'].strip()
+        if len(text) < 10:
+            raise forms.ValidationError('Jelaskan kondisi aset dan dasar keputusannya (minimal 10 karakter).')
+        return text
+
+    def clean(self):
+        data = super().clean()
+        jual = data.get('nilai_jual')
+        if data.get('alasan') != 'dijual':
+            data['nilai_jual'] = None
+        elif jual is not None and jual < 0:
+            self.add_error('nilai_jual', 'Tidak boleh negatif.')
+        return data
 
 
 # ── Financial ────────────────────────────────────────────────────

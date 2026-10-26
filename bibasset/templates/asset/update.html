@@ -162,21 +162,22 @@
           </div>
         </div>
 
-        <!-- STATUS -->
+        <!-- STATUS (hanya dibaca: maintenance diatur laporan kerusakan, write off lewat alurnya sendiri) -->
         <div class="card anim">
           <div class="card-header">
             <span class="card-dot" style="background:var(--warning);"></span>
             <span class="card-label">Status Lifecycle</span>
           </div>
-          <div class="card-body">
-            <div class="form-group" style="margin-bottom:0;">
-              <label class="form-label" for="status">Status Aset <span class="req">*</span></label>
-              <select name="status" id="status" class="form-select">
-                <option value="active"      {% if asset.lifecycle_status == 'active' %}selected{% endif %}>Active — Beroperasi normal</option>
-                <option value="maintenance" {% if asset.lifecycle_status == 'maintenance' %}selected{% endif %}>Maintenance — Sedang dalam perbaikan</option>
-                <option value="writeoff"   {% if asset.lifecycle_status == 'writeoff' %}selected{% endif %}>Write Off — Sudah tidak digunakan</option>
-              </select>
-            </div>
+          <div class="card-body" style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+            {% include "components/_lifecycle.html" with status=asset.lifecycle_status %}
+            <span style="font-size:13px;color:var(--ink-3);flex:1;min-width:220px;">
+              {% if asset.lifecycle_status == 'writeoff' %}Aset sudah di-write off. Pembatalan dilakukan dari halaman detail aset.
+              {% elif asset.lifecycle_status == 'maintenance' %}Otomatis kembali aktif setelah laporan kerusakan diselesaikan.
+              {% else %}Status berubah otomatis dari laporan kerusakan. Untuk menghapus aset dari pembukuan, gunakan write off.{% endif %}
+            </span>
+            {% if asset.lifecycle_status != 'writeoff' and request.user.employee.ga_profile %}
+            <a href="{% url 'asset_write_off' asset.id %}" class="btn btn-outline">Proses write off</a>
+            {% endif %}
           </div>
         </div>
 

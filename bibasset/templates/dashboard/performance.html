@@ -1,0 +1,125 @@
+{% extends "base.html" %}
+{% load static rupiah %}
+{% block legacy_css %}{% endblock %}
+{% block title %}Kinerja maintenance{% endblock %}
+
+{% block extra_head %}
+<link rel="stylesheet" href="{% static 'css/pages/analytics.css' %}?v=3">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js" defer></script>
+{% endblock %}
+
+{% block content %}
+{% with emp=request.user.employee %}
+<div class="page">
+
+  <div class="page-head">
+    <div>
+      <h1>Kinerja maintenance</h1>
+      <div class="sub">12 bulan terakhir · {{ period_label }}</div>
+    </div>
+    {% if emp.ga_profile %}
+    <div class="page-actions">
+      <a class="btn outline" href="{% url 'maintenance_list' %}?status=overdue">Jadwal terlambat</a>
+      <a class="btn outline" href="{% url 'ga_damage_report_list' %}">Laporan kerusakan</a>
+    </div>
+    {% endif %}
+  </div>
+
+  <div class="stats">
+    <div class="stat">
+      <span class="stat-label">Kepatuhan jadwal rutin</span>
+      <strong class="stat-value">{% if compliance is not None %}{{ compliance }}%{% else %}—{% endif %}</strong>
+      <span class="stat-note">
+        {% if compliance is not None %}
+          {% if compliance >= 90 %}{% include "components/_status.html" with kind="safe" label="Baik" %}{% elif compliance >= 75 %}{% include "components/_status.html" with kind="warning" label="Perlu perhatian" %}{% else %}{% include "components/_status.html" with kind="danger" label="Rendah" %}{% endif %}
+          {{ on_time }} dari {{ total_due }} jadwal dikerjakan ≤ {{ grace }} hari dari jatuh tempo
+        {% else %}belum ada jadwal jatuh tempo{% endif %}
+      </span>
+    </div>
+    <div class="stat">
+      <span class="stat-label">Biaya maintenance</span>
+      <strong class="stat-value">{{ cost_12|rupiah }}</strong>
+      <span class="stat-note">
+        {{ cost_corr_12|rupiah }} untuk perbaikan{% if cost_delta is not None %} · {% if cost_delta > 0 %}naik {{ cost_delta }}%{% elif cost_delta < 0 %}turun {{ cost_delta|stringformat:"d"|cut:"-" }}%{% else %}sama{% endif %} dari 12 bulan sebelumnya{% endif %}
+      </span>
+    </div>
+    <div class="stat">
+      <span class="stat-label">Rata-rata penyelesaian laporan</span>
+      <strong class="stat-value">{% if avg_days is not None %}{{ avg_days }} <small>hari</small>{% else %}—{% endif %}</strong>
+      <span class="stat-note">dari laporan masuk sampai selesai · {{ resolved_count }} laporan selesai</span>
+    </div>
+    <a class="stat link" href="{% if emp.ga_profile %}{% url 'ga_damage_report_list' %}{% else %}#{% endif %}">
+      <span class="stat-label">Laporan kerusakan aktif</span>
+      <strong class="stat-value">{{ report_stats.active }}</strong>
+      <span class="stat-note">{{ report_stats.pending }} menunggu GA · {{ report_stats.period }} laporan masuk dalam 12 bulan</span>
+    </a>
+  </div>
+
+  <div class="an-grid">
+    <section class="panel" aria-labelledby="costTitle">
+      <div class="panel-head"><h2 id="costTitle">Biaya per bulan</h2><span class="meta">rupiah · perbaikan vs perawatan rutin</span></div>
+      <div class="panel-body"><div class="chart-box tall"><canvas id="costChart" role="img" aria-label="Grafik kolom bertumpuk biaya perbaikan dan perawatan rutin per bulan"></canvas></div></div>
+    </section>
+    <section class="panel" aria-labelledby="compTitle">
+      <div class="panel-head"><h2 id="compTitle">Kepatuhan per bulan</h2><span class="meta">% jadwal rutin tepat waktu</span></div>
+      <div class="panel-body"><div class="chart-box tall"><canvas id="compChart" role="img" aria-label="Grafik garis persentase jadwal rutin yang dikerjakan tepat waktu per bulan"></canvas></div></div>
+    </section>
+  </div>
+
+  <section class="panel {% if candidates %}hazard{% endif %}" aria-labelledby="candTitle">
+    <div class="panel-head">
+      <h2 id="candTitle">Perlu ditinjau: ganti atau write off?</h2>
+      <span class="meta">{{ candidate_count }} aset · sinyal untuk ditinjau, bukan keputusan otomatis</span>
+    </div>
+    {% if candidates %}
+    <div class="table-wrap">
+      <table class="table compact">
+        <thead><tr><th>Aset</th><th>Kesehatan</th><th class="num">Rusak</th><th class="num">Nilai buku</th><th>Alasan</th>{% if emp.ga_profile %}<th><span class="visually-hidden">Aksi</span></th>{% endif %}</tr></thead>
+        <tbody>
+        {% for c in candidates %}
+          <tr>
+            <td><a class="row-link" href="{% url 'asset_detail' c.asset.pk %}">{{ c.asset.nama_asset }}</a><div class="cell-sub">{{ c.asset.asset_number }} · {{ c.asset.umur_asset }} th · {{ c.asset.lokasi_asset.name|default:"—" }}</div></td>
+            <td>{% include "components/_health.html" with health=c.status %}{% if c.ratio is not None %}<div class="cell-sub">{{ c.ratio|floatformat:0 }}% biaya</div>{% endif %}</td>
+            <td class="num">{{ c.corrective }}×</td>
+            <td class="num">{% if c.book is not None %}{{ c.book|rupiah }}{% else %}<span class="cell-sub">belum dinilai</span>{% endif %}</td>
+            <td class="reasons">{% for r in c.reasons %}<span>{{ r }}</span>{% endfor %}</td>
+            {% if emp.ga_profile %}<td class="num"><a class="btn sm outline" href="{% url 'asset_write_off' c.asset.pk %}">Write off</a></td>{% endif %}
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% if candidate_count > candidates|length %}<p class="panel-note">Menampilkan 12 dengan rasio biaya tertinggi. <a href="{% url 'asset_list' %}?sort=health">Urutkan semua aset menurut kesehatan</a>.</p>{% endif %}
+    {% else %}
+    <div class="empty"><strong>Tidak ada</strong>Belum ada aset dengan biaya perbaikan tinggi atau kerusakan berulang.</div>
+    {% endif %}
+  </section>
+
+  <div class="an-grid even">
+    <section class="panel" aria-labelledby="catTitle">
+      <div class="panel-head"><h2 id="catTitle">Biaya per kategori</h2><span class="meta">12 bulan · rupiah</span></div>
+      <div class="panel-body"><div class="chart-box" style="height:{% widthratio chart_cats.labels|length 1 40 %}px;min-height:200px"><canvas id="catChart" role="img" aria-label="Grafik batang biaya maintenance per kategori aset"></canvas></div></div>
+    </section>
+    <section class="panel" aria-labelledby="freqTitle">
+      <div class="panel-head"><h2 id="freqTitle">Paling sering rusak</h2><span class="meta">≥ 2 kerusakan dalam 12 bulan</span></div>
+      {% if frequent %}
+      <ul class="rank">
+        {% for f in frequent %}
+        <li><a href="{% url 'asset_detail' f.asset_id %}"><span><strong>{{ f.asset__nama_asset }}</strong><small>{{ f.asset__asset_number }} · biaya {{ f.s|rupiah }}</small></span><b>{{ f.n }}× rusak</b></a></li>
+        {% endfor %}
+      </ul>
+      {% else %}
+      <div class="empty"><strong>Tidak ada</strong>Tidak ada aset yang rusak lebih dari sekali dalam 12 bulan.</div>
+      {% endif %}
+    </section>
+  </div>
+</div>
+{% endwith %}
+{% endblock %}
+
+{% block extra_scripts %}
+{{ chart_cost|json_script:"chart-cost" }}
+{{ chart_compliance|json_script:"chart-compliance" }}
+{{ chart_cats|json_script:"chart-cats" }}
+<script src="{% static 'js/analytics.js' %}?v=2"></script>
+{% endblock %}

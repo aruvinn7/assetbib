@@ -1,5 +1,6 @@
 # views/assets.py [OPTIMIZED + PAGINATION]
 import os
+from datetime import date
 from decimal import Decimal
 
 from django.contrib import messages
@@ -17,11 +18,11 @@ from django.utils.http import urlencode
 from django.views.decorators.http import require_POST
 
 from ..decorators import role_required
-from ..forms import AssetForm, AssetUpdateForm, flash_form_errors
+from ..forms import AssetForm, AssetUpdateForm, WriteOffForm, flash_form_errors
 from ..models import (
     Asset, AssetAssignment, AssetComponent, AssetPhoto, AssetGroup, AssetCategory,
     Department, Location, MaintenanceRecord, MaintenanceSchedule,
-    compute_health, initialize_schedule_for_asset,
+    AssetWriteOff, DamageReport, cancel_write_off, compute_health, initialize_schedule_for_asset, write_off_asset,
 )
 from ..roles import is_ga
 from .utils import is_ga_or_finance
@@ -160,6 +161,57 @@ def _sort_dir(sort):
             desc = not desc
         dirs[key] = 'descending' if desc else 'ascending'
     return dirs
+
+
+@role_required(is_ga)
+def asset_write_off(request, pk):
+    """Write off resmi: catat tanggal, alasan, dan nilai buku; tutup jadwal, pemegang, dan laporan aktif."""
+    asset = get_object_or_404(
+        Asset.objects.select_related('financial', 'asset_category', 'lokasi_asset', 'owned_by_department')
+        .with_health_annotations(), pk=pk)
+    if asset.lifecycle_status == 'writeoff':
+        messages.info(request, 'Aset ini sudah di-write off.')
+        return redirect('asset_detail', pk=pk)
+
+    form = WriteOffForm(request.POST or None, asset=asset)
+    if request.method == 'POST' and form.is_valid():
+        d = form.cleaned_data
+        wo = write_off_asset(asset, d['tanggal'], d['alasan'], d['keterangan'],
+                             by=request.user.employee, nilai_jual=d['nilai_jual'])
+        messages.success(request, f"{asset.nama_asset} di-write off per {wo.tanggal:%d %b %Y}."
+                         + (f" Nilai buku yang dihapus: Rp {wo.nilai_buku:,.0f}.".replace(',', '.') if wo.nilai_buku is not None else ""))
+        return redirect('asset_detail', pk=pk)
+
+    fin = asset.financial if hasattr(asset, 'financial') else None
+    health, ratio = compute_health(asset.total_biaya_annot, asset.jumlah_corrective, fin.nilai_awal_aset if fin else None)
+    holder = AssetAssignment.objects.filter(asset=asset, status='active').select_related('assigned_to').first()
+    # Alasan yang disarankan dari kondisi aset (tetap bisa diganti)
+    suggested = 'rusak' if health in ('critical', 'waspada') or asset.lifecycle_status == 'maintenance' else \
+                'usang' if fin and fin.sisa_umur_ekonomis() <= 0 else ''
+    return render(request, 'asset/write_off.html', {
+        'asset':          asset,
+        'form':           form,
+        'fin':            fin,
+        'book_today':     fin.book_value() if fin else None,
+        'health':         health,
+        'ratio':          ratio,
+        'holder':         holder.assigned_to if holder else None,
+        'schedule_count': asset.schedules.filter(status__in=['upcoming', 'overdue']).count(),
+        'report_count':   DamageReport.objects.filter(
+                              asset=asset, report_status__in=['pending', 'acknowledged', 'in_progress']).count(),
+        'reasons':        AssetWriteOff.REASON,
+        'cur_reason':     form.data.get('alasan') or suggested,
+        'today':          date.today(),
+    })
+
+
+@role_required(is_ga)
+@require_POST
+def asset_write_off_cancel(request, pk):
+    asset = get_object_or_404(Asset.objects.select_related('write_off'), pk=pk, lifecycle_status='writeoff')
+    cancel_write_off(asset, by=request.user.employee)
+    messages.success(request, f"Write off {asset.nama_asset} dibatalkan. Aset aktif kembali dan jadwal maintenance dibuat ulang.")
+    return redirect('asset_detail', pk=pk)
 
 
 @role_required(is_ga_or_finance)
@@ -345,6 +397,7 @@ def asset_detail(request, pk):
     context = {
         "book_value":           book_value,
         "book_value_pct":       book_value_pct,
+        "wo":                   getattr(asset, 'write_off', None) if asset.lifecycle_status == 'writeoff' else None,
         "asset":                asset,
         "maintenance_records":  all_records,
         "corrective_records":   [r for r in all_records if r.maintenance_type == 'corrective'],

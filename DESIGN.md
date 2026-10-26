@@ -142,6 +142,7 @@ Logika ada di `static/js/app.js` (global) dan `static/js/asset_list.js`. Semua t
 - **Dialog catat maintenance:** setiap tautan `data-quick-maint` membuka `maintenance/_quick_form.html` di `dialog.sheet` (lembar bawah di ponsel). Dialog meminta konfirmasi sebelum menutup isian yang sudah diubah. Setelah berhasil, muncul toast dan bagian halaman bertanda `[data-refresh][id]` dimuat ulang; halaman tanpa bagian itu dimuat ulang penuh.
 - **Daftar aset:** chip filter, kepala kolom (bisa diurutkan, `aria-sort`), paginasi, dan pencarian mengganti hasil tanpa muat ulang, dengan URL ikut diperbarui. Klik baris atau tombol "Ringkas" membuka `dialog.drawer` (laci kanan, lembar bawah di ponsel). Di laci, ↑/↓ berpindah aset.
 - **Toast:** pojok kanan bawah. Sukses hilang setelah 5,5 detik, error setelah 9 detik.
+- **Write off:** status tidak diubah dari form edit. GA memakai tombol "Write off" di detail aset (`asset/write_off.html`): alasan, tanggal, keterangan, konfirmasi, dan nilai buku pada tanggal itu dihitung langsung. `write_off_asset()` menyimpan `AssetWriteOff` (snapshot nilai), menghentikan jadwal, mengembalikan pemegang, menutup laporan aktif, dan mencatat movement. Nilai buku berhenti menyusut di tanggal write off. Pembatalan lewat banner di detail aset (`cancel_write_off()`).
 - **Gerak:** satu ease-out eksponensial (`--ease-out`) untuk dialog, laci, palet, dan toast. Dimatikan oleh `prefers-reduced-motion`.
 
 ## Halaman berkelas lama

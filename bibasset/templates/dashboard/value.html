@@ -1,0 +1,166 @@
+{% extends "base.html" %}
+{% load static rupiah %}
+{% block legacy_css %}{% endblock %}
+{% block title %}Nilai aset{% endblock %}
+
+{% block extra_head %}
+<link rel="stylesheet" href="{% static 'css/pages/analytics.css' %}?v=3">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js" defer></script>
+{% endblock %}
+
+{% block content %}
+<div class="page">
+
+  <div class="page-head">
+    <div>
+      <h1>Nilai aset</h1>
+      <div class="sub">Posisi {{ today|date:"d M Y" }} · {{ tot.count|floatformat:0 }} aset aktif & maintenance yang sudah dinilai. Metode garis lurus.</div>
+    </div>
+    <div class="page-actions">
+      {% if unvalued_count %}<a class="btn outline" href="{% url 'asset_list' %}?financial=no"><svg class="sign" aria-hidden="true"><use href="#sign-none"/></svg>{{ unvalued_count }} aset belum dinilai</a>{% endif %}
+    </div>
+  </div>
+
+  <div class="stats">
+    <div class="stat">
+      <span class="stat-label">Nilai perolehan</span>
+      <strong class="stat-value">{{ tot.cost|rupiah }}</strong>
+      <span class="stat-note">harga beli seluruh aset berjalan</span>
+    </div>
+    <div class="stat">
+      <span class="stat-label">Nilai buku saat ini</span>
+      <strong class="stat-value">{{ tot.book|rupiah }}</strong>
+      <span class="stat-note">akumulasi penyusutan {{ tot.accum|rupiah }} ({{ accum_pct }}%)</span>
+    </div>
+    <div class="stat">
+      <span class="stat-label">Penyusutan {{ today.year }} s.d. hari ini</span>
+      <strong class="stat-value">{{ tot.dep_ytd|rupiah }}</strong>
+      <span class="stat-note">perkiraan setahun penuh {{ tot.dep_full_year|rupiah }}</span>
+    </div>
+    <a class="stat link" href="#expired">
+      <span class="stat-label">Habis umur ekonomis</span>
+      <strong class="stat-value">{{ expired_count }} <small>aset</small></strong>
+      <span class="stat-note">{% if expired_count %}masih dipakai · perolehan {{ expired_cost|rupiah }}{% else %}belum ada{% endif %}</span>
+    </a>
+  </div>
+
+  <div class="an-grid">
+    <section class="panel" aria-labelledby="grpTitle">
+      <div class="panel-head"><h2 id="grpTitle">Nilai per grup aset</h2><span class="meta">nilai buku + akumulasi penyusutan = nilai perolehan</span></div>
+      <div class="panel-body">
+        <div class="chart-box" style="height:{% widthratio groups|length 1 46 %}px;min-height:200px"><canvas id="groupChart" role="img" aria-label="Grafik batang nilai buku dan akumulasi penyusutan per grup aset; data lengkap ada di tabel di bawahnya"></canvas></div>
+      </div>
+      <div class="table-wrap">
+        <table class="table compact">
+          <thead><tr><th>Grup</th><th class="num">Aset</th><th class="num">Perolehan</th><th class="num">Nilai buku</th><th class="num">Sisa</th></tr></thead>
+          <tbody>
+          {% for g in groups %}
+            <tr><td>{{ g.name }}</td><td class="num">{{ g.count }}</td><td class="num">{{ g.cost|rupiah }}</td><td class="num">{{ g.book|rupiah }}</td>
+                <td class="num">{% widthratio g.book g.cost 100 %}%</td></tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="panel" aria-labelledby="yearTitle">
+      <div class="panel-head"><h2 id="yearTitle">Pengadaan per tahun</h2><span class="meta">nilai perolehan menurut tahun beli</span></div>
+      <div class="panel-body"><div class="chart-box"><canvas id="yearChart" role="img" aria-label="Grafik kolom nilai perolehan per tahun pembelian"></canvas></div></div>
+      <div class="panel-head sub-head"><h2>Aset bernilai buku terbesar</h2></div>
+      <ul class="rank">
+        {% for r in top_book %}
+        <li><a href="{% url 'asset_detail' r.asset.pk %}"><span><strong>{{ r.asset.nama_asset }}</strong><small>{{ r.asset.asset_number }} · sisa {{ r.sisa }} th</small></span><b>{{ r.book|rupiah }}</b></a></li>
+        {% endfor %}
+      </ul>
+    </section>
+  </div>
+
+  <div class="an-grid even">
+    <section class="panel {% if expired_count %}hazard{% endif %}" id="expired" aria-labelledby="expTitle">
+      <div class="panel-head"><h2 id="expTitle">Habis umur ekonomis, masih dipakai</h2><span class="meta">{{ expired_count }} aset · nilai buku = nilai residual</span></div>
+      {% if expired %}
+      <div class="table-wrap">
+        <table class="table compact">
+          <thead><tr><th>Aset</th><th class="num">Umur ekonomis</th><th class="num">Berakhir</th><th class="num">Perolehan</th></tr></thead>
+          <tbody>
+          {% for r in expired %}
+            <tr><td><a class="row-link" href="{% url 'asset_detail' r.asset.pk %}">{{ r.asset.nama_asset }}</a><div class="cell-sub">{{ r.asset.asset_number }} · {{ r.asset.asset_category.name|default:"—" }}</div></td>
+                <td class="num">{{ r.umur }} th</td><td class="num">{{ r.end|date:"M Y" }}</td><td class="num">{{ r.cost|rupiah }}</td></tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% if expired_count > expired|length %}<p class="panel-note">{{ expired_count|add:"-10" }} aset lain dengan nilai perolehan lebih kecil tidak ditampilkan.</p>{% endif %}
+      {% else %}<div class="empty"><strong>Belum ada</strong>Semua aset masih dalam umur ekonomisnya.</div>{% endif %}
+    </section>
+
+    <section class="panel" aria-labelledby="soonTitle">
+      <div class="panel-head"><h2 id="soonTitle">Habis dalam 12 bulan</h2><span class="meta">{{ expiring_count }} aset · rencanakan penggantian</span></div>
+      {% if expiring %}
+      <div class="table-wrap">
+        <table class="table compact">
+          <thead><tr><th>Aset</th><th class="num">Berakhir</th><th class="num">Nilai buku</th></tr></thead>
+          <tbody>
+          {% for r in expiring %}
+            <tr><td><a class="row-link" href="{% url 'asset_detail' r.asset.pk %}">{{ r.asset.nama_asset }}</a><div class="cell-sub">{{ r.asset.asset_number }} · sisa {{ r.sisa }} th</div></td>
+                <td class="num">{{ r.end|date:"M Y" }}</td><td class="num">{{ r.book|rupiah }}</td></tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}<div class="empty"><strong>Tidak ada</strong>Tidak ada aset yang umur ekonomisnya berakhir dalam 12 bulan.</div>{% endif %}
+    </section>
+  </div>
+
+  <section class="panel" aria-labelledby="deptTitle">
+    <div class="panel-head"><h2 id="deptTitle">Nilai buku per departemen</h2><span class="meta">{% if dept_more %}10 terbesar dari {{ dept_more|add:10 }} departemen{% else %}semua departemen pemilik aset{% endif %}</span></div>
+    <div class="table-wrap">
+      <table class="table compact">
+        <thead><tr><th>Departemen</th><th class="num">Aset</th><th class="num">Perolehan</th><th class="num">Nilai buku</th><th class="bar-col">Porsi nilai buku</th></tr></thead>
+        <tbody>
+        {% for d in depts %}
+          <tr><td>{{ d.name }}</td><td class="num">{{ d.count }}</td><td class="num">{{ d.cost|rupiah }}</td><td class="num">{{ d.book|rupiah }}</td>
+              <td class="bar-col"><span class="hbar" aria-hidden="true"><i style="width:{% widthratio d.book tot.book 100 %}%"></i></span><span class="hbar-val">{% widthratio d.book tot.book 100 %}%</span></td></tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="panel" aria-labelledby="woTitle">
+    <div class="panel-head">
+      <h2 id="woTitle">Riwayat write off</h2>
+      <span class="meta">{{ today.year }}: {{ wo_year_count }} aset · nilai buku dihapus {{ wo_year_book|rupiah }}{% if wo_year_gain %} · {% if wo_year_gain > 0 %}laba{% else %}rugi{% endif %} pelepasan {{ wo_year_gain|rupiah|cut:"-" }}{% endif %}</span>
+    </div>
+    {% if write_offs %}
+    <div class="table-wrap">
+      <table class="table compact">
+        <thead><tr><th>Tanggal</th><th>Aset</th><th>Alasan</th><th class="num">Perolehan</th><th class="num">Nilai buku dihapus</th><th class="num">Hasil jual</th></tr></thead>
+        <tbody>
+        {% for w in write_offs %}
+          <tr>
+            <td class="nowrap">{{ w.tanggal|date:"d M Y" }}</td>
+            <td><a class="row-link" href="{% url 'asset_detail' w.asset.pk %}">{{ w.asset.nama_asset }}</a><div class="cell-sub">{{ w.asset.asset_number }}{% if w.created_by %} · oleh {{ w.created_by.nama }}{% endif %}</div></td>
+            <td>{{ w.get_alasan_display }}</td>
+            <td class="num">{% if w.nilai_perolehan is not None %}{{ w.nilai_perolehan|rupiah }}{% else %}—{% endif %}</td>
+            <td class="num">{% if w.nilai_buku is not None %}{{ w.nilai_buku|rupiah }}{% else %}—{% endif %}</td>
+            <td class="num">{% if w.nilai_jual is not None %}{{ w.nilai_jual|rupiah }}{% else %}—{% endif %}</td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% if writeoff_count > write_offs|length %}<p class="panel-note">{{ writeoff_count }} write off tercatat; 8 terbaru ditampilkan. Aset write off tidak dihitung di angka lain di halaman ini.</p>
+    {% else %}<p class="panel-note">Aset write off tidak dihitung di angka lain di halaman ini.</p>{% endif %}
+    {% else %}
+    <div class="empty"><strong>Belum ada write off</strong>Write off dilakukan GA dari halaman detail aset.</div>
+    {% endif %}
+  </section>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+{{ chart_groups|json_script:"chart-groups" }}
+{{ chart_years|json_script:"chart-years" }}
+<script src="{% static 'js/analytics.js' %}?v=2"></script>
+{% endblock %}
