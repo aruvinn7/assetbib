@@ -135,6 +135,37 @@ class AccessAndFlowTest(TestCase):
         self.client.post(f'/asset/{self.asset.pk}/delete/')
         self.assertFalse(Asset.objects.filter(pk=self.asset.pk).exists())
 
+    def test_berita_acara_flow(self):
+        from .models import BeritaAcara, MaintenanceRecord as MR, PenandaTanganBA
+        # Temuan inspeksi bermasalah → otomatis masuk draf BA Kerusakan
+        MR.objects.create(asset=self.asset, maintenance_type='inspection', tanggal_pelaksanaan=date.today(),
+                          deskripsi_pekerjaan='Cek unit', hasil='major_issue', catatan_tambahan='Kompresor mati')
+        draft = BeritaAcara.objects.get(jenis='kerusakan', status='draft')
+        item = draft.items.get()
+        self.assertIn('Kompresor mati', item.kerusakan)
+
+        self.client.force_login(self.ga_user)
+        self.client.post(f'/berita-acara/{draft.pk}/', {
+            f'kerusakan-{item.pk}': 'Kompresor mati total', f'rekomendasi-{item.pk}': 'hapus',
+            'aksi': 'terbitkan', 'tanggal': date.today().isoformat()})
+        draft.refresh_from_db()
+        self.assertEqual(draft.status, 'terbit')
+        self.assertRegex(draft.nomor, r'^001/BIB/-HRGA/BA/[IVX]+/\d{4}$')
+        self.assertEqual(len(draft.penanda_tangan), PenandaTanganBA.objects.count())   # salinan saat terbit
+
+        # Belum ditandatangani → penghapusan ditolak; setelah ditandatangani → write off + BA Penghapusan
+        self.client.post(f'/berita-acara/{draft.pk}/penghapusan/', {'item': item.pk})
+        self.assertEqual(Asset.objects.get(pk=self.asset.pk).lifecycle_status, 'active')
+        self.client.post(f'/berita-acara/{draft.pk}/ditandatangani/')
+        self.client.post(f'/berita-acara/{draft.pk}/penghapusan/', {
+            'item': item.pk, 'tanggal': date.today().isoformat(), 'alasan': 'rusak',
+            'keterangan': 'Sesuai BA kerusakan', 'konfirmasi': 'on'})
+        self.assertEqual(Asset.objects.get(pk=self.asset.pk).lifecycle_status, 'writeoff')
+        hapus = BeritaAcara.objects.get(jenis='penghapusan')
+        self.assertEqual(hapus.rujukan, draft)
+        self.assertTrue(hapus.nomor.startswith('002/'))
+        self.assertEqual(self.client.get(f'/berita-acara/{hapus.pk}/cetak/').status_code, 200)
+
     def test_form_errors_are_tagged_per_field(self):
         self.client.force_login(self.ga_user)
         r = self.client.post('/asset/create/', {'no_po': 'PO', 'nama_asset': 'X',

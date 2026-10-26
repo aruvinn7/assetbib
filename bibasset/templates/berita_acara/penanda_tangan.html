@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% load static %}
+{% block legacy_css %}{% endblock %}
+{% block title %}Penanda tangan berita acara{% endblock %}
+{% block nav_ba %}active{% endblock %}
+{% block extra_head %}<link rel="stylesheet" href="{% static 'css/pages/berita_acara.css' %}?v=1">{% endblock %}
+
+{% block content %}
+<div class="page">
+  <div class="crumbs"><a href="{% url 'ba_list' %}">Berita acara</a><i class="fa-solid fa-chevron-right" aria-hidden="true" style="font-size:10px"></i>Penanda tangan</div>
+  <div class="page-head">
+    <div>
+      <h1>Lembar pengesahan</h1>
+      <div class="sub">Urutan kolom di dokumen, dari kiri ke kanan. Berlaku untuk BA yang terbit berikutnya; BA yang sudah terbit tidak berubah.</div>
+    </div>
+  </div>
+
+  <form method="post" class="form-layout single">
+    {% csrf_token %}
+    <div class="form-main">
+      <section class="panel">
+        <div class="table-wrap">
+          <table class="table signer-table">
+            <thead><tr><th>#</th><th>Peran</th><th>Nama</th><th>Jabatan</th></tr></thead>
+            <tbody>
+            {% for r in rows %}
+              <tr>
+                <td class="cell-sub">{{ forloop.counter }}</td>
+                <td><label class="visually-hidden" for="peran-{{ forloop.counter0 }}">Peran {{ forloop.counter }}</label><input class="input" id="peran-{{ forloop.counter0 }}" name="peran-{{ forloop.counter0 }}" value="{{ r.peran|default:'' }}" placeholder="Mis. Disetujui oleh"></td>
+                <td><label class="visually-hidden" for="nama-{{ forloop.counter0 }}">Nama {{ forloop.counter }}</label><input class="input" id="nama-{{ forloop.counter0 }}" name="nama-{{ forloop.counter0 }}" value="{{ r.nama|default:'' }}"></td>
+                <td><label class="visually-hidden" for="jabatan-{{ forloop.counter0 }}">Jabatan {{ forloop.counter }}</label><input class="input" id="jabatan-{{ forloop.counter0 }}" name="jabatan-{{ forloop.counter0 }}" value="{{ r.jabatan|default:'' }}"></td>
+              </tr>
+            {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        <p class="panel-note">Baris tanpa peran atau nama tidak dipakai.</p>
+      </section>
+      <div class="form-bar">
+        <a href="{% url 'ba_list' %}" class="btn outline push">Batal</a>
+        <button type="submit" class="btn">Simpan</button>
+      </div>
+    </div>
+  </form>
+</div>
+{% endblock %}

@@ -1,4 +1,6 @@
 
+import re
+
 from django.contrib.auth.models import User
 from django.db import models, transaction
 from django.db.models import Case, Count, F, Q, Sum, Value, When
@@ -709,10 +711,19 @@ class MaintenanceRecord(models.Model):
 
     @transaction.atomic
     def save(self, *args, **kwargs):
+        is_new = self.pk is None
         super().save(*args, **kwargs)
         if self.maintenance_type == 'corrective' and self.hasil in self.RESOLVED_RESULTS:
             Asset.objects.filter(pk=self.asset_id).update(lifecycle_status='active')
         _generate_next_schedule(self.asset, base_date=self.tanggal_pelaksanaan)
+        # Inspeksi/preventive yang menemukan masalah = temuan kerusakan → draf Berita Acara
+        if is_new and self.maintenance_type != 'corrective' and self.hasil in ('minor_issue', 'major_issue'):
+            # Catatan berisi temuannya; buang awalan siapa yang mengerjakan ("Dikerjakan vendor: X.")
+            catatan = re.sub(r'^Dikerjakan vendor:[^.]*\.\s*', '', self.catatan_tambahan.strip()) or self.deskripsi_pekerjaan.strip()
+            jenis = 'inspeksi' if self.maintenance_type == 'inspection' else 'maintenance preventive'
+            hasil = self.get_hasil_display().split(' —')[0]
+            catat_temuan_kerusakan(self.asset, 'inspeksi', f'{hasil} saat {jenis}: {catatan}',
+                                   maintenance_record=self, by=self.performed_by)
 
 
 class MaintenanceScheduleQuerySet(models.QuerySet):
@@ -914,6 +925,9 @@ class DamageReport(models.Model):
                 f"Severity: {self.get_severity_display()})"
             )
         )
+
+        # 4. Temuan kerusakan → draf Berita Acara Kerusakan departemen pemilik aset
+        catat_temuan_kerusakan(self.asset, 'laporan', ringkas_laporan(self.title, self.description), damage_report=self)
 
 
 # ================================================================
@@ -1135,3 +1149,268 @@ def cancel_write_off(asset, by=None):
     _generate_next_schedule(asset)
     record_movement(asset, held_by=None, department=asset.owned_by_department, location=asset.lokasi_asset,
                     recorded_by=by, notes='Write off dibatalkan')
+    # BA Penghapusan yang sudah bernomor tetap disimpan sebagai dokumen; pembatalannya dicatat
+    for ba in BeritaAcara.objects.filter(jenis='penghapusan', items__asset=asset):
+        baris = f'{date.today():%d/%m/%Y}: write off {asset.asset_number} dibatalkan oleh {by.nama if by else "GA"}.'
+        ba.catatan = f'{ba.catatan}\n{baris}' if ba.catatan else baris
+        ba.save(update_fields=['catatan', 'updated_at'])
+
+
+# ================================================================
+# BERITA ACARA — kerusakan & penghapusan aset
+# ================================================================
+# Alur: setiap temuan kerusakan (laporan karyawan, inspeksi/maintenance bermasalah,
+# atau ditambah GA) otomatis masuk DRAF BA Kerusakan per departemen pemilik aset.
+# GA meninjau draf → terbitkan (bernomor) → cetak & tanda tangan basah → tandai
+# ditandatangani → aset berekomendasi "hapus" di-write off sekaligus dan terbit
+# BA Penghapusan yang merujuk nomor BA Kerusakan.
+
+# Kode di nomor BA: 001/BIB/-HRGA/BA/II/2026 (urutan per tahun, dipakai bersama kedua jenis BA)
+BA_NOMOR_FORMAT = '{urutan:03d}/BIB/-HRGA/BA/{bulan_romawi}/{tahun}'
+BA_KOTA = 'Angsana'
+BULAN_ROMAWI = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII']
+NAMA_HARI = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Minggu']
+NAMA_BULAN = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus',
+              'September', 'Oktober', 'November', 'Desember']
+
+
+def tanggal_panjang(d):
+    """date(2026, 2, 5) → "5 Februari 2026"."""
+    return f'{d.day} {NAMA_BULAN[d.month - 1]} {d.year}'
+
+
+class PenandaTanganBA(models.Model):
+    """Lembar pengesahan BA (diatur sekali oleh GA); disalin ke setiap BA saat terbit."""
+    urutan  = models.PositiveSmallIntegerField(default=0)
+    peran   = models.CharField(max_length=50)      # "Dibuat oleh", "Disetujui oleh", …
+    nama    = models.CharField(max_length=100)
+    jabatan = models.CharField(max_length=100)
+
+    class Meta:
+        ordering = ['urutan', 'id']
+
+    def __str__(self):
+        return f'{self.peran}: {self.nama} ({self.jabatan})'
+
+
+class BeritaAcara(models.Model):
+    JENIS = [
+        ('kerusakan',   'Berita Acara Kerusakan Asset'),
+        ('penghapusan', 'Berita Acara Penghapusan Asset'),
+    ]
+    STATUS = [
+        ('draft',          'Draf'),
+        ('terbit',         'Terbit, menunggu tanda tangan'),
+        ('ditandatangani', 'Ditandatangani'),
+    ]
+
+    jenis      = models.CharField(max_length=12, choices=JENIS)
+    status     = models.CharField(max_length=15, choices=STATUS, default='draft')
+    department = models.ForeignKey(Department, on_delete=models.SET_NULL, null=True, blank=True,
+                                   related_name='berita_acara')
+    nomor      = models.CharField(max_length=60, unique=True, null=True, blank=True)
+    urutan     = models.PositiveIntegerField(null=True, blank=True)
+    tanggal    = models.DateField(null=True, blank=True)       # tanggal verifikasi / terbit
+    isi        = models.TextField(blank=True)                   # paragraf pembuka; kosong = teks baku
+    rujukan    = models.ForeignKey('self', on_delete=models.SET_NULL, null=True, blank=True,
+                                   related_name='turunan')      # BA Penghapusan → BA Kerusakan
+    penanda_tangan = models.JSONField(default=list, blank=True) # salinan saat terbit
+    scan_ttd   = models.FileField(upload_to='berita_acara/%Y/', null=True, blank=True)
+    catatan    = models.TextField(blank=True)                   # catatan internal (mis. write off dibatalkan)
+    dibuat_oleh      = models.ForeignKey(Employee, on_delete=models.SET_NULL, null=True, blank=True, related_name='+')
+    diterbitkan_oleh = models.ForeignKey(Employee, on_delete=models.SET_NULL, null=True, blank=True, related_name='+')
+    diterbitkan_at     = models.DateTimeField(null=True, blank=True)
+    ditandatangani_at  = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-tanggal', '-id']
+        indexes = [models.Index(fields=['jenis', 'status'])]
+
+    def __str__(self):
+        return self.nomor or f'Draf {self.get_jenis_display()} — {self.department or "tanpa departemen"}'
+
+    @property
+    def judul(self):
+        return self.get_jenis_display().upper()
+
+    def isi_baku(self, tanggal=None):
+        """Paragraf pembuka baku; dipakai bila GA tidak menulis sendiri."""
+        d = tanggal or self.tanggal or date.today()
+        hari = f'{NAMA_HARI[d.weekday()]} tanggal {tanggal_panjang(d)}'
+        dept = self.department.name if self.department else 'GA'
+        if self.jenis == 'penghapusan':
+            dasar = f', berdasarkan Berita Acara Kerusakan Asset No: {self.rujukan.nomor}' if self.rujukan_id else ''
+            return (f'Pada hari ini {hari}{dasar}, telah dilakukan penghapusan asset-asset dari Departemen {dept} '
+                    f'dari daftar asset PT BIB karena tidak dapat digunakan lagi, adapun daftar asset yang dimaksud adalah:')
+        rekom = set(self.items.values_list('rekomendasi', flat=True))
+        if rekom == {'hapus'}:
+            return (f'Pada hari ini {hari}, telah dilakukan verifikasi terhadap asset-asset yang rusak dari Departemen {dept}. '
+                    f'Asset rusak tersebut tidak dapat diperbaiki lagi atau biaya perbaikannya tidak ekonomis lagi, '
+                    f'adapun daftar asset yang dimaksud adalah:')
+        return (f'Pada hari ini {hari}, telah dilakukan verifikasi terhadap asset-asset yang rusak dari Departemen {dept} '
+                f'berdasarkan laporan karyawan dan hasil inspeksi rutin. Adapun daftar asset yang dimaksud '
+                f'beserta rekomendasi tindak lanjutnya adalah:')
+
+    @property
+    def isi_final(self):
+        return self.isi.strip() or self.isi_baku()
+
+    @property
+    def tanggal_tempat(self):
+        return f'{BA_KOTA}, {tanggal_panjang(self.tanggal or date.today())}'
+
+    def baris_dokumen(self):
+        """
+        Baris tabel dokumen: aset dengan nama, PO, kerusakan & rekomendasi yang sama
+        digabung jadi satu baris "N unit", seperti BA manual.
+        """
+        rows = {}
+        acuan = self.tanggal or date.today()
+        for it in self.items.select_related('asset', 'asset__write_off').order_by('id'):
+            a = it.asset
+            po = a.no_po if a.no_po and a.no_po.strip(' -') else a.asset_number
+            key = (a.nama_asset, po, it.kerusakan.strip(), it.rekomendasi)
+            row = rows.setdefault(key, {
+                'nama': a.nama_asset, 'po': po, 'tahun': a.tanggal_pembelian.year,
+                'usia': max((acuan - a.tanggal_pembelian).days // 365, 0),
+                'jumlah': 0, 'kerusakan': it.kerusakan.strip(), 'rekomendasi': it.get_rekomendasi_display(),
+                'nilai_perolehan': Decimal(0), 'nilai_buku': Decimal(0), 'ada_nilai': False, 'nomor_aset': [],
+            })
+            row['jumlah'] += 1
+            row['nomor_aset'].append(a.asset_number)
+            wo = a.write_off if hasattr(a, 'write_off') else None
+            if wo and wo.nilai_perolehan is not None:
+                row['nilai_perolehan'] += wo.nilai_perolehan
+                row['nilai_buku'] += wo.nilai_buku or 0
+                row['ada_nilai'] = True
+        return list(rows.values())
+
+    def lampiran_foto(self):
+        """Dokumentasi: foto yang diunggah di BA, foto bukti laporan, lalu foto kerusakan aset."""
+        out = []
+        for it in self.items.select_related('asset', 'damage_report').prefetch_related('foto', 'asset__photos'):
+            for f in it.foto.all():
+                out.append({'url': f.foto.url, 'caption': f.caption or it.asset.nama_asset})
+            if it.damage_report and it.damage_report.photo_evidence:
+                out.append({'url': it.damage_report.photo_evidence.url, 'caption': it.asset.nama_asset})
+            for p in it.asset.photos.all():
+                if p.photo_type == 'damage':
+                    out.append({'url': p.photo.url, 'caption': p.caption or it.asset.nama_asset})
+        return out
+
+
+class BeritaAcaraItem(models.Model):
+    SUMBER = [
+        ('laporan',  'Laporan karyawan'),
+        ('inspeksi', 'Temuan inspeksi / maintenance'),
+        ('manual',   'Ditambahkan GA'),
+    ]
+    REKOMENDASI = [
+        ('perbaiki', 'Diperbaiki'),
+        ('hapus',    'Dihapuskan'),
+    ]
+
+    ba     = models.ForeignKey(BeritaAcara, on_delete=models.CASCADE, related_name='items')
+    asset  = models.ForeignKey(Asset, on_delete=models.CASCADE, related_name='ba_items')
+    sumber = models.CharField(max_length=10, choices=SUMBER, default='manual')
+    damage_report      = models.ForeignKey(DamageReport, on_delete=models.SET_NULL, null=True, blank=True, related_name='ba_items')
+    maintenance_record = models.ForeignKey(MaintenanceRecord, on_delete=models.SET_NULL, null=True, blank=True, related_name='ba_items')
+    kerusakan   = models.TextField(blank=True)
+    rekomendasi = models.CharField(max_length=10, choices=REKOMENDASI, default='perbaiki')
+    created_at  = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['id']
+        constraints = [models.UniqueConstraint(fields=['ba', 'asset'], name='uniq_ba_asset')]
+
+    def __str__(self):
+        return f'{self.ba} — {self.asset.asset_number}'
+
+
+class BeritaAcaraFoto(models.Model):
+    item    = models.ForeignKey(BeritaAcaraItem, on_delete=models.CASCADE, related_name='foto')
+    foto    = models.ImageField(upload_to='berita_acara/foto/%Y/%m/')
+    caption = models.CharField(max_length=200, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+
+def ringkas_laporan(title, description):
+    """Judul + deskripsi laporan tanpa mengulang judul bila deskripsi sudah memuatnya."""
+    title, description = (title or '').strip(), (description or '').strip()
+    if not description or description.lower().startswith(title.lower().rstrip('.')):
+        return description or title
+    return f'{title} — {description}'
+
+
+def draf_ba_kerusakan(department, by=None):
+    """Draf BA Kerusakan yang sedang terbuka untuk departemen ini (dibuat bila belum ada)."""
+    ba = BeritaAcara.objects.filter(jenis='kerusakan', status='draft', department=department).first()
+    return ba or BeritaAcara.objects.create(jenis='kerusakan', department=department, dibuat_oleh=by)
+
+
+def catat_temuan_kerusakan(asset, sumber, kerusakan, damage_report=None, maintenance_record=None, by=None):
+    """
+    Masukkan temuan kerusakan ke draf BA departemen pemilik aset. Aset yang sudah ada
+    di draf tidak digandakan; keterangan kerusakannya ditambahkan.
+    """
+    if asset.lifecycle_status == 'writeoff':
+        return None
+    ba = draf_ba_kerusakan(asset.owned_by_department, by=by)
+    item = ba.items.filter(asset=asset).first()
+    kerusakan = (kerusakan or '').strip()
+    if item:
+        if kerusakan and kerusakan not in item.kerusakan:
+            item.kerusakan = f'{item.kerusakan}; {kerusakan}' if item.kerusakan else kerusakan
+        item.damage_report = item.damage_report or damage_report
+        item.maintenance_record = item.maintenance_record or maintenance_record
+        item.save()
+        return item
+    return BeritaAcaraItem.objects.create(ba=ba, asset=asset, sumber=sumber, kerusakan=kerusakan,
+                                          damage_report=damage_report, maintenance_record=maintenance_record)
+
+
+def salinan_penanda_tangan():
+    return [{'peran': p.peran, 'nama': p.nama, 'jabatan': p.jabatan} for p in PenandaTanganBA.objects.all()]
+
+
+def nomor_ba_berikutnya(tanggal):
+    terakhir = (BeritaAcara.objects.filter(urutan__isnull=False, tanggal__year=tanggal.year)
+                .order_by('-urutan').values_list('urutan', flat=True).first()) or 0
+    urutan = terakhir + 1
+    return urutan, BA_NOMOR_FORMAT.format(urutan=urutan, bulan_romawi=BULAN_ROMAWI[tanggal.month - 1], tahun=tanggal.year)
+
+
+@transaction.atomic
+def terbitkan_ba(ba, tanggal, by=None):
+    """Beri nomor urut tahunan, salin lembar pengesahan, ubah status jadi terbit."""
+    ba.urutan, ba.nomor = nomor_ba_berikutnya(tanggal)
+    ba.tanggal = tanggal
+    ba.isi = ba.isi.strip() or ba.isi_baku(tanggal)
+    ba.penanda_tangan = salinan_penanda_tangan()
+    ba.status = 'terbit'
+    ba.diterbitkan_oleh = by
+    ba.diterbitkan_at = timezone.now()
+    ba.save()
+    return ba
+
+
+@transaction.atomic
+def hapuskan_aset(assets, tanggal, alasan, keterangan, by=None, rujukan=None, nilai_jual=None):
+    """Write off sekumpulan aset lalu terbitkan satu BA Penghapusan (merujuk BA Kerusakan bila ada)."""
+    assets = list(assets)
+    for a in assets:
+        write_off_asset(a, tanggal, alasan, keterangan, by=by, nilai_jual=nilai_jual if len(assets) == 1 else None)
+    depts = {a.owned_by_department_id for a in assets}
+    ba = BeritaAcara.objects.create(
+        jenis='penghapusan', rujukan=rujukan, dibuat_oleh=by,
+        department=assets[0].owned_by_department if len(depts) == 1 else None,
+    )
+    asal = {it.asset_id: it for it in rujukan.items.all()} if rujukan else {}
+    for a in assets:
+        src = asal.get(a.pk)
+        BeritaAcaraItem.objects.create(ba=ba, asset=a, sumber='manual', rekomendasi='hapus',
+                                       kerusakan=(src.kerusakan if src else keterangan),
+                                       damage_report=src.damage_report if src else None)
+    return terbitkan_ba(ba, tanggal, by=by)

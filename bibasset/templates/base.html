@@ -65,6 +65,7 @@
       <li><a href="{% url 'maintenance_list' %}" class="menu-item {% block nav_maintenance %}{% endblock %}"><i class="mi-icon fa-solid fa-screwdriver-wrench" aria-hidden="true"></i><span class="mi-text">Maintenance</span></a></li>
       <li><a href="{% url 'ga_damage_report_list' %}" class="menu-item {% block nav_damage %}{% endblock %}"><i class="mi-icon fa-solid fa-triangle-exclamation" aria-hidden="true"></i><span class="mi-text">Laporan kerusakan</span></a></li>
       {% endif %}
+      <li><a href="{% url 'ba_list' %}" class="menu-item {% block nav_ba %}{% endblock %}"><i class="mi-icon fa-solid fa-file-signature" aria-hidden="true"></i><span class="mi-text">Berita acara</span></a></li>
       {# Lokasi, pemegang, dan riwayat perpindahan digabung: satu pertanyaan "di mana & dipegang siapa" #}
       <li><a href="{% if emp.ga_profile %}{% url 'location_dashboard' %}{% else %}{% url 'movement_dashboard' %}{% endif %}" class="menu-item {% block nav_tracking %}{% endblock %}"><i class="mi-icon fa-solid fa-location-crosshairs" aria-hidden="true"></i><span class="mi-text">Pelacakan</span></a></li>
       {% if emp.finance_profile %}

@@ -1,0 +1,59 @@
+/* Berita acara — daftar, editor draf, detail, proses penghapusan, penanda tangan */
+
+/* Item draf: satu kartu per aset */
+.ba-items { display: grid; }
+.ba-item { display: grid; gap: 12px; padding: 16px 20px; border-bottom: 1px solid var(--rule-soft); scroll-margin-top: calc(var(--header-h) + 16px); }
+.ba-item:last-child { border-bottom: 0; }
+.ba-item:target { background: var(--brand-25); }
+.ba-item-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.ba-item-head a.row-link { color: var(--ink); font-weight: 500; text-decoration: none; }
+.ba-item-head a.row-link:hover { color: var(--brand-500); }
+.ba-src { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-size: 12px; color: var(--ink-3); margin-top: 4px; }
+.ba-src a { color: var(--ink-3); }
+.ba-src a:hover { color: var(--brand-500); }
+.ba-item-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 16px; align-items: start; }
+.ba-item .textarea { min-height: 64px; }
+.ba-rek { display: grid; gap: 6px; }
+.ba-rek .field-label { font-size: 13px; color: var(--ink-3); }
+.ba-rek .seg-opt input[value="hapus"]:checked + span { color: var(--danger-ink); }
+.ba-photos { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.ba-photos img { width: 56px; height: 56px; object-fit: cover; border-radius: 8px; border: 1px solid var(--rule); }
+.ba-photo-add { display: inline-flex; align-items: center; gap: 6px; height: 56px; padding: 0 12px; border: 1px dashed var(--field); border-radius: 8px; font-size: 13px; color: var(--ink-3); cursor: pointer; }
+.ba-photo-add:hover { border-color: var(--brand-300); color: var(--brand-600); background: var(--brand-25); }
+.ba-photo-add:has(+ input:focus-visible) { outline: 2px solid var(--brand-500); outline-offset: 2px; }
+.ba-del { border: 0; background: none; color: var(--ink-3); font: inherit; font-size: 13px; cursor: pointer; padding: 4px 8px; border-radius: 8px; }
+.ba-del:hover { color: var(--danger-ink); background: var(--danger-tint); }
+
+.ba-summary { display: grid; gap: 4px; font-size: 14px; color: var(--ink-2); }
+.ba-summary strong { color: var(--ink); }
+.signers { list-style: none; margin: 0; padding: 6px 20px 14px; display: grid; gap: 8px; font-size: 13px; }
+.signers li { display: grid; grid-template-columns: 104px 1fr; gap: 8px; }
+.signers span { color: var(--ink-3); }
+.signers strong { color: var(--ink); font-weight: 500; }
+
+/* Pratinjau dokumen di dalam aplikasi */
+.ba-preview { background: var(--off-tint); border: 1px solid var(--rule); border-radius: var(--r-lg); padding: 16px; overflow-x: auto; }
+.ba-preview .ba-doc { min-width: 640px; }
+.ba-preview .ba-page { border-radius: 4px; box-shadow: var(--shadow-xs); }
+
+/* Proses penghapusan: daftar aset bercentang */
+.wo-pick { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.wo-pick label { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 12px; align-items: center; padding: 12px 14px; border: 1px solid var(--rule); border-radius: var(--r); cursor: pointer; }
+.wo-pick input { width: 16px; height: 16px; accent-color: var(--danger); }
+.wo-pick label:has(input:checked) { border-color: var(--danger-line-strong); background: var(--danger-tint); }
+.wo-pick strong { display: block; color: var(--ink); font-weight: 500; }
+.wo-pick small { font-size: 12px; color: var(--ink-3); }
+.wo-pick .num { text-align: right; font-size: 13px; color: var(--ink-2); white-space: nowrap; }
+
+/* Penanda tangan */
+.signer-table .input { min-height: 40px; }
+.signer-table td { padding: 8px 10px; }
+
+@media (max-width: 760px) {
+  .ba-item { padding: 14px 16px; }
+  .ba-item-row { grid-template-columns: minmax(0, 1fr); }
+  .signer-table thead { display: none; }
+  .signer-table, .signer-table tbody, .signer-table tr, .signer-table td { display: block; width: 100%; }
+  .signer-table tr { display: grid; gap: 6px; padding: 12px 14px; border-bottom: 1px solid var(--rule-soft); }
+  .signer-table td { padding: 0; border: 0; }
+}

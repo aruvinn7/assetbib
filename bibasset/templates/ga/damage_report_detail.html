@@ -155,6 +155,7 @@
           {% if report.asset.asset_category %}<div><dt>Kategori</dt><dd>{{ report.asset.asset_category.name }}</dd></div>{% endif %}
           <div><dt>Lokasi</dt><dd>{% if report.asset.lokasi_asset %}{{ report.asset.lokasi_asset }}{% else %}<span class="dim">Belum ditempatkan</span>{% endif %}</dd></div>
           <div><dt>Status aset</dt><dd>{% include "components/_lifecycle.html" with status=report.asset.lifecycle_status %}</dd></div>
+          {% if ba_item %}<div><dt>Berita acara</dt><dd><a href="{% url 'ba_detail' ba_item.ba.pk %}">{% if ba_item.ba.status == 'draft' %}Draf BA Kerusakan{% else %}{{ ba_item.ba.nomor }}{% endif %}</a></dd></div>{% endif %}
           {% if corrective_schedule %}<div><dt>Jadwal corrective</dt><dd>{{ corrective_schedule.scheduled_date|date:"d M Y" }} <span class="dim">· {{ corrective_schedule.get_status_display|lower }}</span></dd></div>{% endif %}
         </dl>
       </section>

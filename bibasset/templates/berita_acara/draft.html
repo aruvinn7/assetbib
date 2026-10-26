@@ -1,0 +1,161 @@
+{% extends "base.html" %}
+{% load static waktu %}
+{% block legacy_css %}{% endblock %}
+{% block title %}Draf BA Kerusakan · {{ ba.department.name|default:"Tanpa departemen" }}{% endblock %}
+{% block nav_ba %}active{% endblock %}
+{% block extra_head %}<link rel="stylesheet" href="{% static 'css/pages/berita_acara.css' %}?v=1">{% endblock %}
+
+{% block content %}
+<div class="page">
+  <div class="crumbs"><a href="{% url 'ba_list' %}">Berita acara</a><i class="fa-solid fa-chevron-right" aria-hidden="true" style="font-size:10px"></i>Draf {{ ba.department.name|default:"tanpa departemen" }}</div>
+  <div class="page-head">
+    <div>
+      <h1>Draf BA Kerusakan: {{ ba.department.name|default:"Tanpa departemen" }}</h1>
+      <div class="sub">{{ items|length }} aset · terkumpul otomatis dari laporan karyawan dan inspeksi rutin</div>
+    </div>
+    <div class="page-actions">
+      <a class="btn outline" href="{% url 'ba_print' ba.pk %}" target="_blank" rel="noopener"><i class="fa-regular fa-eye" aria-hidden="true"></i>Pratinjau dokumen</a>
+    </div>
+  </div>
+
+  <div class="form-layout">
+    <div class="form-main">
+      <form method="post" id="draftForm" class="form-main" novalidate>
+        {% csrf_token %}
+        <section class="fsec" id="items" aria-labelledby="itemsTitle">
+          <div class="fsec-head"><h2 id="itemsTitle">Aset rusak</h2><p>Periksa keterangan kerusakan, lalu tentukan apakah aset diperbaiki atau dihapuskan.</p></div>
+          {% if items %}
+          <div class="ba-items">
+            {% for it in items %}
+            <div class="ba-item" id="item-{{ it.pk }}">
+              <div class="ba-item-head">
+                <div>
+                  <a class="row-link" href="{% url 'asset_detail' it.asset.pk %}">{{ it.asset.nama_asset }}</a>
+                  <div class="ba-src">
+                    <span>{{ it.asset.asset_number }}{% if it.asset.lokasi_asset %} · {{ it.asset.lokasi_asset.name }}{% endif %}</span>
+                    <span aria-hidden="true">·</span>
+                    {% if it.sumber == 'laporan' and it.damage_report %}<a href="{% url 'ga_damage_report_detail' it.damage_report.pk %}">Laporan #{{ it.damage_report.pk }}</a> {{ it.damage_report.reported_at|sejak }}
+                    {% elif it.sumber == 'inspeksi' and it.maintenance_record %}Temuan {{ it.maintenance_record.get_maintenance_type_display|cut:" — Pengecekan visual/ringan"|cut:" — Terjadwal rutin"|lower }} {{ it.maintenance_record.tanggal_pelaksanaan|date:"d M Y" }}
+                    {% else %}Ditambahkan GA {{ it.created_at|sejak }}{% endif %}
+                  </div>
+                </div>
+                {% if is_ga %}<button type="submit" form="del-{{ it.pk }}" class="ba-del">Keluarkan dari draf</button>{% endif %}
+              </div>
+              <div class="ba-item-row">
+                <div class="field">
+                  <label for="ker-{{ it.pk }}">Keterangan kerusakan</label>
+                  <textarea class="textarea" id="ker-{{ it.pk }}" name="kerusakan-{{ it.pk }}" rows="2" {% if not is_ga %}readonly{% endif %} placeholder="Kondisi aset yang ditemukan">{{ it.kerusakan }}</textarea>
+                </div>
+                <fieldset class="qm-field ba-rek">
+                  <legend class="field-label">Rekomendasi</legend>
+                  <div class="seg" role="radiogroup">
+                    <label class="seg-opt"><input type="radio" name="rekomendasi-{{ it.pk }}" value="perbaiki" {% if it.rekomendasi == 'perbaiki' %}checked{% endif %} {% if not is_ga %}disabled{% endif %}><span>Diperbaiki</span></label>
+                    <label class="seg-opt"><input type="radio" name="rekomendasi-{{ it.pk }}" value="hapus" {% if it.rekomendasi == 'hapus' %}checked{% endif %} {% if not is_ga %}disabled{% endif %}><span>Dihapuskan</span></label>
+                  </div>
+                </fieldset>
+              </div>
+              <div class="ba-photos">
+                {% for f in it.foto.all %}<a href="{{ f.foto.url }}" target="_blank" rel="noopener"><img src="{{ f.foto.url }}" alt="Dokumentasi {{ it.asset.nama_asset }}" loading="lazy"></a>{% endfor %}
+                {% if it.damage_report.photo_evidence %}<a href="{{ it.damage_report.photo_evidence.url }}" target="_blank" rel="noopener" title="Foto dari laporan"><img src="{{ it.damage_report.photo_evidence.url }}" alt="Foto laporan {{ it.asset.nama_asset }}" loading="lazy"></a>{% endif %}
+                {% if is_ga %}
+                <label class="ba-photo-add" for="foto-in-{{ it.pk }}"><i class="fa-solid fa-camera" aria-hidden="true"></i>Tambah foto dokumentasi</label>
+                <input class="visually-hidden" type="file" accept="image/*" id="foto-in-{{ it.pk }}" name="foto" form="foto-{{ it.pk }}" data-autosubmit>
+                {% endif %}
+              </div>
+            </div>
+            {% endfor %}
+          </div>
+          {% else %}
+          <div class="empty"><strong>Draf kosong</strong>Tambahkan aset dari panel di samping.</div>
+          {% endif %}
+        </section>
+
+        <section class="fsec" aria-labelledby="isiTitle">
+          <div class="fsec-head"><h2 id="isiTitle">Paragraf pembuka</h2><p>Kosongkan untuk memakai teks baku. Teks baku menyesuaikan tanggal dan rekomendasi saat terbit.</p></div>
+          <div class="fsec-body">
+            <div class="field">
+              <label class="visually-hidden" for="isi">Paragraf pembuka</label>
+              <textarea class="textarea" id="isi" name="isi" rows="4" placeholder="{{ isi_baku }}" {% if not is_ga %}readonly{% endif %}>{{ ba.isi }}</textarea>
+            </div>
+          </div>
+        </section>
+
+        {% if is_ga %}
+        <div class="form-bar">
+          <span class="bar-hint">Perubahan disimpan sebagai draf; nomor diberikan saat terbit</span>
+          <button type="submit" name="aksi" value="simpan" class="btn outline">Simpan draf</button>
+        </div>
+        {% endif %}
+      </form>
+    </div>
+
+    <aside class="form-side">
+      {% if is_ga %}
+      <section class="panel" aria-labelledby="pubTitle">
+        <div class="panel-head"><h2 id="pubTitle">Terbitkan</h2></div>
+        <div class="panel-body" style="display:grid;gap:14px">
+          <div class="ba-summary">
+            <span><strong>{{ items|length }}</strong> aset, <strong>{{ n_hapus }}</strong> direkomendasikan dihapus</span>
+            <span>Nomor berikutnya: <strong>{{ nomor_berikutnya }}</strong></span>
+          </div>
+          <div class="field">
+            <label for="tanggal">Tanggal verifikasi</label>
+            <input class="input" type="date" id="tanggal" name="tanggal" form="draftForm" value="{{ today|date:'Y-m-d' }}" max="{{ today|date:'Y-m-d' }}">
+          </div>
+          <button type="submit" form="draftForm" name="aksi" value="terbitkan" class="btn full" {% if not items %}disabled{% endif %}
+                  data-confirm="Terbitkan berita acara ini? Nomor akan diberikan dan isi tidak bisa diubah lagi."><span class="spinner" aria-hidden="true"></span>Terbitkan berita acara</button>
+          <p class="field-hint">Setelah terbit: cetak, mintakan tanda tangan, lalu tandai sudah ditandatangani. Temuan baru masuk ke draf berikutnya.</p>
+        </div>
+      </section>
+      {% endif %}
+
+      <section class="panel" aria-labelledby="sahTitle">
+        <div class="panel-head"><h2 id="sahTitle">Lembar pengesahan</h2>{% if is_ga %}<a href="{% url 'ba_penanda_tangan' %}">Ubah</a>{% endif %}</div>
+        <ul class="signers">
+          {% for p in penanda %}<li><span>{{ p.peran }}</span><div><strong>{{ p.nama }}</strong><div class="cell-sub">{{ p.jabatan }}</div></div></li>
+          {% empty %}<li><span class="cell-sub">Belum diatur</span></li>{% endfor %}
+        </ul>
+      </section>
+
+      {% if is_ga %}
+      <section class="panel" aria-labelledby="addTitle">
+        <div class="panel-head"><h2 id="addTitle">Tambah aset</h2></div>
+        <form method="post" action="{% url 'ba_item_add' ba.pk %}" class="panel-body" style="display:grid;gap:12px">
+          {% csrf_token %}
+          <div class="field">
+            <label for="addAsset">Aset{% if ba.department %} {{ ba.department.name }}{% endif %}</label>
+            <select class="select" id="addAsset" name="asset_id" required>
+              <option value="">Pilih aset…</option>
+              {% for a in kandidat %}<option value="{{ a.pk }}">{{ a.nama_asset|truncatechars:48 }} · {{ a.asset_number }}</option>{% endfor %}
+            </select>
+          </div>
+          <div class="field">
+            <label for="addKer">Keterangan kerusakan</label>
+            <textarea class="textarea" id="addKer" name="kerusakan" rows="2" placeholder="Mis. ditemukan saat pengecekan ruangan"></textarea>
+          </div>
+          <button type="submit" class="btn outline">Tambahkan ke draf</button>
+        </form>
+      </section>
+      {% endif %}
+    </aside>
+  </div>
+
+  {% if is_ga %}
+  {# Form kecil di luar form draf (form bertingkat tidak diperbolehkan) #}
+  {% for it in items %}
+  <form id="del-{{ it.pk }}" method="post" action="{% url 'ba_item_delete' ba.pk it.pk %}" hidden onsubmit="return confirm('Keluarkan {{ it.asset.nama_asset|escapejs }} dari draf berita acara?')">{% csrf_token %}</form>
+  <form id="foto-{{ it.pk }}" method="post" action="{% url 'ba_item_photo' ba.pk it.pk %}" enctype="multipart/form-data" hidden>{% csrf_token %}</form>
+  {% endfor %}
+  {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+  document.querySelectorAll('[data-autosubmit]').forEach(i => i.addEventListener('change', () => i.files.length && i.form.submit()));
+  document.querySelectorAll('[data-confirm]').forEach(b => b.addEventListener('click', e => {
+    if (!confirm(b.dataset.confirm)) { e.preventDefault(); return; }
+    b.classList.add('is-loading');
+  }));
+</script>
+{% endblock %}

@@ -22,7 +22,8 @@ from ..forms import AssetForm, AssetUpdateForm, WriteOffForm, flash_form_errors
 from ..models import (
     Asset, AssetAssignment, AssetComponent, AssetPhoto, AssetGroup, AssetCategory,
     Department, Location, MaintenanceRecord, MaintenanceSchedule,
-    AssetWriteOff, DamageReport, cancel_write_off, compute_health, initialize_schedule_for_asset, write_off_asset,
+    AssetWriteOff, BeritaAcara, DamageReport, cancel_write_off, compute_health, hapuskan_aset,
+    initialize_schedule_for_asset,
 )
 from ..roles import is_ga
 from .utils import is_ga_or_finance
@@ -176,11 +177,14 @@ def asset_write_off(request, pk):
     form = WriteOffForm(request.POST or None, asset=asset)
     if request.method == 'POST' and form.is_valid():
         d = form.cleaned_data
-        wo = write_off_asset(asset, d['tanggal'], d['alasan'], d['keterangan'],
-                             by=request.user.employee, nilai_jual=d['nilai_jual'])
-        messages.success(request, f"{asset.nama_asset} di-write off per {wo.tanggal:%d %b %Y}."
+        rujukan = BeritaAcara.objects.filter(jenis='kerusakan', status='ditandatangani', items__asset=asset,
+                                             items__rekomendasi='hapus').order_by('-tanggal').first()
+        ba = hapuskan_aset([asset], d['tanggal'], d['alasan'], d['keterangan'], by=request.user.employee,
+                           rujukan=rujukan, nilai_jual=d['nilai_jual'])
+        wo = AssetWriteOff.objects.get(asset=asset)
+        messages.success(request, f"{asset.nama_asset} di-write off per {wo.tanggal:%d %b %Y}. {ba.nomor} terbit."
                          + (f" Nilai buku yang dihapus: Rp {wo.nilai_buku:,.0f}.".replace(',', '.') if wo.nilai_buku is not None else ""))
-        return redirect('asset_detail', pk=pk)
+        return redirect('ba_detail', pk=ba.pk)
 
     fin = asset.financial if hasattr(asset, 'financial') else None
     health, ratio = compute_health(asset.total_biaya_annot, asset.jumlah_corrective, fin.nilai_awal_aset if fin else None)

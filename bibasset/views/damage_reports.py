@@ -13,7 +13,7 @@ from django.views.decorators.http import require_POST
 from ..decorators import role_required
 from ..forms import DamageReportForm, ResolveDamageForm, flash_form_errors
 from ..models import (
-    Asset, AssetAssignment, DamageReport, MaintenanceSchedule,
+    Asset, AssetAssignment, BeritaAcaraItem, DamageReport, MaintenanceSchedule,
     initialize_schedule_for_asset,
 )
 from ..roles import is_ga, is_user_role
@@ -240,6 +240,7 @@ def _render_ga_detail(request, pk, resolve_posted=None, status=200):
         'corrective_schedule': corrective_schedule,
         'asset':               report.asset,
         'today':               date.today(),
+        'ba_item':             report.ba_items.select_related('ba').order_by('-ba__created_at').first(),
         # Isian form "Catat perbaikan selesai" yang gagal validasi, diisi ulang di template
         'resolve_posted':      resolve_posted or {},
     }, status=status)
@@ -324,7 +325,8 @@ def ga_damage_report_reject(request, pk):
                 handled_by=request.user.employee,
                 ga_notes=request.POST.get('ga_notes', 'Laporan ditolak.'),
             )
-            # Jadwal corrective dari laporan yang ditolak tidak relevan lagi
+            # Jadwal corrective & temuan di draf BA dari laporan yang ditolak tidak relevan lagi
+            BeritaAcaraItem.objects.filter(damage_report_id=pk, sumber='laporan', ba__status='draft').delete()
             MaintenanceSchedule.objects.filter(damage_report_id=pk).exclude(status='done').delete()
 
             other_active = DamageReport.objects.filter(

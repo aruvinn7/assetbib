@@ -1,0 +1,18 @@
+{% load static %}<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{ ba.nomor|default:"Draf" }} · {{ ba.get_jenis_display }}</title>
+  <link rel="stylesheet" href="{% static 'css/ba_dokumen.css' %}?v=1">
+</head>
+<body class="ba-print">
+  <div class="ba-toolbar no-print">
+    <a href="{% url 'ba_detail' ba.pk %}">← Kembali ke berita acara</a>
+    {% if ba.status == 'draft' %}<span class="note">Pratinjau draf: nomor diberikan saat terbit.</span>{% endif %}
+    <span class="sp"></span>
+    <button type="button" onclick="window.print()">Cetak / simpan PDF</button>
+  </div>
+  {% include "berita_acara/_dokumen.html" %}
+</body>
+</html>

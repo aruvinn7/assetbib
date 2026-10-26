@@ -32,3 +32,7 @@ from .assignment import (assignment_list, assignment_create, assignment_return)
 from .import_views import (import_asset, import_finansial, download_template_asset, download_template_finansial)
 
 from .movement import (movement_dashboard, movement_create, movement_update, movement_delete)
+from .berita_acara import (
+    ba_list, ba_detail, ba_item_add, ba_item_delete, ba_item_photo, ba_signed, ba_print,
+    ba_penghapusan, ba_penanda_tangan,
+)

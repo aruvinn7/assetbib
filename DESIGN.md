@@ -169,6 +169,13 @@ Form tambah/edit aset, finansial, BOM, dan master data memakai komponen bersama 
 - Master data punya tab bersama (`components/_master_tabs.html`). Daftar kecil disaring di sisi klien (`static/js/master.js`), dengan panel "tambah cepat" di samping.
 - Semua penghapusan dilakukan lewat POST + konfirmasi yang menyebut dampaknya (jumlah aset, sub-lokasi, atau kategori yang ikut terdampak).
 
+**Berita acara** (`views/berita_acara.py`, menu *Berita acara*):
+
+- Setiap temuan kerusakan otomatis masuk **draf BA Kerusakan** per departemen pemilik aset: laporan kerusakan baru, inspeksi/preventive berhasil *Minor/Major issue*, atau ditambah GA. Laporan yang ditolak dikeluarkan dari draf.
+- GA meninjau draf (keterangan + rekomendasi *Diperbaiki/Dihapuskan*) → **Terbitkan** (nomor `NNN/BIB/-HRGA/BA/<bulan romawi>/<tahun>`, urut per tahun, lembar pengesahan disalin saat terbit) → cetak & tanda tangan basah → **Tandai ditandatangani** (scan opsional) → **Proses penghapusan** untuk aset berekomendasi dihapus.
+- Setiap write off (dari BA maupun dari detail aset) menerbitkan **BA Penghapusan** yang merujuk BA Kerusakan bila ada.
+- Dokumen memakai `static/css/ba_dokumen.css` (Arial, mengikuti format resmi BA HRGA, bukan font aplikasi) dan `berita_acara/_dokumen.html` untuk pratinjau maupun cetak/PDF.
+
 **Pelacakan:** halaman lokasi, pemegang aset, dan riwayat perpindahan berada di satu menu, dengan tab bersama (`components/_tracking_tabs.html`).
 
 ## Halaman berkelas lama

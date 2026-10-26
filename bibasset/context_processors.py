@@ -27,7 +27,9 @@ def _build_notifications(role):
     from django.db.models import Count, Q
     from django.urls import reverse
 
-    from .models import Asset, DamageReport, MaintenanceSchedule
+    from django.db.models import Min
+
+    from .models import Asset, BeritaAcara, BeritaAcaraItem, DamageReport, MaintenanceSchedule
 
     items = []
     if role == 'ga':
@@ -55,6 +57,15 @@ def _build_notifications(role):
         if no_location:
             items.append({'kind': 'none', 'text': f'{no_location} aset belum punya lokasi',
                           'sub': 'Tempatkan agar mudah dilacak', 'url': reverse('asset_list') + '?location=none'})
+        # Berita acara: temuan yang menumpuk ≥ 7 hari di draf, dan BA terbit yang belum ditandatangani
+        draf = BeritaAcaraItem.objects.filter(ba__status='draft', ba__jenis='kerusakan').aggregate(n=Count('id'), awal=Min('created_at'))
+        if draf['n'] and (date.today() - draf['awal'].date()).days >= 7:
+            items.append({'kind': 'report', 'text': f"{draf['n']} temuan kerusakan belum dibuatkan berita acara",
+                          'sub': 'Tinjau draf lalu terbitkan', 'url': reverse('ba_list')})
+        ttd = BeritaAcara.objects.filter(status='terbit').count()
+        if ttd:
+            items.append({'kind': 'mandatory', 'text': f'{ttd} berita acara menunggu tanda tangan',
+                          'sub': 'Cetak lalu tandai sudah ditandatangani', 'url': reverse('ba_list') + '?tab=kerusakan'})
     elif role == 'finance':
         unvalued = Asset.objects.filter(financial__isnull=True).count()
         if unvalued:

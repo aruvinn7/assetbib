@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+{% load static waktu %}
+{% block legacy_css %}{% endblock %}
+{% block title %}Berita acara{% endblock %}
+{% block nav_ba %}active{% endblock %}
+{% block extra_head %}<link rel="stylesheet" href="{% static 'css/pages/berita_acara.css' %}?v=1">{% endblock %}
+
+{% block content %}
+{% with emp=request.user.employee %}
+<div class="page">
+  <div class="page-head">
+    <div>
+      <h1>Berita acara</h1>
+      <div class="sub">{{ counts.temuan }} temuan kerusakan di draf · {{ counts.menunggu_ttd }} menunggu tanda tangan</div>
+    </div>
+    {% if emp.ga_profile %}
+    <div class="page-actions">
+      <a class="btn outline" href="{% url 'ba_penanda_tangan' %}"><i class="fa-solid fa-signature" aria-hidden="true"></i>Penanda tangan</a>
+    </div>
+    {% endif %}
+  </div>
+
+  <div class="toolbar">
+    <nav class="filters" aria-label="Jenis berita acara">
+      <a class="chip {% if tab == 'draf' %}active{% endif %}" href="?tab=draf" {% if tab == 'draf' %}aria-current="true"{% endif %}><svg class="sign" aria-hidden="true"><use href="#sign-report"/></svg>Draf kerusakan <span class="count">{{ counts.draf }}</span></a>
+      <a class="chip {% if tab == 'kerusakan' %}active{% endif %}" href="?tab=kerusakan" {% if tab == 'kerusakan' %}aria-current="true"{% endif %}>BA Kerusakan <span class="count">{{ counts.kerusakan }}</span></a>
+      <a class="chip {% if tab == 'penghapusan' %}active{% endif %}" href="?tab=penghapusan" {% if tab == 'penghapusan' %}aria-current="true"{% endif %}><svg class="sign" aria-hidden="true"><use href="#sign-off"/></svg>BA Penghapusan <span class="count">{{ counts.penghapusan }}</span></a>
+    </nav>
+  </div>
+
+  {% if tab == 'draf' %}
+  <section class="panel" aria-label="Draf berita acara kerusakan">
+    {% if drafts %}
+    <div class="table-wrap">
+      <table class="table">
+        <thead><tr><th>Departemen</th><th class="num">Temuan</th><th class="num">Rekomendasi dihapus</th><th>Temuan terakhir</th><th><span class="visually-hidden">Aksi</span></th></tr></thead>
+        <tbody>
+        {% for d in drafts %}
+          <tr>
+            <td><a class="row-link" href="{% url 'ba_detail' d.pk %}">{{ d.department.name|default:"Tanpa departemen" }}</a></td>
+            <td class="num">{{ d.n }} aset</td>
+            <td class="num">{% if d.n_hapus %}{{ d.n_hapus }}{% else %}<span class="cell-sub">—</span>{% endif %}</td>
+            <td>{{ d.terakhir|sejak }}<div class="cell-sub">{{ d.terakhir|date:"d M Y" }}</div></td>
+            <td class="num"><a class="btn sm" href="{% url 'ba_detail' d.pk %}">Tinjau draf</a></td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <p class="panel-note">Temuan masuk otomatis dari laporan kerusakan karyawan dan hasil inspeksi/maintenance yang bermasalah, dikelompokkan per departemen pemilik aset.</p>
+    {% else %}
+    <div class="empty"><strong>Belum ada temuan kerusakan</strong>Laporan kerusakan baru dan hasil inspeksi bermasalah akan masuk ke sini otomatis.</div>
+    {% endif %}
+  </section>
+  {% else %}
+  <section class="panel" aria-label="Berita acara terbit">
+    {% if issued %}
+    <div class="table-wrap">
+      <table class="table">
+        <thead><tr><th>Nomor</th><th>Departemen</th><th>Tanggal</th><th class="num">Aset</th><th>Status</th>{% if tab == 'penghapusan' %}<th>Dasar</th>{% endif %}</tr></thead>
+        <tbody>
+        {% for b in issued %}
+          <tr>
+            <td><a class="row-link" href="{% url 'ba_detail' b.pk %}">{{ b.nomor }}</a><div class="cell-sub">{{ b.get_jenis_display }}</div></td>
+            <td>{{ b.department.name|default:"Lintas departemen" }}</td>
+            <td>{{ b.tanggal|date:"d M Y" }}</td>
+            <td class="num">{{ b.n }}</td>
+            <td>{% if b.status == 'ditandatangani' %}{% include "components/_status.html" with kind="safe" label="Ditandatangani" %}{% else %}{% include "components/_status.html" with kind="mandatory" label="Menunggu tanda tangan" %}{% endif %}</td>
+            {% if tab == 'penghapusan' %}<td>{% if b.rujukan %}<a href="{% url 'ba_detail' b.rujukan.pk %}">{{ b.rujukan.nomor }}</a>{% else %}<span class="cell-sub">Write off langsung</span>{% endif %}</td>{% endif %}
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="empty"><strong>Belum ada berita acara terbit</strong>{% if tab == 'penghapusan' %}BA Penghapusan terbit otomatis saat aset di-write off.{% else %}Terbitkan dari draf kerusakan.{% endif %}</div>
+    {% endif %}
+  </section>
+  {% endif %}
+</div>
+{% endwith %}
+{% endblock %}

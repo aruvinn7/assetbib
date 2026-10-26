@@ -1,0 +1,91 @@
+{% extends "base.html" %}
+{% load static rupiah %}
+{% block legacy_css %}{% endblock %}
+{% block title %}Proses penghapusan · {{ ba.nomor }}{% endblock %}
+{% block nav_ba %}active{% endblock %}
+{% block extra_head %}
+<link rel="stylesheet" href="{% static 'css/pages/berita_acara.css' %}?v=1">
+<link rel="stylesheet" href="{% static 'css/pages/write_off.css' %}?v=1">
+{% endblock %}
+
+{% block content %}
+<div class="page">
+  <div class="crumbs">
+    <a href="{% url 'ba_list' %}?tab=kerusakan">Berita acara</a><i class="fa-solid fa-chevron-right" aria-hidden="true" style="font-size:10px"></i>
+    <a href="{% url 'ba_detail' ba.pk %}">{{ ba.nomor }}</a><i class="fa-solid fa-chevron-right" aria-hidden="true" style="font-size:10px"></i>Penghapusan
+  </div>
+  <div class="page-head">
+    <div>
+      <h1>Proses penghapusan aset</h1>
+      <div class="sub">Berdasarkan {{ ba.nomor }} · {{ ba.department.name|default:"Lintas departemen" }}</div>
+    </div>
+  </div>
+
+  <div class="wo-grid">
+    <form method="post" class="panel wo-form" novalidate>
+      {% csrf_token %}
+      <div class="panel-body wo-body">
+        <fieldset class="qm-field">
+          <legend>Aset yang dihapuskan <span class="req" aria-hidden="true">*</span></legend>
+          <ul class="wo-pick">
+            {% for it in items %}
+            <li><label>
+              <input type="checkbox" name="item" value="{{ it.pk }}" {% if it.pk in pilih %}checked{% endif %}>
+              <span><strong>{{ it.asset.nama_asset }}</strong><small>{{ it.asset.asset_number }} · rekomendasi {{ it.get_rekomendasi_display|lower }}</small></span>
+              <span class="num">{% if it.asset.financial %}{{ it.asset.financial.book_value|rupiah }}<small style="display:block">nilai buku</small>{% else %}<small>belum dinilai</small>{% endif %}</span>
+            </label></li>
+            {% empty %}
+            <li class="empty">Semua aset di BA ini sudah di-write off.</li>
+            {% endfor %}
+          </ul>
+        </fieldset>
+
+        <fieldset class="qm-field">
+          <legend>Alasan <span class="req" aria-hidden="true">*</span></legend>
+          <div class="reason-pick">
+            {% for value, label in reasons %}
+            <label class="rp"><input type="radio" name="alasan" value="{{ value }}" {% if cur_alasan == value %}checked{% endif %}><span><strong>{{ label }}</strong></span></label>
+            {% endfor %}
+          </div>
+        </fieldset>
+
+        <div class="qm-row">
+          <div class="field">
+            <label for="tanggal">Tanggal penghapusan <span class="req" aria-hidden="true">*</span></label>
+            <input class="input" type="date" id="tanggal" name="tanggal" value="{% firstof request.POST.tanggal today|date:'Y-m-d' %}" min="{{ ba.tanggal|date:'Y-m-d' }}" max="{{ today|date:'Y-m-d' }}" required>
+            <p class="field-hint">Sesuai tanggal penghapusan disetujui.</p>
+          </div>
+        </div>
+
+        <div class="field">
+          <label for="keterangan">Keterangan <span class="req" aria-hidden="true">*</span></label>
+          <textarea class="textarea" id="keterangan" name="keterangan" rows="3" required>{{ keterangan }}</textarea>
+        </div>
+
+        <label class="confirm">
+          <input type="checkbox" name="konfirmasi" required {% if request.POST.konfirmasi %}checked{% endif %}>
+          <span>BA Kerusakan sudah ditandatangani lengkap dan penghapusan aset terpilih sudah disetujui. Write off tiap aset masih bisa dibatalkan dari detail asetnya bila keliru.</span>
+        </label>
+      </div>
+      <div class="dlg-foot">
+        <a class="dlg-link" href="{% url 'ba_detail' ba.pk %}">Kembali ke berita acara</a>
+        <div class="dlg-actions">
+          <a href="{% url 'ba_detail' ba.pk %}" class="btn outline">Batal</a>
+          <button type="submit" class="btn danger-solid" {% if not items %}disabled{% endif %}>Write off & terbitkan BA Penghapusan</button>
+        </div>
+      </div>
+    </form>
+
+    <aside class="wo-side">
+      <section class="panel">
+        <div class="panel-head"><h2>Yang akan terjadi</h2></div>
+        <ul class="wo-effects">
+          <li><i class="fa-solid fa-ban" aria-hidden="true"></i><span>Aset terpilih berstatus <strong>Write off</strong>; jadwal maintenance dihentikan dan pemegangnya dikembalikan.</span></li>
+          <li><i class="fa-solid fa-coins" aria-hidden="true"></i><span>Nilai buku per tanggal penghapusan tercatat lalu berhenti menyusut.</span></li>
+          <li><i class="fa-solid fa-file-signature" aria-hidden="true"></i><span><strong>BA Penghapusan Asset</strong> terbit bernomor dan merujuk {{ ba.nomor }}.</span></li>
+        </ul>
+      </section>
+    </aside>
+  </div>
+</div>
+{% endblock %}

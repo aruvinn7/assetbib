@@ -1,0 +1,61 @@
+{% load rupiah %}
+{# Isi dokumen Berita Acara. Butuh: ba, baris (ba.baris_dokumen), foto (ba.lampiran_foto), penanda (list peran/nama/jabatan) #}
+<article class="ba-doc {% if ba.status == 'draft' %}ba-draft{% endif %}">
+  <section class="ba-page">
+    <h1 class="ba-title">{{ ba.judul }}</h1>
+    <p class="ba-no">No: {{ ba.nomor|default:"(diberikan saat terbit)" }}</p>
+    <p class="ba-isi">{{ ba.isi_final }}</p>
+
+    <table class="ba-tbl">
+      {% if ba.jenis == 'penghapusan' %}
+      <thead><tr><th>No</th><th>Nama Asset</th><th>PO / No Asset</th><th>Tahun Perolehan</th><th>Nilai Perolehan</th><th>Nilai Buku</th><th>Jumlah (Unit)</th></tr></thead>
+      <tbody>
+      {% for r in baris %}
+        <tr><td class="c">{{ forloop.counter }}</td><td>{{ r.nama }}</td><td class="c">{{ r.po }}</td><td class="c">{{ r.tahun }}</td>
+          <td class="r">{% if r.ada_nilai %}{{ r.nilai_perolehan|rupiah }}{% else %}—{% endif %}</td>
+          <td class="r">{% if r.ada_nilai %}{{ r.nilai_buku|rupiah }}{% else %}—{% endif %}</td>
+          <td class="c">{{ r.jumlah }}</td></tr>
+      {% endfor %}
+      </tbody>
+      {% else %}
+      <colgroup><col style="width:5%"><col style="width:24%"><col style="width:12%"><col style="width:9%"><col style="width:10%"><col style="width:8%"><col style="width:32%"></colgroup>
+      <thead><tr><th>No</th><th>Nama Asset</th><th>PO / No Asset</th><th>Tahun Perolehan</th><th>Usia Pemakaian</th><th>Jumlah (Unit)</th><th>Keterangan</th></tr></thead>
+      <tbody>
+      {% for r in baris %}
+        <tr><td class="c">{{ forloop.counter }}</td><td>{{ r.nama }}</td><td class="c">{{ r.po }}</td><td class="c">{{ r.tahun }}</td>
+          <td class="c">{% if r.usia %}{{ r.usia }} tahun{% else %}&lt; 1 tahun{% endif %}</td><td class="c">{{ r.jumlah }}</td>
+          <td class="ket">{{ r.kerusakan|truncatechars:160 }}<br><b>Rekomendasi: {{ r.rekomendasi }}</b></td></tr>
+      {% empty %}
+        <tr><td colspan="7" class="c">Belum ada aset.</td></tr>
+      {% endfor %}
+      </tbody>
+      {% endif %}
+    </table>
+
+    {% if ba.jenis == 'penghapusan' %}
+    <p>Demikian Berita Acara Penghapusan Asset ini dibuat, dan asset tersebut di atas dikeluarkan dari daftar Rekapitulasi Asset PT BIB.</p>
+    {% else %}
+    <p>Demikian Berita Acara Kerusakan Asset ini dan akan dimutakhirkan dalam daftar Rekapitulasi Asset PT BIB dan untuk keperluan lainnya.</p>
+    {% endif %}
+    <p>Atas perhatian dan kerjasamanya diucapkan terima kasih.</p>
+    <p>{{ ba.tanggal_tempat }}</p>
+
+    <table class="ba-sah">
+      <tr><th colspan="{{ penanda|length|default:1 }}">Lembar Pengesahan</th></tr>
+      <tr class="role">{% for p in penanda %}<td>{{ p.peran }},</td>{% endfor %}</tr>
+      <tr class="ttd">{% for p in penanda %}<td></td>{% endfor %}</tr>
+      <tr class="nm">{% for p in penanda %}<td><strong>{{ p.nama }}</strong>{{ p.jabatan }}</td>{% endfor %}</tr>
+    </table>
+  </section>
+
+  {% if foto %}
+  <section class="ba-page ba-lampiran">
+    <h2>Lampiran</h2>
+    <p class="ba-ref">No Berita Acara: {{ ba.nomor|default:"(diberikan saat terbit)" }}</p>
+    <h3>{% if ba.jenis == 'penghapusan' %}DOKUMENTASI ASSET YANG DIHAPUSKAN{% else %}DOKUMENTASI ASSET RUSAK{% endif %}</h3>
+    <div class="ba-foto">
+      {% for f in foto %}<figure><img src="{{ f.url }}" alt="Dokumentasi {{ f.caption }}" loading="lazy"><figcaption>{{ f.caption }}</figcaption></figure>{% endfor %}
+    </div>
+  </section>
+  {% endif %}
+</article>

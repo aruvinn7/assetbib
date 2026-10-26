@@ -45,6 +45,24 @@
         ],
         "createdAt": "2026-10-26T00:33:16.260Z",
         "reason": "Claude: login.css sets h1 30px/600 vs body 14px (2.1x) and brand 19px; hook cannot see external page CSS"
+      },
+      {
+        "rule": "design-system-font",
+        "value": "arial",
+        "files": [
+          "static/css/ba_dokumen.css"
+        ],
+        "createdAt": "2026-10-26T19:19:17.504Z",
+        "reason": "Dokumen Berita Acara wajib mengikuti format resmi BA HRGA PT BIB (Arial), sesuai contoh dari user; tidak dipakai di UI aplikasi"
+      },
+      {
+        "rule": "overused-font",
+        "value": "arial",
+        "files": [
+          "static/css/ba_dokumen.css"
+        ],
+        "createdAt": "2026-10-26T19:26:08.286Z",
+        "reason": "Dokumen Berita Acara wajib mengikuti format resmi BA HRGA PT BIB (Arial), sesuai contoh dari user; tidak dipakai di UI aplikasi"
       }
     ]
   }

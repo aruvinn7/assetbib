@@ -114,6 +114,19 @@ urlpatterns = [
     path('ga/laporan-kerusakan/<int:pk>/resolve/',    views.ga_damage_report_resolve,     name='ga_damage_report_resolve'),
     path('ga/laporan-kerusakan/<int:pk>/reject/',     views.ga_damage_report_reject,      name='ga_damage_report_reject'),
 
+    # ===========================
+    # BERITA ACARA (kerusakan & penghapusan)
+    # ===========================
+    path('berita-acara/',                                 views.ba_list,           name='ba_list'),
+    path('berita-acara/penanda-tangan/',                  views.ba_penanda_tangan, name='ba_penanda_tangan'),
+    path('berita-acara/<int:pk>/',                        views.ba_detail,         name='ba_detail'),
+    path('berita-acara/<int:pk>/cetak/',                  views.ba_print,          name='ba_print'),
+    path('berita-acara/<int:pk>/tambah/',                 views.ba_item_add,       name='ba_item_add'),
+    path('berita-acara/<int:pk>/item/<int:item_pk>/hapus/', views.ba_item_delete,  name='ba_item_delete'),
+    path('berita-acara/<int:pk>/item/<int:item_pk>/foto/',  views.ba_item_photo,   name='ba_item_photo'),
+    path('berita-acara/<int:pk>/ditandatangani/',         views.ba_signed,         name='ba_signed'),
+    path('berita-acara/<int:pk>/penghapusan/',            views.ba_penghapusan,    name='ba_penghapusan'),
+
     # =============================================
     # GA — Serah Terima Aset (Assignment)
     # =============================================
