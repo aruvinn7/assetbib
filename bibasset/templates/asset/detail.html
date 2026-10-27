@@ -303,14 +303,16 @@
         </div>
       </section>
 
-      {# ── Tautan ── #}
+      {# ── Tautan (khusus GA: BOM, riwayat perpindahan, serah terima) ── #}
+      {% if emp.ga_profile %}
       <section class="panel">
         <ul class="links">
-          {% if emp.ga_profile %}<li><a href="{% url 'component_list' asset.id %}">Komponen (BOM)<span>{{ components|length }} part</span></a></li>{% endif %}
+          <li><a href="{% url 'component_list' asset.id %}">Komponen (BOM)<span>{{ components|length }} part</span></a></li>
           <li><a href="{% url 'movement_dashboard' %}?q={{ asset.asset_number|urlencode }}">Histori movement<span>lihat</span></a></li>
-          {% if emp.ga_profile %}<li><a href="{% url 'assignment_create_for_asset' asset.id %}">Serahkan ke karyawan<span>assignment</span></a></li>{% endif %}
+          <li><a href="{% url 'assignment_create_for_asset' asset.id %}">Serahkan ke karyawan<span>assignment</span></a></li>
         </ul>
       </section>
+      {% endif %}
     </aside>
   </div>
 </div>

@@ -85,38 +85,6 @@
 .steps li.todo strong { font-weight: 400; color: var(--ink-3); }
 
 /* ── Form karyawan ── */
-.picked-asset { display: flex; align-items: center; gap: 14px; padding: 14px 16px; border: 1px solid var(--rule); border-radius: 12px; background: var(--ground); }
-.picked-asset > i { width: 40px; height: 40px; flex: none; display: grid; place-items: center; border-radius: 10px; background: var(--panel); border: 1px solid var(--rule); color: var(--ink-3); }
-.picked-asset strong { display: block; color: var(--ink); font-weight: 500; }
-.picked-asset span { font-size: 13px; color: var(--ink-3); }
-.picked-asset > div { flex: 1; min-width: 0; }
-.picked-change { flex: none; font-size: 13px; font-weight: 500; }
-
-/* Pilih aset yang dilaporkan: hasil cari + aset yang dipegang */
-.rp-search { max-width: none; flex: none; }
-.rp-search .rp-search-busy { position: absolute; right: 12px; top: 50%; margin-top: -8px; color: var(--ink-4); display: none; }
-.rp-search.is-busy .rp-search-busy { display: block; }
-.asset-pick { display: grid; gap: 8px; }
-.asset-pick:empty { display: none; }
-.asset-pick-group { display: grid; gap: 8px; }
-.asset-pick-label { margin: 0; font-size: 13px; font-weight: 500; color: var(--ink-3); }
-.ap-opt {
-  display: flex; gap: 12px; align-items: flex-start; padding: 12px 14px; border: 1px solid var(--rule); border-radius: 12px;
-  background: var(--panel); cursor: pointer; transition: border-color .15s, background .15s;
-}
-.ap-opt input { width: 16px; height: 16px; margin-top: 3px; flex: none; accent-color: var(--brand-500); }
-.ap-opt span { display: grid; gap: 2px; min-width: 0; }
-.ap-opt strong { color: var(--ink); font-weight: 500; font-size: 14px; overflow-wrap: anywhere; }
-.ap-opt small { color: var(--ink-3); font-size: 13px; overflow-wrap: anywhere; }
-.ap-opt em { font-style: normal; font-size: 12px; font-weight: 500; justify-self: start; margin-top: 4px; padding: 1px 8px; border-radius: 999px; }
-.ap-mine { background: var(--brand-50); color: var(--brand-600); }
-.ap-block { background: var(--mandatory-tint); color: var(--mandatory-ink); }
-.ap-opt:hover { border-color: var(--brand-200); }
-.ap-opt:has(input:checked) { border-color: var(--brand-300); background: var(--brand-25); box-shadow: 0 0 0 1px var(--brand-300); }
-.ap-opt.is-blocked { cursor: not-allowed; background: var(--ground); }
-.ap-opt.is-blocked strong { color: var(--ink-3); }
-.ap-opt.is-blocked:hover { border-color: var(--rule); }
-.ap-empty { margin: 0; padding: 12px 14px; border: 1px dashed var(--field); border-radius: 12px; font-size: 13px; color: var(--ink-3); }
 
 .sev-pick .rp { padding: 12px 14px; }
 .sev-pick .rp.is-critical:has(input:checked) { border-color: var(--danger); background: var(--danger-tint); box-shadow: 0 0 0 1px var(--danger); }

@@ -2,7 +2,7 @@
 {% load static %}
 {% block title %}Lapor kerusakan{% endblock %}
 {% block nav_report_create %}active{% endblock %}
-{% block extra_head %}<link rel="stylesheet" href="{% static 'css/pages/damage_report.css' %}?v=4">{% endblock %}
+{% block extra_head %}<link rel="stylesheet" href="{% static 'css/pages/damage_report.css' %}?v=5">{% endblock %}
 
 {% block content %}
 {% firstof posted.severity "medium" as cur_sev %}
@@ -40,7 +40,7 @@
               <div class="search rp-search">
                 <i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i>
                 <input class="input" type="search" id="rpSearch" placeholder="Nama, nomor aset, atau lokasi" autocomplete="off"
-                       data-url="{% url 'damage_report_asset_search' %}" aria-describedby="rpSearchHint" aria-controls="rpResults">
+                       data-asset-search="{% url 'damage_report_asset_search' %}" data-empty="Coba nomor aset di labelnya, atau laporkan ke GA langsung." aria-describedby="rpSearchHint" aria-controls="rpResults">
                 <span class="spinner rp-search-busy" aria-hidden="true"></span>
               </div>
               <p class="field-hint" id="rpSearchHint">Contoh: <em>AC mess 3</em> atau nomor di label aset, mis. <em>ELK-AC-019</em>.</p>
@@ -108,7 +108,7 @@
 
       <div class="form-bar">
         <span class="bar-hint"><span class="req">*</span> wajib diisi</span>
-        <a href="{% url 'user_dashboard' %}" class="btn outline">Batal</a>
+        <a href="{% if request.user.employee.user_profile %}{% url 'user_dashboard' %}{% else %}{% url 'user_damage_report_list' %}{% endif %}" class="btn outline">Batal</a>
         <button type="submit" class="btn"><span class="spinner" aria-hidden="true"></span><span class="btn-label">Kirim laporan</span></button>
       </div>
     </div>
@@ -162,48 +162,10 @@
     });
     form.addEventListener('input', e => { if (e.target.value?.trim()) e.target.setAttribute('aria-invalid', 'false'); });
 
-    // ── Cari aset siapa pun untuk dilaporkan ──
-    const search = document.getElementById('rpSearch');
-    if (search) {
-      const results = document.getElementById('rpResults');
-      const box = search.closest('.rp-search');
-      const esc = t => String(t).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-      let timer, seq = 0;
-      form.addEventListener('change', e => {
-        if (e.target.name === 'asset_id') document.getElementById('rpAssetErr').hidden = true;
-      });
-      search.addEventListener('keydown', e => { if (e.key === 'Enter') e.preventDefault(); });
-      search.addEventListener('input', () => {
-        clearTimeout(timer);
-        const q = search.value.trim();
-        if (q.length < 2) { results.innerHTML = ''; box.classList.remove('is-busy'); return; }
-        timer = setTimeout(async () => {
-          const my = ++seq;
-          box.classList.add('is-busy');
-          try {
-            const res = await fetch(`${search.dataset.url}?q=${encodeURIComponent(q)}`, { headers: { 'X-Requested-With': 'fetch' } });
-            const data = await res.json();
-            if (my !== seq) return;
-            // Pilihan yang sedang dicentang dari hasil sebelumnya tetap dipertahankan
-            const keep = results.querySelector('input:checked')?.closest('.ap-opt');
-            results.innerHTML = data.results.length ? '' : `<p class="ap-empty">Tidak ada aset yang cocok dengan “${esc(q)}”. Coba nomor aset di labelnya, atau laporkan ke GA langsung.</p>`;
-            if (keep) results.append(keep);
-            data.results.forEach(a => {
-              if (keep && keep.querySelector('input').value === String(a.id)) return;
-              const meta = [a.number, a.category, a.location].filter(Boolean).map(esc).join(' · ');
-              const tag = a.blocked ? `<em class="ap-block">${esc(a.blocked)}</em>` : (a.mine ? '<em class="ap-mine">Aset Anda</em>' : '');
-              results.insertAdjacentHTML('beforeend',
-                `<label class="ap-opt${a.blocked ? ' is-blocked' : ''}"><input type="radio" name="asset_id" value="${a.id}"${a.blocked ? ' disabled' : ''}>` +
-                `<span><strong>${esc(a.name)}</strong><small>${meta}</small>${tag}</span></label>`);
-            });
-          } catch (err) {
-            if (my === seq) results.innerHTML = '<p class="ap-empty">Pencarian gagal. Periksa koneksi lalu coba lagi.</p>';
-          } finally {
-            if (my === seq) box.classList.remove('is-busy');
-          }
-        }, 250);
-      });
-    }
+    form.addEventListener('change', e => {
+      if (e.target.name === 'asset_id') document.getElementById('rpAssetErr').hidden = true;
+    });
   })();
 </script>
+<script src="{% static 'js/asset_picker.js' %}?v=1"></script>
 {% endblock %}

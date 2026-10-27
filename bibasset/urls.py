@@ -105,6 +105,10 @@ urlpatterns = [
     path('user/laporan-kerusakan/buat/<int:asset_id>/', views.damage_report_create, name='damage_report_create_for_asset'),
     path('user/laporan-kerusakan/cari-aset/',    views.damage_report_asset_search, name='damage_report_asset_search'),
     path('user/laporan-kerusakan/<int:pk>/',     views.user_damage_report_detail, name='user_damage_report_detail'),
+    path('user/lapor-pindah/',                   views.movement_report_list,      name='movement_report_list'),
+    path('user/lapor-pindah/buat/',              views.movement_report_create,    name='movement_report_create'),
+    path('user/lapor-pindah/buat/<int:asset_id>/', views.movement_report_create,  name='movement_report_create_for_asset'),
+    path('user/lapor-pindah/cari-aset/',         views.movement_report_asset_search, name='movement_report_asset_search'),
 
     # =============================================
     # GA — Manajemen Laporan Kerusakan
@@ -135,6 +139,11 @@ urlpatterns = [
     path('ga/assignment/buat/',                     views.assignment_create,            name='assignment_create'),
     path('ga/assignment/buat/<int:asset_id>/',      views.assignment_create,            name='assignment_create_for_asset'),
     path('ga/assignment/<int:pk>/kembalikan/',      views.assignment_return,            name='assignment_return'),
+
+    # Laporan perpindahan dari karyawan (GA meninjau yang krusial)
+    path('ga/laporan-pindah/',                      views.ga_movement_report_list,      name='ga_movement_report_list'),
+    path('ga/laporan-pindah/<int:pk>/setujui/',     views.ga_movement_report_approve,   name='ga_movement_report_approve'),
+    path('ga/laporan-pindah/<int:pk>/tolak/',       views.ga_movement_report_reject,    name='ga_movement_report_reject'),
 
     # Karyawan & akun login (khusus GA)
     path('ga/karyawan/',                            views.employee_list,                name='employee_list'),

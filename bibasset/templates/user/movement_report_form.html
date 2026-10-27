@@ -1,0 +1,171 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}Lapor pindah aset{% endblock %}
+{% block nav_move_report %}active{% endblock %}
+{% block extra_head %}<link rel="stylesheet" href="{% static 'css/pages/movement_report.css' %}?v=2">{% endblock %}
+
+{% block content %}
+<div class="page">
+  <div class="crumbs">
+    <a href="{% url 'movement_report_list' %}">Laporan pindah saya</a><i class="fa-solid fa-chevron-right" aria-hidden="true" style="font-size:10px"></i>Lapor pindah
+  </div>
+  <div class="page-head">
+    <div>
+      <h1>Lapor pindah aset</h1>
+      <div class="sub">Catat sendiri saat aset dipindah. Pindah ruangan langsung tercatat; pindah departemen atau pindah site menunggu persetujuan GA.</div>
+    </div>
+  </div>
+
+  <form method="post" class="form-layout single" id="mvrForm" novalidate>
+    {% csrf_token %}
+    <div class="form-main">
+
+      <section class="fsec">
+        <div class="fsec-head"><h2>Aset yang dipindah</h2><p>Aset yang Anda pegang atau milik departemen Anda.</p></div>
+        <div class="fsec-body">
+          {% if selected %}
+            <label class="picked-asset">
+              <input class="visually-hidden" type="radio" name="asset_id" value="{{ selected.id }}" checked
+                     data-dept="{{ selected.owned_by_department_id|default:'' }}" data-holder="{{ selected.holder_id|default:'' }}"
+                     data-site="{% if selected.lokasi_asset %}{{ selected.lokasi_asset.full_path|default:selected.lokasi_asset.name }}{% endif %}" data-location="{{ selected.lokasi_asset_id|default:'' }}">
+              <i class="fa-solid fa-box-archive" aria-hidden="true"></i>
+              <div>
+                <strong>{{ selected.nama_asset }}</strong>
+                <span>{{ selected.asset_number }} · {% if selected.lokasi_asset %}{{ selected.lokasi_asset.full_path }}{% else %}Belum ditempatkan{% endif %}{% if selected.owned_by_department %} · {{ selected.owned_by_department.name }}{% endif %}</span>
+              </div>
+              <a class="picked-change" href="{% url 'movement_report_create' %}">Ganti aset</a>
+            </label>
+          {% else %}
+            <div class="field">
+              <label for="mvSearch">Cari aset</label>
+              <div class="search rp-search">
+                <i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i>
+                <input class="input" type="search" id="mvSearch" placeholder="Nama, nomor aset, atau lokasi" autocomplete="off"
+                       data-asset-search="{% url 'movement_report_asset_search' %}" data-empty="Hanya aset yang Anda pegang atau milik departemen Anda yang bisa dilaporkan."
+                       aria-controls="mvResults">
+                <span class="spinner rp-search-busy" aria-hidden="true"></span>
+              </div>
+            </div>
+            <div class="asset-pick" id="mvResults" role="radiogroup" aria-label="Hasil pencarian aset" aria-live="polite"></div>
+
+            {% if held_assets %}
+            <div class="asset-pick-group">
+              <p class="asset-pick-label">Aset yang Anda pegang</p>
+              <div class="asset-pick" role="radiogroup" aria-label="Aset yang Anda pegang">
+                {% for a in held_assets %}
+                <label class="ap-opt{% if a.pending_report %} is-blocked{% endif %}">
+                  <input type="radio" name="asset_id" value="{{ a.id }}" {% if a.pending_report %}disabled{% endif %} data-dept="{{ a.owned_by_department_id|default:'' }}" data-holder="{{ a.holder_id|default:'' }}"
+                         data-site="{% if a.lokasi_asset %}{{ a.lokasi_asset.full_path|default:a.lokasi_asset.name }}{% endif %}" data-location="{{ a.lokasi_asset_id|default:'' }}">
+                  <span><strong>{{ a.nama_asset }}</strong><small>{{ a.asset_number }} · {% if a.lokasi_asset %}{{ a.lokasi_asset.full_path }}{% else %}Belum ditempatkan{% endif %}</small>{% if a.pending_report %}<em class="ap-block">Menunggu persetujuan GA (#{{ a.pending_report }})</em>{% endif %}</span>
+                </label>
+                {% endfor %}
+              </div>
+            </div>
+            {% endif %}
+            <p class="field-error" id="mvAssetErr" hidden>Pilih aset yang dipindah dulu.</p>
+          {% endif %}
+        </div>
+      </section>
+
+      <section class="fsec">
+        <div class="fsec-head"><h2>Tujuan</h2><p>Isi posisi aset setelah dipindah.</p></div>
+        <div class="fsec-body">
+          <div class="field">
+            <label for="to_location">Lokasi tujuan <span class="req" aria-hidden="true">*</span></label>
+            <input class="input select-filter" type="search" placeholder="Saring lokasi…" data-filter-for="to_location" aria-label="Saring daftar lokasi">
+            <select class="input select" id="to_location" name="to_location" required>
+              <option value="">Pilih lokasi…</option>
+              {% for l in locations %}<option value="{{ l.pk }}" data-site="{{ l.full_path|default:l.name }}" {% if posted.to_location == l.pk|stringformat:"s" %}selected{% endif %}>{{ l.full_path }}</option>{% endfor %}
+            </select>
+          </div>
+          <div class="fgrid">
+            <div class="field">
+              <label for="to_department">Departemen pemilik</label>
+              <select class="input select" id="to_department" name="to_department">
+                {% for d in departments %}<option value="{{ d.pk }}" {% if posted %}{% if posted.to_department == d.pk|stringformat:"s" %}selected{% endif %}{% elif selected.owned_by_department_id == d.pk %}selected{% endif %}>{{ d.name }}</option>{% endfor %}
+              </select>
+              <p class="field-hint">Biarkan sama bila aset tetap milik departemen yang sama.</p>
+            </div>
+            <div class="field">
+              <label for="to_holder">Dipegang oleh</label>
+              <select class="input select" id="to_holder" name="to_holder">
+                <option value="">Tidak dipegang siapa pun (aset ruangan)</option>
+                {% for e in recipients %}<option value="{{ e.pk }}" {% if posted %}{% if posted.to_holder == e.pk|stringformat:"s" %}selected{% endif %}{% elif selected.holder_id == e.pk %}selected{% endif %}>{{ e.nama }}{% if e.pk == request.user.employee.pk %} (Anda){% endif %}{% if e.department %} · {{ e.department.name }}{% endif %}</option>{% endfor %}
+              </select>
+            </div>
+          </div>
+          <div class="field">
+            <label for="notes">Catatan <span class="opt">opsional</span></label>
+            <textarea class="textarea" id="notes" name="notes" rows="2" placeholder="Mis. pindah karena renovasi ruang meeting">{{ posted.notes|default:'' }}</textarea>
+          </div>
+
+          <div class="note mvr-verdict" id="mvVerdict" hidden aria-live="polite">
+            <svg class="sign" aria-hidden="true"><use href="#sign-safe"/></svg>
+            <span></span>
+          </div>
+        </div>
+      </section>
+
+      <div class="form-bar">
+        <span class="bar-hint"><span class="req">*</span> wajib diisi</span>
+        <a href="{% url 'movement_report_list' %}" class="btn outline">Batal</a>
+        <button type="submit" class="btn" id="mvSubmit"><span class="spinner" aria-hidden="true"></span><span class="btn-label">Kirim laporan</span></button>
+      </div>
+    </div>
+  </form>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+  (() => {
+    const form = document.getElementById('mvrForm');
+    const loc = document.getElementById('to_location');
+    const dept = document.getElementById('to_department');
+    const holder = document.getElementById('to_holder');
+    const verdict = document.getElementById('mvVerdict');
+    const submitLabel = document.querySelector('#mvSubmit .btn-label');
+    const picked = () => form.querySelector('input[name=asset_id]:checked');
+    const siteOf = path => (path || '').split(' > ')[0];
+
+    // Pratinjau aturan server: pindah departemen pemilik / pindah site → perlu persetujuan GA
+    function judge() {
+      const a = picked();
+      if (!a || !loc.value) { verdict.hidden = true; return; }
+      const reasons = [];
+      if (a.dataset.dept && dept.value && dept.value !== a.dataset.dept) reasons.push('pindah departemen');
+      const from = siteOf(a.dataset.site), to = siteOf(loc.selectedOptions[0]?.dataset.site);
+      if (from && to && from !== to) reasons.push('pindah site');
+      const crucial = reasons.length > 0;
+      verdict.hidden = false;
+      verdict.classList.toggle('warn', crucial);
+      verdict.querySelector('use').setAttribute('href', crucial ? '#sign-mandatory' : '#sign-safe');
+      verdict.querySelector('span').innerHTML = crucial
+        ? `<strong>Perlu persetujuan GA</strong> karena ${reasons.join(' dan ')}. Aset tetap tercatat di posisi lama sampai disetujui.`
+        : '<strong>Langsung tercatat.</strong> Lokasi aset diperbarui begitu laporan dikirim.';
+      submitLabel.textContent = crucial ? 'Kirim untuk disetujui' : 'Catat perpindahan';
+    }
+
+    // Saat aset dipilih: departemen & pemegang diisi sesuai posisi sekarang
+    form.addEventListener('change', e => {
+      if (e.target.name === 'asset_id') {
+        document.getElementById('mvAssetErr')?.setAttribute('hidden', '');
+        dept.value = e.target.dataset.dept || dept.value;
+        holder.value = e.target.dataset.holder || '';
+      }
+      judge();
+    });
+    judge();
+
+    form.addEventListener('submit', e => {
+      const err = document.getElementById('mvAssetErr');
+      let first = null;
+      if (!picked()) { err?.removeAttribute('hidden'); first = document.getElementById('mvSearch'); }
+      if (!loc.value) { loc.setAttribute('aria-invalid', 'true'); first = first || loc; }
+      if (first) { e.preventDefault(); first.focus(); return; }
+      form.querySelector('[type=submit]').classList.add('is-loading');
+    });
+  })();
+</script>
+<script src="{% static 'js/asset_picker.js' %}?v=1"></script>
+{% endblock %}

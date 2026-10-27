@@ -1,13 +1,11 @@
 {# Tab bersama menu Pelacakan: di mana aset berada & siapa pemegangnya. Pakai: include "components/_tracking_tabs.html" with current="location" #}
-{% with emp=request.user.employee %}
+{# Seluruh Pelacakan khusus GA #}
 <nav class="track-tabs" aria-label="Pelacakan aset">
-  <span class="track-label"><i class="fa-solid fa-location-crosshairs" aria-hidden="true"></i>Pelacakan</span>
+  <p class="track-label" aria-hidden="true">Pelacakan</p>
   <div class="track-list">
-    {% if emp.ga_profile %}
     <a href="{% url 'location_dashboard' %}" {% if current == 'location' %}aria-current="page"{% endif %}><i class="fa-solid fa-map-location-dot" aria-hidden="true"></i>Per lokasi</a>
     <a href="{% url 'assignment_list' %}" {% if current == 'holder' %}aria-current="page"{% endif %}><i class="fa-solid fa-handshake" aria-hidden="true"></i>Pemegang aset</a>
-    {% endif %}
     <a href="{% url 'movement_dashboard' %}" {% if current == 'movement' %}aria-current="page"{% endif %}><i class="fa-solid fa-right-left" aria-hidden="true"></i>Riwayat perpindahan</a>
+    <a href="{% url 'ga_movement_report_list' %}" {% if current == 'movement_report' %}aria-current="page"{% endif %}><i class="fa-solid fa-clipboard-check" aria-hidden="true"></i>Laporan pindah{% if pending_movement_reports %} <span class="count-pill">{{ pending_movement_reports }}</span>{% endif %}</a>
   </div>
 </nav>
-{% endwith %}

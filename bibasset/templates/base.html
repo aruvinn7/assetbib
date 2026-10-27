@@ -11,7 +11,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300..700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
 
-  <link rel="stylesheet" href="{% static 'css/base.css' %}?v=20">
+  <link rel="stylesheet" href="{% static 'css/base.css' %}?v=23">
 
   {# Pulihkan sidebar ringkas sebelum render supaya tidak berkedip #}
   <script>try { if (localStorage.getItem('sbMini') === '1') document.documentElement.classList.add('sb-mini-pending'); } catch (e) {}</script>
@@ -44,7 +44,7 @@
 {# ── Sidebar ── #}
 <aside class="sidebar" id="sidebar" aria-label="Navigasi utama">
   <div class="sidebar-top">
-    <a class="brand" href="{% if emp.user_profile and not emp.ga_profile and not emp.finance_profile %}{% url 'user_dashboard' %}{% else %}{% url 'dashboard' %}{% endif %}">
+    <a class="brand" href="{{ home_url }}">
       <span class="brand-mark" aria-hidden="true"><i class="fa-solid fa-cubes"></i></span>
       <span class="brand-text">AssetMS<small>PT Borneo Indobara</small></span>
     </a>
@@ -55,15 +55,17 @@
     {% if emp.ga_profile or emp.finance_profile %}
     <h2 class="menu-label">Menu</h2>
     <ul class="menu">
+      {% if emp.ga_profile %}
       <li><a href="{% url 'dashboard' %}" class="menu-item {% block nav_dashboard %}{% endblock %}"><i class="mi-icon fa-solid fa-chart-pie" aria-hidden="true"></i><span class="mi-text">Ringkasan</span></a></li>
+      {% endif %}
       <li><a href="{% url 'asset_list' %}" class="menu-item {% block nav_assets %}{% endblock %}"><i class="mi-icon fa-solid fa-box-archive" aria-hidden="true"></i><span class="mi-text">Daftar aset</span></a></li>
       {% if emp.ga_profile %}
       <li><a href="{% url 'maintenance_list' %}" class="menu-item {% block nav_maintenance %}{% endblock %}"><i class="mi-icon fa-solid fa-screwdriver-wrench" aria-hidden="true"></i><span class="mi-text">Maintenance</span></a></li>
       <li><a href="{% url 'ga_damage_report_list' %}" class="menu-item {% block nav_damage %}{% endblock %}"><i class="mi-icon fa-solid fa-triangle-exclamation" aria-hidden="true"></i><span class="mi-text">Laporan kerusakan</span></a></li>
-      {% endif %}
       <li><a href="{% url 'ba_list' %}" class="menu-item {% block nav_ba %}{% endblock %}"><i class="mi-icon fa-solid fa-file-signature" aria-hidden="true"></i><span class="mi-text">Berita acara</span></a></li>
       {# Lokasi, pemegang, dan riwayat perpindahan digabung: satu pertanyaan "di mana & dipegang siapa" #}
-      <li><a href="{% if emp.ga_profile %}{% url 'location_dashboard' %}{% else %}{% url 'movement_dashboard' %}{% endif %}" class="menu-item {% block nav_tracking %}{% endblock %}"><i class="mi-icon fa-solid fa-location-crosshairs" aria-hidden="true"></i><span class="mi-text">Pelacakan</span></a></li>
+      <li><a href="{% url 'location_dashboard' %}" class="menu-item {% block nav_tracking %}{% endblock %}"><i class="mi-icon fa-solid fa-location-crosshairs" aria-hidden="true"></i><span class="mi-text">Pelacakan</span></a></li>
+      {% endif %}
       {% if emp.finance_profile %}
       <li><a href="{% url 'asset_list' %}?financial=no" class="menu-item {% block nav_financial %}{% endblock %}"><i class="mi-icon fa-solid fa-coins" aria-hidden="true"></i><span class="mi-text">Belum dinilai</span></a></li>
       {% endif %}
@@ -75,6 +77,8 @@
       <li><a href="{% url 'value_dashboard' %}" class="menu-item"><i class="mi-icon fa-solid fa-scale-balanced" aria-hidden="true"></i><span class="mi-text">Nilai aset</span></a></li>
     </ul>
 
+    {# Master data, karyawan, dan import khusus GA #}
+    {% if emp.ga_profile %}
     <h2 class="menu-label">Data</h2>
     <ul class="menu">
       <li>
@@ -88,20 +92,25 @@
           <li><a href="{% url 'assetcategory_list' %}">Kategori aset</a></li>
         </ul>
       </li>
-      {% if emp.ga_profile %}
       <li><a href="{% url 'employee_list' %}" class="menu-item {% block nav_employees %}{% endblock %}"><i class="mi-icon fa-solid fa-users" aria-hidden="true"></i><span class="mi-text">Karyawan</span></a></li>
       <li><a href="{% url 'import_asset' %}" class="menu-item {% block nav_import_asset %}{% endblock %}"><i class="mi-icon fa-solid fa-file-import" aria-hidden="true"></i><span class="mi-text">Import aset</span></a></li>
       <li><a href="{% url 'import_finansial' %}" class="menu-item {% block nav_import_fin %}{% endblock %}"><i class="mi-icon fa-solid fa-file-invoice-dollar" aria-hidden="true"></i><span class="mi-text">Import finansial</span></a></li>
-      {% endif %}
     </ul>
     {% endif %}
+    {% endif %}
 
-    {% if emp.user_profile %}
-    <h2 class="menu-label">Karyawan</h2>
+    {# Semua peran bisa melaporkan kerusakan aset yang ditemukan; "Aset saya" hanya untuk akses Karyawan #}
+    {% if emp.user_profile or emp.ga_profile or emp.finance_profile %}
+    <h2 class="menu-label">{% if emp.user_profile %}Karyawan{% else %}Lapor{% endif %}</h2>
     <ul class="menu">
+      {% if emp.user_profile %}
       <li><a href="{% url 'user_dashboard' %}" class="menu-item"><i class="mi-icon fa-solid fa-laptop" aria-hidden="true"></i><span class="mi-text">Aset saya</span></a></li>
+      {% endif %}
       <li><a href="{% url 'damage_report_create' %}" class="menu-item {% block nav_report_create %}{% endblock %}"><i class="mi-icon fa-solid fa-circle-exclamation" aria-hidden="true"></i><span class="mi-text">Lapor kerusakan</span></a></li>
       <li><a href="{% url 'user_damage_report_list' %}" class="menu-item {% block nav_my_reports %}{% endblock %}"><i class="mi-icon fa-solid fa-clipboard-list" aria-hidden="true"></i><span class="mi-text">Laporan saya</span></a></li>
+      {% if emp.user_profile %}
+      <li><a href="{% url 'movement_report_create' %}" class="menu-item {% block nav_move_report %}{% endblock %}"><i class="mi-icon fa-solid fa-right-left" aria-hidden="true"></i><span class="mi-text">Lapor pindah aset</span></a></li>
+      {% endif %}
     </ul>
     {% endif %}
   </nav>
@@ -128,7 +137,7 @@
       <i class="fa-solid fa-bars" aria-hidden="true"></i>
     </button>
 
-    <a class="brand topbar-brand" href="{% url 'dashboard' %}">
+    <a class="brand topbar-brand" href="{{ home_url }}">
       <span class="brand-mark" aria-hidden="true"><i class="fa-solid fa-cubes"></i></span>
       <span class="brand-text">AssetMS</span>
     </a>
@@ -180,8 +189,10 @@
             <span>{{ request.user.username }}{% if emp.department %} · {{ emp.department.name }}{% endif %}</span>
             <div><span class="role-badge">{% if emp.ga_profile %}General Affairs{% elif emp.finance_profile %}Finance{% else %}Karyawan{% endif %}</span></div>
           </div>
-          {% if emp.ga_profile or emp.finance_profile %}
+          {% if emp.ga_profile %}
           <a class="user-menu-link" href="{% url 'dashboard' %}"><i class="fa-solid fa-chart-pie" aria-hidden="true"></i>Ringkasan</a>
+          {% elif emp.finance_profile %}
+          <a class="user-menu-link" href="{% url 'value_dashboard' %}"><i class="fa-solid fa-scale-balanced" aria-hidden="true"></i>Nilai aset</a>
           {% endif %}
           {% if emp.user_profile %}
           <a class="user-menu-link" href="{% url 'user_dashboard' %}"><i class="fa-solid fa-laptop" aria-hidden="true"></i>Aset saya</a>
@@ -394,8 +405,9 @@
     {"label": "Aset belum dinilai", "icon": "fa-solid fa-coins", "url": "{% url 'asset_list' %}?financial=no"},
     {"label": "Import data finansial", "icon": "fa-solid fa-file-invoice-dollar", "url": "{% url 'import_finansial' %}"},
     {% endif %}
+    {"label": "Lapor kerusakan", "hint": "Aset siapa pun yang Anda temukan rusak", "icon": "fa-solid fa-circle-exclamation", "url": "{% url 'damage_report_create' %}"},
     {% if emp.user_profile %}
-    {"label": "Lapor kerusakan", "icon": "fa-solid fa-circle-exclamation", "url": "{% url 'damage_report_create' %}"},
+    {"label": "Lapor pindah aset", "hint": "Aset Anda atau milik departemen Anda", "icon": "fa-solid fa-right-left", "url": "{% url 'movement_report_create' %}"},
     {% endif %}
     {"label": "Keluar", "icon": "fa-solid fa-arrow-right-from-bracket", "url": "{% url 'logout' %}"}
   ]

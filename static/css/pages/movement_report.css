@@ -1,0 +1,51 @@
+/* Laporan pindah aset (karyawan & antrean GA) */
+.mvr-verdict.warn { background: var(--mandatory-tint); }
+.mvr-verdict strong { color: var(--ink); font-weight: 600; }
+
+.mvr-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; }
+.mvr-card { display: grid; gap: 12px; padding: 16px 20px; background: var(--panel); border: 1px solid var(--rule); border-radius: var(--r-lg); box-shadow: var(--shadow-xs); }
+.mvr-card.is-pending { border-color: var(--mandatory-line); }
+.mvr-head { display: flex; align-items: flex-start; gap: 12px; }
+.mvr-no { flex: none; min-width: 32px; padding: 2px 8px; border-radius: 999px; background: var(--off-tint); color: var(--ink-2); font-size: 12px; font-weight: 600; text-align: center; font-variant-numeric: tabular-nums; }
+.mvr-title { flex: 1; min-width: 0; display: grid; gap: 2px; }
+.mvr-title strong, .mvr-title .row-link { color: var(--ink); font-weight: 500; font-size: 15px; overflow-wrap: anywhere; text-decoration: none; }
+.mvr-title .row-link:hover { color: var(--brand-500); }
+.mvr-title span { font-size: 13px; color: var(--ink-3); }
+.mvr-head .tag { flex: none; }
+
+.move-route { margin: 0; display: grid; border-top: 1px solid var(--rule-soft); }
+.move-route > div { display: grid; grid-template-columns: 110px minmax(0, 1fr); gap: 12px; padding: 8px 0; border-bottom: 1px solid var(--rule-soft); font-size: 14px; }
+.move-route dt { color: var(--ink-3); }
+.move-route dd { margin: 0; display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 10px; min-width: 0; color: var(--ink-3); overflow-wrap: anywhere; }
+.move-route > div:not(.is-changed) dd span { color: var(--ink-2); }
+.move-route .is-changed dd span { text-decoration: line-through; text-decoration-color: var(--ink-4); }
+.move-route dd i { font-size: 11px; color: var(--ink-4); }
+.move-route dd strong { color: var(--ink); font-weight: 600; }
+
+.mvr-note, .mvr-why, .mvr-review { margin: 0; font-size: 13px; line-height: 1.5; color: var(--ink-2); }
+.mvr-note { display: flex; gap: 8px; }
+.mvr-note i { color: var(--ink-4); margin-top: 3px; }
+.mvr-why { padding: 8px 12px; border-radius: var(--r); background: var(--mandatory-tint); }
+.mvr-review { color: var(--ink-3); }
+.mvr-review strong { color: var(--ink-2); font-weight: 500; }
+
+.mvr-actions { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 10px; }
+.mvr-approve { display: flex; gap: 8px; flex: 1 1 320px; margin: 0; }
+.mvr-approve .input { min-height: 34px; height: 34px; font-size: 13px; }
+.mvr-approve .btn { flex: none; }
+.mvr-reject summary { list-style: none; cursor: pointer; }
+.mvr-reject summary::-webkit-details-marker { display: none; }
+.mvr-reject[open] { flex-basis: 100%; }
+.mvr-reject form { display: grid; gap: 8px; margin-top: 10px; padding: 12px; border: 1px solid var(--rule); border-radius: var(--r); }
+.mvr-reject form label { font-size: 13px; font-weight: 500; color: var(--ink-2); }
+.mvr-reject form .btn { justify-self: start; }
+
+@media (max-width: 640px) {
+  .mvr-card { padding: 14px 16px; }
+  .mvr-head { flex-wrap: wrap; }
+  .mvr-title { flex-basis: calc(100% - 56px); }
+  .mvr-head .tag { order: 3; margin-left: 44px; }
+  .move-route > div { grid-template-columns: 92px minmax(0, 1fr); }
+  .mvr-approve { flex-wrap: wrap; }
+  .mvr-approve .btn { flex: 1; }
+}

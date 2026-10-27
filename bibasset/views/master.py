@@ -9,7 +9,6 @@ from ..forms import (
 )
 from ..models import Department, Location, AssetGroup, AssetCategory
 from ..roles import is_ga
-from .utils import is_ga_or_finance
 
 
 def _posted(request):
@@ -31,7 +30,7 @@ def _save_form(request, form, success_msg=None):
 # DEPARTMENT
 # ===============================
 
-@role_required(is_ga_or_finance)
+@role_required(is_ga)
 def department_list(request):
     return render(request, "master/department_list.html", {
         "departments": Department.objects.annotate(
@@ -83,7 +82,7 @@ def build_location_tree(locations):
 
 # ── View: location_list (ganti yang lama) ───────────────────────────────────
 
-@role_required(is_ga_or_finance)
+@role_required(is_ga)
 def location_list(request):
     # select_related parent supaya __str__ tidak N+1
     locations = Location.objects.select_related('parent').annotate(asset_count=Count('asset')).order_by('full_path')
@@ -145,7 +144,7 @@ def location_delete(request, pk):
 # ASSET GROUP
 # ===============================
 
-@role_required(is_ga_or_finance)
+@role_required(is_ga)
 def assetgroup_list(request):
     return render(request, "master/assetgroup_list.html", {
         # Aset terhubung ke grup lewat kategorinya
@@ -185,7 +184,7 @@ def assetgroup_delete(request, pk):
 # ASSET CATEGORY
 # ===============================
 
-@role_required(is_ga_or_finance)
+@role_required(is_ga)
 def assetcategory_list(request):
     group_id = request.GET.get('group')
     categories = AssetCategory.objects.select_related('group').annotate(

@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% load static waktu %}
 {% block title %}Aset saya{% endblock %}
-{% block extra_head %}<link rel="stylesheet" href="{% static 'css/pages/user_dashboard.css' %}?v=4">{% endblock %}
+{% block extra_head %}<link rel="stylesheet" href="{% static 'css/pages/user_dashboard.css' %}?v=5">{% endblock %}
 
 {% block content %}
 {% with emp=request.user.employee %}
@@ -12,6 +12,7 @@
       <div class="sub">{{ emp.department.name|default:"PT Borneo Indobara" }} · {{ total_held }} aset Anda pegang{% if pending_count %} · {{ pending_count }} laporan sedang diproses{% endif %}</div>
     </div>
     <div class="page-actions">
+      <a href="{% url 'movement_report_create' %}" class="btn outline"><i class="fa-solid fa-right-left" aria-hidden="true"></i>Lapor pindah</a>
       <a href="{% url 'damage_report_create' %}" class="btn"><i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i>Lapor kerusakan</a>
     </div>
   </div>
@@ -43,6 +44,7 @@
             {% elif a.asset.lifecycle_status == 'maintenance' %}
             <span class="ud-hint">Sudah dilaporkan</span>
             {% endif %}
+            <a class="btn sm outline" href="{% url 'movement_report_create_for_asset' a.asset.id %}" aria-label="Laporkan perpindahan {{ a.asset.nama_asset }}">Lapor pindah</a>
           </div>
         </li>
         {% endfor %}

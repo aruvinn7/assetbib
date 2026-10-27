@@ -15,7 +15,7 @@ from ..models import (
     Asset, AssetAssignment, BeritaAcaraItem, DamageReport, MaintenanceSchedule,
     initialize_schedule_for_asset, pulihkan_status_aktif,
 )
-from ..roles import is_ga, is_user_role
+from ..roles import can_report_damage, is_ga, is_user_role
 
 SEVERITY_ORDER = ['critical', 'high', 'medium', 'low']
 
@@ -74,7 +74,7 @@ def _report_block_reason(asset):
     return None
 
 
-@role_required(is_user_role)
+@role_required(can_report_damage)
 def damage_report_create(request, asset_id=None):
     # Karyawan boleh melapor aset mana pun yang ia temukan rusak — tidak harus aset yang ia pegang —
     # supaya kerusakan cepat sampai ke GA tanpa menunggu serah terima.
@@ -132,7 +132,7 @@ def damage_report_create(request, asset_id=None):
     })
 
 
-@role_required(is_user_role)
+@role_required(can_report_damage)
 def damage_report_asset_search(request):
     """Cari aset untuk dilaporkan (aset siapa pun). Maksimal 10 hasil, beserta bisa/tidaknya dilaporkan."""
     q = request.GET.get('q', '').strip()
@@ -165,12 +165,12 @@ def damage_report_asset_search(request):
         'number':   a.asset_number,
         'category': a.asset_category.name if a.asset_category else '',
         'location': a.lokasi_asset.full_path if a.lokasi_asset else 'Belum ditempatkan',
-        'mine':     a.pk in mine,
+        'tag':      'Aset Anda' if a.pk in mine else '',
         'blocked':  reason(a),
     } for a in assets]})
 
 
-@role_required(is_user_role)
+@role_required(can_report_damage)
 def user_damage_report_detail(request, pk):
     report = get_object_or_404(
         DamageReport.objects.select_related('asset', 'asset__lokasi_asset', 'reported_by', 'handled_by').only(
@@ -184,7 +184,7 @@ def user_damage_report_detail(request, pk):
     return render(request, 'user/damage_report_detail.html', {'report': report})
 
 
-@role_required(is_user_role)
+@role_required(can_report_damage)
 def user_damage_report_list(request):
     reports = DamageReport.objects.filter(
         reported_by=request.user.employee

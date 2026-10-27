@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+{% load static waktu %}
+{% block title %}Laporan pindah · Pelacakan{% endblock %}
+{% block nav_tracking %}active{% endblock %}
+{% block extra_head %}<link rel="stylesheet" href="{% static 'css/pages/tracking.css' %}?v=3"><link rel="stylesheet" href="{% static 'css/pages/movement_report.css' %}?v=2">{% endblock %}
+
+{% block content %}
+<div class="page">
+  {% include "components/_tracking_tabs.html" with current="movement_report" %}
+
+  <div class="page-head">
+    <div>
+      <h1>Laporan pindah dari karyawan</h1>
+      <div class="sub">Karyawan mencatat sendiri perpindahan aset. Anda cukup menyetujui yang krusial: pindah departemen pemilik atau pindah site.</div>
+    </div>
+  </div>
+
+  <div class="toolbar">
+    <nav class="filters" aria-label="Saring laporan">
+      <a class="chip {% if tab == 'pending' %}active{% endif %}" href="{{ request.path }}?tab=pending" {% if tab == 'pending' %}aria-current="true"{% endif %}><svg class="sign" aria-hidden="true"><use href="#sign-mandatory"/></svg>Perlu persetujuan <span class="count">{{ counts.pending }}</span></a>
+      <a class="chip {% if tab == 'recorded' %}active{% endif %}" href="{{ request.path }}?tab=recorded" {% if tab == 'recorded' %}aria-current="true"{% endif %}><svg class="sign" aria-hidden="true"><use href="#sign-safe"/></svg>Tercatat langsung <span class="count">{{ counts.recorded }}</span></a>
+      <a class="chip {% if tab == 'reviewed' %}active{% endif %}" href="{{ request.path }}?tab=reviewed" {% if tab == 'reviewed' %}aria-current="true"{% endif %}>Sudah ditinjau <span class="count">{{ counts.reviewed }}</span></a>
+    </nav>
+  </div>
+
+  {% if reports %}
+  <ol class="mvr-list">
+    {% for r in reports %}
+    <li class="mvr-card{% if r.status == 'pending' %} is-pending{% endif %}">
+      <div class="mvr-head">
+        <span class="mvr-no">#{{ page_obj.start_index|add:forloop.counter0 }}</span>
+        <div class="mvr-title">
+          <a class="row-link" href="{% url 'asset_detail' r.asset_id %}">{{ r.asset.nama_asset }}</a>
+          <span>{{ r.asset.asset_number }} · dilaporkan {{ r.reported_by.nama|default:"—" }}{% if r.reported_by.department %} ({{ r.reported_by.department.name }}){% endif %} · {{ r.created_at|sejak }}</span>
+        </div>
+        {% include "components/_move_status.html" with status=r.status %}
+      </div>
+      {% include "components/_move_route.html" with r=r %}
+      {% if r.notes %}<p class="mvr-note"><i class="fa-regular fa-comment" aria-hidden="true"></i>{{ r.notes }}</p>{% endif %}
+
+      {% if r.status == 'pending' %}
+      <p class="mvr-why"><strong>Kenapa perlu persetujuan:</strong> {{ r.reasons }}</p>
+      <div class="mvr-actions">
+        <form method="post" action="{% url 'ga_movement_report_approve' r.pk %}" class="mvr-approve">
+          {% csrf_token %}
+          <label class="visually-hidden" for="apNote{{ r.pk }}">Catatan persetujuan</label>
+          <input class="input" type="text" id="apNote{{ r.pk }}" name="review_notes" placeholder="Catatan (opsional)">
+          <button type="submit" class="btn sm"><i class="fa-solid fa-check" aria-hidden="true"></i>Setujui & catat</button>
+        </form>
+        <details class="mvr-reject">
+          <summary class="btn sm outline">Tolak</summary>
+          <form method="post" action="{% url 'ga_movement_report_reject' r.pk %}">
+            {% csrf_token %}
+            <label for="rjNote{{ r.pk }}">Alasan penolakan <span class="req" aria-hidden="true">*</span></label>
+            <textarea class="textarea" id="rjNote{{ r.pk }}" name="review_notes" rows="2" required placeholder="Mis. aset belum boleh keluar dari site; hubungi GA dulu"></textarea>
+            <button type="submit" class="btn sm danger">Tolak laporan</button>
+          </form>
+        </details>
+      </div>
+      {% elif r.reviewed_by %}
+      <p class="mvr-review">{% if r.status == 'approved' %}Disetujui{% else %}Ditolak{% endif %} <strong>{{ r.reviewed_by.nama }}</strong> · {{ r.reviewed_at|date:"d M Y, H:i" }}{% if r.review_notes %} — {{ r.review_notes }}{% endif %}</p>
+      {% else %}
+      <p class="mvr-review">Tercatat otomatis. Bila keliru, perbaiki di <a href="{% url 'movement_dashboard' %}?q={{ r.asset.asset_number|urlencode }}">Riwayat perpindahan</a>.</p>
+      {% endif %}
+    </li>
+    {% endfor %}
+  </ol>
+  {% include "components/_pagination.html" with label="laporan" %}
+  {% else %}
+  <section class="panel"><div class="empty">
+    {% if tab == 'pending' %}<strong>Tidak ada yang perlu disetujui</strong>Laporan pindah departemen atau pindah site akan muncul di sini.
+    {% elif tab == 'recorded' %}<strong>Belum ada perpindahan yang dilaporkan karyawan</strong>
+    {% else %}<strong>Belum ada laporan yang ditinjau</strong>{% endif %}
+  </div></section>
+  {% endif %}
+</div>
+{% endblock %}

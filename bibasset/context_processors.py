@@ -1,7 +1,9 @@
 from django.utils.functional import SimpleLazyObject
 from django.utils import timezone
 
-from .roles import get_user_role
+from django.urls import reverse
+
+from .roles import get_user_role, home_url_name
 
 
 def user_roles(request):
@@ -16,9 +18,18 @@ def user_roles(request):
         'is_ga':        SimpleLazyObject(lambda: role == 'ga'),
         'is_finance':   SimpleLazyObject(lambda: role == 'finance'),
         'is_user_role': SimpleLazyObject(lambda: role == 'user'),
+        'home_url':     SimpleLazyObject(lambda: reverse(home_url_name(request.user) or 'login')),
+        'pending_movement_reports': SimpleLazyObject(lambda: _pending_movement_reports(role)),
         # Lazy: dihitung hanya saat lonceng di header dirender
         'notifications': SimpleLazyObject(lambda: _build_notifications(role)),
     }
+
+
+def _pending_movement_reports(role):
+    if role != 'ga':
+        return 0
+    from .models import MovementReport
+    return MovementReport.objects.filter(status='pending').count()
 
 
 def _build_notifications(role):
@@ -44,6 +55,10 @@ def _build_notifications(role):
             critical=Count('id', filter=Q(severity='critical', report_status__in=DamageReport.ACTIVE_STATUS)),
         )
         no_location = Asset.objects.filter(lokasi_asset__isnull=True).count()
+        moves = _pending_movement_reports(role)
+        if moves:
+            items.append({'kind': 'mandatory', 'text': f"{moves} laporan pindah aset menunggu persetujuan",
+                          'sub': 'Pindah departemen atau pindah site', 'url': reverse('ga_movement_report_list')})
         maint_url = reverse('maintenance_list')
         if sched['overdue']:
             items.append({'kind': 'warning', 'text': f"{sched['overdue']} jadwal maintenance terlambat",

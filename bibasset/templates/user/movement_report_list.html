@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% load static waktu %}
+{% block title %}Laporan pindah saya{% endblock %}
+{% block nav_move_report %}active{% endblock %}
+{% block extra_head %}<link rel="stylesheet" href="{% static 'css/pages/movement_report.css' %}?v=2">{% endblock %}
+
+{% block content %}
+<div class="page">
+  <div class="page-head">
+    <div>
+      <h1>Laporan pindah saya</h1>
+      <div class="sub">Perpindahan aset yang Anda laporkan. Pindah departemen atau pindah site menunggu persetujuan GA.</div>
+    </div>
+    <div class="page-actions">
+      <a href="{% url 'movement_report_create' %}" class="btn"><i class="fa-solid fa-right-left" aria-hidden="true"></i>Lapor pindah aset</a>
+    </div>
+  </div>
+
+  {% if reports %}
+  <ol class="mvr-list">
+    {% for r in reports %}
+    <li class="mvr-card{% if r.status == 'pending' %} is-pending{% endif %}">
+      <div class="mvr-head">
+        <span class="mvr-no">#{{ page_obj.start_index|add:forloop.counter0 }}</span>
+        <div class="mvr-title">
+          <strong>{{ r.asset.nama_asset }}</strong>
+          <span>{{ r.asset.asset_number }} · dilaporkan {{ r.created_at|sejak }}</span>
+        </div>
+        {% include "components/_move_status.html" with status=r.status %}
+      </div>
+      {% include "components/_move_route.html" with r=r %}
+      {% if r.notes %}<p class="mvr-note"><i class="fa-regular fa-comment" aria-hidden="true"></i>{{ r.notes }}</p>{% endif %}
+      {% if r.status == 'pending' %}
+      <p class="mvr-why">Menunggu GA karena {{ r.reasons|lower }}. Aset tetap tercatat di posisi lama sampai disetujui.</p>
+      {% elif r.reviewed_by %}
+      <p class="mvr-review"><strong>{{ r.reviewed_by.nama }}</strong> · {{ r.reviewed_at|date:"d M Y, H:i" }}{% if r.review_notes %} — {{ r.review_notes }}{% endif %}</p>
+      {% endif %}
+    </li>
+    {% endfor %}
+  </ol>
+  {% include "components/_pagination.html" with label="laporan" %}
+  {% else %}
+  <section class="panel"><div class="empty"><strong>Belum ada laporan pindah</strong>Saat memindah aset yang Anda pegang atau milik departemen Anda, <a href="{% url 'movement_report_create' %}">laporkan di sini</a>.</div></section>
+  {% endif %}
+</div>
+{% endblock %}

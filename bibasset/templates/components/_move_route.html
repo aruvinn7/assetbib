@@ -1,0 +1,16 @@
+{% comment %}Perpindahan "dari → ke" sebuah laporan pindah (MovementReport). Baris yang berubah ditandai.
+Pakai: include "components/_move_route.html" with r=report{% endcomment %}
+<dl class="move-route">
+  <div class="{% if r.from_location_id != r.to_location_id %}is-changed{% endif %}">
+    <dt>Lokasi</dt>
+    <dd><span>{% if r.from_location %}{{ r.from_location.full_path }}{% else %}Belum ditempatkan{% endif %}</span>{% if r.from_location_id != r.to_location_id %}<i class="fa-solid fa-arrow-right" aria-label="menjadi"></i><strong>{{ r.to_location.full_path|default:"—" }}</strong>{% endif %}</dd>
+  </div>
+  <div class="{% if r.from_department_id != r.to_department_id %}is-changed{% endif %}">
+    <dt>Departemen</dt>
+    <dd><span>{{ r.from_department.name|default:"Tanpa departemen" }}</span>{% if r.from_department_id != r.to_department_id %}<i class="fa-solid fa-arrow-right" aria-label="menjadi"></i><strong>{{ r.to_department.name|default:"Tanpa departemen" }}</strong>{% endif %}</dd>
+  </div>
+  <div class="{% if r.from_holder_id != r.to_holder_id %}is-changed{% endif %}">
+    <dt>Pemegang</dt>
+    <dd><span>{{ r.from_holder.nama|default:"Tidak ada" }}</span>{% if r.from_holder_id != r.to_holder_id %}<i class="fa-solid fa-arrow-right" aria-label="menjadi"></i><strong>{{ r.to_holder.nama|default:"Tidak ada" }}</strong>{% endif %}</dd>
+  </div>
+</dl>

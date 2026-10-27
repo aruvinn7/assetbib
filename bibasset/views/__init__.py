@@ -29,6 +29,10 @@ from .damage_reports import (
     user_damage_report_detail, user_damage_report_list,
 )
 from .assignment import (assignment_list, assignment_create, assignment_return)
+from .movement_reports import (
+    movement_report_create, movement_report_asset_search, movement_report_list,
+    ga_movement_report_list, ga_movement_report_approve, ga_movement_report_reject,
+)
 from .employees import (
     employee_list, employee_create, employee_update, employee_password, employee_toggle_active, employee_delete,
 )

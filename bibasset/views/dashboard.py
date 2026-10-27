@@ -6,7 +6,7 @@ from django.contrib.auth.decorators import login_required
 from django.shortcuts import render
 from django.utils import timezone
 
-from ..decorators import role_required
+from ..decorators import redirect_home, role_required
 from ..roles import is_ga
 from ..models import (
     Asset, AssetFinancial, MaintenanceRecord,
@@ -161,6 +161,9 @@ def _build_chart_data():
 # ─────────────────────────────────────────────────────────────────────────────
 @login_required(login_url='login')
 def dashboard(request):
+    # Ringkasan khusus GA; peran lain diarahkan ke berandanya (mis. setelah login dengan ?next=/)
+    if not hasattr(request.user, 'employee') or not is_ga(request.user):
+        return redirect_home(request)
     refresh_overdue_schedules_daily()
 
     today            = timezone.localdate()

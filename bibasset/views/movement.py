@@ -12,7 +12,6 @@ from ..decorators import role_required
 from ..forms import MovementForm, flash_form_errors
 from ..models import Asset, AssetMovement, Department, Employee, Location
 from ..models import record_movement, sync_holder
-from .utils import is_ga_or_finance
 from ..roles import is_ga
 
 
@@ -28,7 +27,7 @@ def _back(request, asset_id):
 
 # ── Dashboard: list aset + lokasi & status terkini ───────────────
 
-@role_required(is_ga_or_finance)
+@role_required(is_ga)
 def movement_dashboard(request):
     """
     Histori movement per aset (accordion), dipaginasi 25 aset per halaman.

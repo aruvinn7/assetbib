@@ -19,14 +19,13 @@ from ..models import (
     hapuskan_aset, nomor_ba_berikutnya, terbitkan_ba,
 )
 from ..roles import is_ga
-from .utils import is_ga_or_finance
 
 
 def _ba(pk):
     return get_object_or_404(BeritaAcara.objects.select_related('department', 'rujukan'), pk=pk)
 
 
-@role_required(is_ga_or_finance)
+@role_required(is_ga)
 def ba_list(request):
     tab = request.GET.get('tab', 'draf')
     drafts = (BeritaAcara.objects.filter(jenis='kerusakan', status='draft')
@@ -49,7 +48,7 @@ def ba_list(request):
     })
 
 
-@role_required(is_ga_or_finance)
+@role_required(is_ga)
 def ba_detail(request, pk):
     ba = _ba(pk)
     if ba.status == 'draft':
@@ -178,7 +177,7 @@ def ba_signed(request, pk):
     return redirect('ba_detail', pk=pk)
 
 
-@role_required(is_ga_or_finance)
+@role_required(is_ga)
 def ba_print(request, pk):
     ba = _ba(pk)
     return render(request, 'berita_acara/cetak.html', {

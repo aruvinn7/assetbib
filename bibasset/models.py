@@ -1034,6 +1034,97 @@ def record_movement(asset, held_by, department, location, recorded_by=None, note
     return movement
 
 
+# ================================================================
+# LAPORAN PERPINDAHAN DARI KARYAWAN
+# ================================================================
+
+class MovementReport(models.Model):
+    """
+    Perpindahan aset yang dilaporkan sendiri oleh karyawan (pemegang / departemen pemilik).
+    Perpindahan biasa langsung tercatat; yang krusial (pindah departemen pemilik atau pindah
+    site) menunggu persetujuan GA dulu sebelum masuk ke histori movement.
+    """
+    STATUS = [
+        ('recorded', 'Tercatat'),
+        ('pending',  'Menunggu persetujuan GA'),
+        ('approved', 'Disetujui GA'),
+        ('rejected', 'Ditolak GA'),
+    ]
+
+    asset       = models.ForeignKey('Asset', on_delete=models.CASCADE, related_name='movement_reports')
+    reported_by = models.ForeignKey('Employee', on_delete=models.SET_NULL, null=True, related_name='movement_reports')
+
+    # Posisi saat dilaporkan (disimpan agar riwayat tetap terbaca walau aset pindah lagi)
+    from_location   = models.ForeignKey('Location', on_delete=models.SET_NULL, null=True, blank=True, related_name='+')
+    from_department = models.ForeignKey('Department', on_delete=models.SET_NULL, null=True, blank=True, related_name='+')
+    from_holder     = models.ForeignKey('Employee', on_delete=models.SET_NULL, null=True, blank=True, related_name='+')
+
+    # Tujuan
+    to_location   = models.ForeignKey('Location', on_delete=models.SET_NULL, null=True, related_name='+')
+    to_department = models.ForeignKey('Department', on_delete=models.SET_NULL, null=True, blank=True, related_name='+')
+    to_holder     = models.ForeignKey('Employee', on_delete=models.SET_NULL, null=True, blank=True, related_name='+')
+
+    notes   = models.TextField(blank=True)
+    reasons = models.CharField(max_length=200, blank=True, help_text='Alasan butuh persetujuan, mis. "Pindah departemen · Pindah site"')
+    status  = models.CharField(max_length=10, choices=STATUS, default='recorded', db_index=True)
+
+    reviewed_by  = models.ForeignKey('Employee', on_delete=models.SET_NULL, null=True, blank=True, related_name='+')
+    reviewed_at  = models.DateTimeField(null=True, blank=True)
+    review_notes = models.TextField(blank=True)
+    movement     = models.OneToOneField('AssetMovement', on_delete=models.SET_NULL, null=True, blank=True, related_name='report')
+    created_at   = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']
+        constraints = [
+            # Satu aset hanya boleh punya satu laporan yang menunggu persetujuan
+            models.UniqueConstraint(fields=['asset'], condition=Q(status='pending'), name='uniq_pending_movement_report'),
+        ]
+
+    def __str__(self):
+        return f"{self.asset.asset_number} → {self.to_location} ({self.get_status_display()})"
+
+    @property
+    def is_pending(self):
+        return self.status == 'pending'
+
+
+def _site_of(location):
+    """Area utama (site) sebuah lokasi = bagian pertama full_path, mis. 'Angsana'."""
+    if location is None:
+        return None
+    return (location.full_path or location.name).split(' > ')[0]
+
+
+def movement_crucial_reasons(asset, to_department, to_location):
+    """Alasan perpindahan perlu disetujui GA (list kosong = langsung tercatat)."""
+    reasons = []
+    if to_department is not None and to_department.pk != asset.owned_by_department_id:
+        reasons.append('Pindah departemen')
+    from_site = _site_of(asset.lokasi_asset)
+    if from_site and to_location is not None and _site_of(to_location) != from_site:
+        reasons.append('Pindah site')
+    return reasons
+
+
+@transaction.atomic
+def apply_movement_report(report, by):
+    """Masukkan laporan ke histori movement: lokasi, pemegang, dan departemen pemilik aset ikut berubah."""
+    asset = report.asset
+    department = report.to_department or asset.owned_by_department
+    note = f"Dilaporkan {report.reported_by.nama if report.reported_by else 'karyawan'}"
+    if report.notes:
+        note += f": {report.notes}"
+    report.movement = record_movement(
+        asset, held_by=report.to_holder, department=department, location=report.to_location,
+        recorded_by=by, notes=note,
+    )
+    if department is not None and department.pk != asset.owned_by_department_id:
+        Asset.objects.filter(pk=asset.pk).update(owned_by_department=department)
+    report.save(update_fields=['movement'])
+    return report.movement
+
+
 @transaction.atomic
 def write_off_asset(asset, tanggal, alasan, keterangan, by=None, nilai_jual=None):
     """

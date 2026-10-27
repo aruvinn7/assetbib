@@ -5,8 +5,9 @@ from django.contrib.auth.models import User
 from django.test import TestCase
 
 from .models import (
-    Asset, AssetCategory, AssetFinancial, AssetGroup, DamageReport, Employee,
-    FinanceProfile, GAProfile, Location, MaintenanceRecord, UserProfile,
+    Asset, AssetAssignment, AssetCategory, AssetFinancial, AssetGroup, AssetMovement, DamageReport,
+    Department, Employee, FinanceProfile, GAProfile, Location, MaintenanceRecord, MovementReport,
+    UserProfile,
     compute_health, get_repair_threshold,
 )
 from .views.import_views import _parse_decimal
@@ -95,7 +96,7 @@ class AccessAndFlowTest(TestCase):
 
     def test_role_restrictions(self):
         self.client.force_login(self.usr_user)
-        self.assertRedirects(self.client.get('/asset/'), '/', fetch_redirect_response=False)
+        self.assertRedirects(self.client.get('/asset/'), '/user/dashboard/', fetch_redirect_response=False)
         self.client.force_login(self.fin_user)
         self.client.get(f'/master/assetgroup/{self.cat.group_id}/delete/')
         self.assertTrue(AssetGroup.objects.filter(pk=self.cat.group_id).exists())
@@ -338,9 +339,20 @@ class AccessAndFlowTest(TestCase):
         self.client.post('/user/laporan-kerusakan/buat/', {
             'asset_id': self.asset.pk, 'title': 'X', 'description': '-', 'severity': 'low'})
         self.assertEqual(DamageReport.objects.count(), 1)
-        # Pencarian hanya untuk peran Karyawan
-        self.client.force_login(self.fin_user)
-        self.assertEqual(self.client.get('/user/laporan-kerusakan/cari-aset/?q=AC').status_code, 302)
+
+    def test_ga_and_finance_can_report_damage(self):
+        """GA & Finance tanpa akses Karyawan tetap bisa melapor dan melihat laporannya sendiri."""
+        for i, user in enumerate((self.ga_user, self.fin_user)):
+            asset = Asset.objects.create(no_po='PO', asset_number=f'R-{i}', nama_asset=f'Printer {i}',
+                                         tanggal_pembelian=date(2025, 1, 1), asset_category=self.cat)
+            self.client.force_login(user)
+            self.assertEqual(self.client.get('/user/laporan-kerusakan/cari-aset/?q=Printer').status_code, 200)
+            self.client.post('/user/laporan-kerusakan/buat/', {
+                'asset_id': asset.pk, 'title': 'Macet', 'description': '-', 'severity': 'low'})
+            report = DamageReport.objects.get(asset=asset)
+            self.assertEqual(report.reported_by.user, user)
+            self.assertEqual(self.client.get(f'/user/laporan-kerusakan/{report.pk}/').status_code, 200)
+            self.assertContains(self.client.get('/user/laporan-kerusakan/'), 'Macet')
 
     def test_employee_admin_is_ga_only(self):
         self.client.force_login(self.fin_user)
@@ -369,3 +381,138 @@ class AccessAndFlowTest(TestCase):
         self.assertTrue(User.objects.get(pk=self.ga_user.pk).is_active)
         self.client.post(f'/ga/karyawan/{budi.pk}/hapus/')
         self.assertFalse(Employee.objects.filter(pk=budi.pk).exists())
+
+    def test_home_per_role_and_dashboard_ga_only(self):
+        """Ringkasan (/) khusus GA; login & akses ditolak mengarah ke beranda tiap peran."""
+        cases = [(self.ga_user, None), (self.fin_user, '/dashboard/nilai-aset/'), (self.usr_user, '/user/dashboard/')]
+        for user, home in cases:
+            self.client.force_login(user)
+            r = self.client.get('/')
+            if home is None:
+                self.assertEqual(r.status_code, 200)
+            else:
+                self.assertRedirects(r, home, fetch_redirect_response=False)
+        # Login dengan ?next=/ (mis. lewat ngrok) tetap berakhir di beranda karyawan
+        self.client.logout()
+        r = self.client.post('/login/?next=/', {'username': 'usr', 'password': 'x'}, follow=True)
+        self.assertEqual(r.redirect_chain[-1][0], '/user/dashboard/')
+        # GA yang juga punya akses Karyawan tetap masuk ke Ringkasan
+        UserProfile.objects.create(employee=self.ga)
+        self.client.logout()
+        self.assertRedirects(self.client.post('/login/', {'username': 'ga', 'password': 'x'}), '/',
+                             fetch_redirect_response=False)
+        # Akun tanpa akses apa pun tidak bisa masuk
+        make_employee('kosong')
+        self.client.logout()
+        r = self.client.post('/login/', {'username': 'kosong', 'password': 'x'})
+        self.assertEqual(r.status_code, 200)
+        self.assertNotIn('_auth_user_id', self.client.session)
+
+    def test_master_data_and_menu_ga_only(self):
+        self.client.force_login(self.fin_user)
+        for url in ['/master/location/', '/master/department/', '/master/assetgroup/', '/master/assetcategory/']:
+            self.assertEqual(self.client.get(url).status_code, 302, url)
+        page = self.client.get('/dashboard/nilai-aset/').content.decode()
+        self.assertNotIn('Master data', page)
+        self.assertNotIn('>Ringkasan<', page)
+        # Pelacakan/riwayat perpindahan & berita acara juga khusus GA
+        for url in ['/movement/', '/berita-acara/']:
+            self.assertEqual(self.client.get(url).status_code, 302, url)
+        for label in ('>Pelacakan<', '>Berita acara<'):
+            self.assertNotIn(label, page)
+        from django.urls import reverse
+        detail = self.client.get(reverse('asset_detail', args=[self.asset.pk]))
+        self.assertEqual(detail.status_code, 200)
+        self.assertNotContains(detail, 'Histori movement')
+        self.client.force_login(self.ga_user)
+        self.assertContains(self.client.get(reverse('asset_detail', args=[self.asset.pk])), 'Histori movement')
+        self.client.force_login(self.fin_user)
+        self.client.force_login(self.ga_user)
+        self.assertEqual(self.client.get('/master/location/').status_code, 200)
+        self.assertIn('Master data', self.client.get('/').content.decode())
+
+
+class MovementReportTest(TestCase):
+    """Karyawan melapor pindah sendiri; GA hanya menyetujui pindah departemen / pindah site."""
+
+    def setUp(self):
+        self.it, self.hse = Department.objects.create(name='IT'), Department.objects.create(name='HSE')
+        self.ga_user, self.ga = make_employee('ga', GAProfile)
+        self.usr_user, self.usr = make_employee('usr', UserProfile)
+        self.lain_user, self.lain = make_employee('lain', UserProfile)
+        self.fin_user, _ = make_employee('fin', FinanceProfile)
+        Employee.objects.filter(pk=self.usr.pk).update(department=self.it)
+        Employee.objects.filter(pk=self.lain.pk).update(department=self.hse)
+        angsana = Location.objects.create(name='Angsana')
+        self.r1 = Location.objects.create(name='Ruang 1', parent=angsana)
+        self.r2 = Location.objects.create(name='Ruang 2', parent=angsana)
+        self.kusan = Location.objects.create(name='Kusan')
+        self.asset = Asset.objects.create(no_po='PO', asset_number='IT-1', nama_asset='Laptop',
+                                          tanggal_pembelian=date(2025, 1, 1), owned_by_department=self.it,
+                                          lokasi_asset=self.r1)
+
+    def post(self, **data):
+        base = {'asset_id': self.asset.pk, 'to_location': self.r1.pk, 'to_department': self.it.pk, 'to_holder': ''}
+        return self.client.post('/user/lapor-pindah/buat/', {**base, **data})
+
+    def test_room_move_recorded_immediately(self):
+        self.client.force_login(self.usr_user)  # departemen pemilik, bukan pemegang
+        self.post(to_location=self.r2.pk, to_holder=self.usr.pk, notes='renovasi')
+        report = MovementReport.objects.get()
+        self.assertEqual(report.status, 'recorded')
+        self.asset.refresh_from_db()
+        self.assertEqual(self.asset.lokasi_asset, self.r2)
+        mv = AssetMovement.objects.get(asset=self.asset, is_current=True)
+        self.assertEqual((mv.location, mv.held_by, report.movement), (self.r2, self.usr, mv))
+        self.assertEqual(AssetAssignment.objects.get(asset=self.asset, status='active').assigned_to, self.usr)
+
+    def test_department_or_site_change_waits_for_ga(self):
+        self.client.force_login(self.usr_user)
+        self.post(to_location=self.kusan.pk, to_department=self.hse.pk)
+        report = MovementReport.objects.get()
+        self.assertEqual(report.status, 'pending')
+        self.assertEqual(report.reasons, 'Pindah departemen · Pindah site')
+        self.asset.refresh_from_db()
+        self.assertEqual((self.asset.lokasi_asset, self.asset.owned_by_department), (self.r1, self.it))
+        # Laporan kedua untuk aset yang sama ditolak selama yang pertama menunggu
+        self.post(to_location=self.r2.pk)
+        self.assertEqual(MovementReport.objects.count(), 1)
+
+        self.client.force_login(self.ga_user)
+        self.assertContains(self.client.get('/ga/laporan-pindah/'), 'Pindah departemen')
+        self.client.post(f'/ga/laporan-pindah/{report.pk}/setujui/', {'review_notes': 'ok'})
+        report.refresh_from_db(); self.asset.refresh_from_db()
+        self.assertEqual((report.status, report.reviewed_by), ('approved', self.ga))
+        self.assertEqual((self.asset.lokasi_asset, self.asset.owned_by_department), (self.kusan, self.hse))
+
+    def test_reject_needs_reason_and_keeps_position(self):
+        self.client.force_login(self.usr_user)
+        self.post(to_location=self.kusan.pk)
+        report = MovementReport.objects.get()
+        self.client.force_login(self.ga_user)
+        self.client.post(f'/ga/laporan-pindah/{report.pk}/tolak/', {'review_notes': ''})
+        report.refresh_from_db()
+        self.assertEqual(report.status, 'pending')
+        self.client.post(f'/ga/laporan-pindah/{report.pk}/tolak/', {'review_notes': 'Belum boleh keluar site'})
+        report.refresh_from_db(); self.asset.refresh_from_db()
+        self.assertEqual(report.status, 'rejected')
+        self.assertEqual(self.asset.lokasi_asset, self.r1)
+        self.assertFalse(AssetMovement.objects.filter(asset=self.asset).exists())
+
+    def test_only_holder_or_owner_department_can_report(self):
+        self.client.force_login(self.lain_user)  # HSE, bukan pemegang aset IT
+        self.post(to_location=self.r2.pk)
+        self.assertFalse(MovementReport.objects.exists())
+        self.assertEqual(self.client.get('/user/lapor-pindah/cari-aset/?q=Laptop').json()['results'], [])
+        # Setelah ia memegang asetnya, boleh melapor
+        AssetAssignment.objects.create(asset=self.asset, assigned_to=self.lain)
+        self.assertEqual(len(self.client.get('/user/lapor-pindah/cari-aset/?q=Laptop').json()['results']), 1)
+        self.post(to_location=self.r2.pk, to_holder=self.lain.pk)
+        self.assertEqual(MovementReport.objects.get().status, 'recorded')
+        # Tanpa perubahan apa pun → ditolak
+        self.post(to_location=self.r2.pk, to_holder=self.lain.pk)
+        self.assertEqual(MovementReport.objects.count(), 1)
+        # Finance & approve oleh non-GA tidak boleh
+        self.client.force_login(self.fin_user)
+        self.assertEqual(self.client.get('/user/lapor-pindah/buat/').status_code, 302)
+        self.assertEqual(self.client.get('/ga/laporan-pindah/').status_code, 302)
