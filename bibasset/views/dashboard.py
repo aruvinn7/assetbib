@@ -1,5 +1,5 @@
 # views/dashboard.py  [v2 — with chart data]
-from datetime import date, timedelta
+from datetime import timedelta
 from django.db.models import Count, Prefetch, Q, Sum
 from django.db.models.functions import TruncMonth
 from django.contrib.auth.decorators import login_required
@@ -70,7 +70,7 @@ def _build_chart_data():
     Menggunakan TruncMonth + annotate — 2 query total.
     Return: dict list/angka biasa — dikirim ke JS lewat |json_script di template.
     """
-    today      = date.today()
+    today      = timezone.localdate()
     # Awal bulan, 5 bulan sebelum bulan ini → 6 bulan termasuk bulan berjalan
     six_months_ago = today.replace(day=1)
     for _ in range(5):
@@ -163,7 +163,7 @@ def _build_chart_data():
 def dashboard(request):
     refresh_overdue_schedules_daily()
 
-    today            = date.today()
+    today            = timezone.localdate()
     seven_days_later = today + timedelta(days=7)
 
     # 1 query — semua stat Asset (termasuk location stats)
@@ -348,6 +348,8 @@ def location_dashboard(request):
         'selected_node':          selected_node,
         'selected_assets':        selected_assets,
         'breadcrumb':             breadcrumb,
+        # Node yang terbuka di pohon = leluhur lokasi terpilih + lokasi itu sendiri
+        'breadcrumb_pks':         {n.pk for n in breadcrumb},
         'total_with_location':    loc_stats['with_loc'],
         'total_without_location': loc_stats['without_loc'],
         'selected_id':            selected_id,

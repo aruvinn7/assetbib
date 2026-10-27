@@ -9,6 +9,7 @@ from decimal import ROUND_HALF_UP, Decimal
 from django.db.models import Avg, Count, DurationField, ExpressionWrapper, F, Q, Sum
 from django.db.models.functions import TruncMonth
 from django.shortcuts import render
+from django.utils import timezone
 
 from ..decorators import role_required
 from ..models import (
@@ -44,7 +45,7 @@ def _month_starts(n, today):
 # ─────────────────────────────────────────────────────────────────────────────
 @role_required(is_ga_or_finance)
 def value_dashboard(request):
-    today = date.today()
+    today = timezone.localdate()
     jan1, dec31 = date(today.year, 1, 1), date(today.year, 12, 31)
 
     fins = (AssetFinancial.objects
@@ -125,7 +126,7 @@ ON_TIME_GRACE = 7  # hari toleransi: dikerjakan ≤ 7 hari setelah jatuh tempo m
 
 @role_required(is_ga_or_finance)
 def performance_dashboard(request):
-    today = date.today()
+    today = timezone.localdate()
     months = _month_starts(12, today)
     start = months[0]
     prev_start = date(start.year - 1, start.month, 1)

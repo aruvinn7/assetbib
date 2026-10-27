@@ -1,7 +1,5 @@
 # views/damage_reports.py  [OPTIMIZED]
 
-from datetime import date
-
 from django.contrib import messages
 from django.core.paginator import Paginator
 from django.db import transaction
@@ -29,31 +27,32 @@ SEVERITY_ORDER = ['critical', 'high', 'medium', 'low']
 def user_dashboard(request):
     employee = request.user.employee
 
-    active_assignments = AssetAssignment.objects.filter(
+    active_assignments = list(AssetAssignment.objects.filter(
         assigned_to=employee, status='active'
     ).select_related(
         'asset', 'asset__asset_category', 'asset__lokasi_asset'
     ).only(
         'id', 'assigned_date', 'notes',
-        'asset__id', 'asset__nama_asset', 'asset__lifecycle_status',
-        'asset__asset_category__name', 'asset__lokasi_asset__name',
-    )
+        'asset__id', 'asset__nama_asset', 'asset__asset_number', 'asset__lifecycle_status',
+        'asset__asset_category__name', 'asset__lokasi_asset__name', 'asset__lokasi_asset__full_path',
+    ).order_by('asset__nama_asset'))
 
     my_reports_qs = DamageReport.objects.filter(
         reported_by=employee
     ).select_related('asset').only(
-        'id', 'title', 'severity', 'report_status', 'reported_at',
-        'asset__nama_asset',
+        'id', 'title', 'severity', 'report_status', 'reported_at', 'ga_notes',
+        'asset__nama_asset', 'asset__asset_number',
     ).order_by('-reported_at')
 
-    # TEKNIK 3: 1 query untuk pending count
-    pending_count = my_reports_qs.filter(report_status__in=DamageReport.ACTIVE_STATUS).count()
-
+    counts = my_reports_qs.aggregate(
+        total=Count('id'), active=Count('id', filter=Q(report_status__in=DamageReport.ACTIVE_STATUS)),
+    )
     context = {
         'active_assignments': active_assignments,
-        'my_reports':         my_reports_qs[:10],
-        'pending_count':      pending_count,
-        'total_held':         active_assignments.count(),
+        'my_reports':         my_reports_qs[:6],
+        'pending_count':      counts['active'],
+        'total_reports':      counts['total'],
+        'total_held':         len(active_assignments),
     }
     return render(request, 'user/dashboard.html', context)
 
@@ -238,7 +237,7 @@ def _render_ga_detail(request, pk, resolve_posted=None, status=200):
         'report':              report,
         'corrective_schedule': corrective_schedule,
         'asset':               report.asset,
-        'today':               date.today(),
+        'today':               timezone.localdate(),
         'ba_item':             report.ba_items.select_related('ba').order_by('-ba__created_at').first(),
         # Isian form "Catat perbaikan selesai" yang gagal validasi, diisi ulang di template
         'resolve_posted':      resolve_posted or {},

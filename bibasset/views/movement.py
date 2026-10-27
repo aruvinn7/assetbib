@@ -4,6 +4,8 @@ from django.core.paginator import Paginator
 from django.db import transaction
 from django.db.models import Exists, OuterRef, Prefetch, Q, prefetch_related_objects
 from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
+from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.http import require_POST
 
 from ..decorators import role_required
@@ -12,6 +14,16 @@ from ..models import Asset, AssetMovement, Department, Employee, Location
 from ..models import record_movement, sync_holder
 from .utils import is_ga_or_finance
 from ..roles import is_ga
+
+
+def _back(request, asset_id):
+    """Kembali ke halaman & saringan riwayat yang tadi dibuka, dengan aset ini terbuka (#mv-<id>)."""
+    url = request.META.get('HTTP_REFERER', '')
+    base = reverse('movement_dashboard')
+    if not (url and url_has_allowed_host_and_scheme(url, allowed_hosts={request.get_host()})
+            and base in url):
+        url = base
+    return redirect(url.split('#')[0] + f'#mv-{asset_id}')
 
 
 # ── Dashboard: list aset + lokasi & status terkini ───────────────
@@ -92,13 +104,13 @@ def movement_create(request, asset_id):
     asset = get_object_or_404(Asset, pk=asset_id)
 
     if asset.lifecycle_status == 'writeoff':
-        messages.error(request, f"Aset '{asset.nama_asset}' telah di-write off dan tidak dapat dicatat movement.")
-        return redirect('movement_dashboard')
+        messages.error(request, f"Aset '{asset.nama_asset}' sudah di-write off; perpindahan tidak bisa dicatat.")
+        return _back(request, asset.pk)
 
     form = MovementForm(request.POST)
     if not form.is_valid():
         flash_form_errors(request, form)
-        return redirect('movement_dashboard')
+        return _back(request, asset.pk)
 
     record_movement(
         asset=asset,
@@ -108,8 +120,8 @@ def movement_create(request, asset_id):
         recorded_by=request.user.employee,
         notes=form.cleaned_data['notes'],
     )
-    messages.success(request, f"Movement aset '{asset.nama_asset}' berhasil dicatat.")
-    return redirect('movement_dashboard')
+    messages.success(request, f"Perpindahan '{asset.nama_asset}' dicatat.")
+    return _back(request, asset.pk)
 
 
 @role_required(is_ga)
@@ -118,13 +130,13 @@ def movement_update(request, pk):
     mv = get_object_or_404(AssetMovement.objects.select_related('asset'), pk=pk)
 
     if mv.asset.lifecycle_status == 'writeoff':
-        messages.error(request, "Aset write-off tidak dapat diedit movement-nya.")
-        return redirect('movement_dashboard')
+        messages.error(request, "Catatan perpindahan aset write off tidak bisa diubah.")
+        return _back(request, mv.asset_id)
 
     form = MovementForm(request.POST)
     if not form.is_valid():
         flash_form_errors(request, form)
-        return redirect('movement_dashboard')
+        return _back(request, mv.asset_id)
 
     with transaction.atomic():
         mv.held_by    = form.cleaned_data['held_by']
@@ -137,8 +149,8 @@ def movement_update(request, pk):
             if mv.location_id:
                 Asset.objects.filter(pk=mv.asset_id).update(lokasi_asset_id=mv.location_id)
             sync_holder(mv.asset, mv.held_by, by=request.user.employee, notes=mv.notes)
-    messages.success(request, "Movement berhasil diperbarui.")
-    return redirect('movement_dashboard')
+    messages.success(request, "Catatan perpindahan diperbarui.")
+    return _back(request, mv.asset_id)
 
 
 @role_required(is_ga)
@@ -147,8 +159,8 @@ def movement_delete(request, pk):
     mv = get_object_or_404(AssetMovement.objects.select_related('asset'), pk=pk)
 
     if mv.asset.lifecycle_status == 'writeoff':
-        messages.error(request, "Aset write-off tidak dapat dihapus movement-nya.")
-        return redirect('movement_dashboard')
+        messages.error(request, "Catatan perpindahan aset write off tidak bisa dihapus.")
+        return _back(request, mv.asset_id)
 
     with transaction.atomic():
         was_current = mv.is_current
@@ -162,5 +174,5 @@ def movement_delete(request, pk):
                 prev.moved_out  = None
                 prev.save(update_fields=['is_current', 'moved_out'])
             sync_holder(asset, prev.held_by if prev else None, by=request.user.employee)
-    messages.success(request, f"Movement aset '{asset.nama_asset}' berhasil dihapus.")
-    return redirect('movement_dashboard')
+    messages.success(request, f"Catatan perpindahan '{asset.nama_asset}' dihapus.")
+    return _back(request, asset.pk)

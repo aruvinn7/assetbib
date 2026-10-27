@@ -1,5 +1,4 @@
 {% extends "base.html" %}
-{% block legacy_css %}{% endblock %}
 {% block title %}Edit grup aset{% endblock %}
 {% block nav_master %}active{% endblock %}
 
@@ -10,7 +9,7 @@
   <div class="page-head">
     <div>
       <h1>Edit grup aset</h1>
-      <div class="sub">{{ group.categories.count }} kategori · {{ group.asset_set.count }} aset memakai grup ini</div>
+      <div class="sub">{{ group.categories.count }} kategori · {{ group.asset_count }} aset memakai grup ini</div>
     </div>
   </div>
 

@@ -1,0 +1,102 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}{{ page.title }}{% endblock %}
+{% block nav_import_asset %}{% if kind == 'aset' %}active{% endif %}{% endblock %}
+{% block nav_import_fin %}{% if kind != 'aset' %}active{% endif %}{% endblock %}
+{% block extra_head %}<link rel="stylesheet" href="{% static 'css/pages/import.css' %}?v=2">{% endblock %}
+
+{% block content %}
+<div class="page">
+  <nav class="track-tabs" aria-label="Jenis import">
+    <span class="track-label"><i class="fa-solid fa-file-import" aria-hidden="true"></i>Import Excel</span>
+    <div class="track-list">
+      <a href="{% url 'import_asset' %}" {% if kind == 'aset' %}aria-current="page"{% endif %}><i class="fa-solid fa-box" aria-hidden="true"></i>Aset</a>
+      <a href="{% url 'import_finansial' %}" {% if kind == 'finansial' %}aria-current="page"{% endif %}><i class="fa-solid fa-coins" aria-hidden="true"></i>Finansial</a>
+    </div>
+  </nav>
+
+  <div class="page-head">
+    <div><h1>{{ page.title }}</h1><div class="sub">{{ page.sub }}</div></div>
+    <div class="page-actions">
+      <a href="{% url page.template_url %}" class="btn outline"><i class="fa-solid fa-download" aria-hidden="true"></i>Unduh template</a>
+    </div>
+  </div>
+
+  <div class="form-layout">
+    <div class="form-main">
+      <form method="post" enctype="multipart/form-data" id="uploadForm" class="fsec">
+        {% csrf_token %}
+        <div class="fsec-head"><h2>Unggah file</h2><p>Format .xlsx atau .xlsm, maksimal {{ max_rows }} baris data.</p></div>
+        <div class="fsec-body">
+          <label class="dropzone" for="fileInput" id="dropzone">
+            <i class="fa-solid fa-file-excel" aria-hidden="true"></i>
+            <span class="dz-main">Pilih file Excel <span class="dz-or">atau tarik ke sini</span></span>
+            <span class="dz-file" id="dzFile" hidden></span>
+            <input class="visually-hidden" type="file" id="fileInput" name="excel_file" accept=".xlsx,.xlsm" required>
+          </label>
+        </div>
+        <div class="form-bar">
+          <span class="bar-hint" id="dzHint">Belum ada file dipilih.</span>
+          <a href="{% if kind == 'finansial' %}{% url 'value_dashboard' %}{% else %}{% url 'asset_list' %}{% endif %}" class="btn outline">Batal</a>
+          <button type="submit" class="btn" id="submitBtn" disabled><span class="spinner" aria-hidden="true"></span><span class="btn-label">Import</span></button>
+        </div>
+      </form>
+
+      <section class="panel" aria-labelledby="colTitle">
+        <div class="panel-head"><h2 id="colTitle">Kolom di template</h2><span class="meta">Nama kolom harus sama persis dengan baris judul template</span></div>
+        <div class="table-wrap">
+          <table class="table stack col-table">
+            <thead><tr><th>Kolom</th><th>Isian</th><th>Aturan</th></tr></thead>
+            <tbody>
+            {% for col, required, rule in page.columns %}
+              <tr>
+                <td class="lead"><code class="code">{{ col }}</code></td>
+                <td data-label="Isian">{% if required %}<span class="req-tag">Wajib</span>{% else %}<span class="opt">Opsional</span>{% endif %}</td>
+                <td data-label="Aturan">{{ rule }}</td>
+              </tr>
+            {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </div>
+
+    <aside class="form-side">
+      <section class="panel" aria-labelledby="stepTitle">
+        <div class="panel-head"><h2 id="stepTitle">Langkah</h2></div>
+        <ol class="steps">
+          {% for step in page.steps %}<li>{{ step }}</li>{% endfor %}
+        </ol>
+        {% if kind == 'aset' %}
+        <p class="panel-note">Setelah aset masuk, isi nilainya lewat <a href="{% url 'import_finansial' %}">Import finansial</a>.</p>
+        {% endif %}
+      </section>
+    </aside>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+  (() => {
+    const input = document.getElementById('fileInput'), zone = document.getElementById('dropzone');
+    const label = document.getElementById('dzFile'), hint = document.getElementById('dzHint'), btn = document.getElementById('submitBtn');
+    const show = () => {
+      const f = input.files[0];
+      const ok = f && /\.(xlsx|xlsm)$/i.test(f.name);
+      label.hidden = !f;
+      if (f) label.textContent = `${f.name} · ${(f.size / 1024).toFixed(0)} KB`;
+      zone.classList.toggle('has-file', !!ok);
+      zone.classList.toggle('is-bad', !!f && !ok);
+      hint.textContent = !f ? 'Belum ada file dipilih.' : ok ? 'Siap diimport.' : 'File harus berformat .xlsx atau .xlsm.';
+      btn.disabled = !ok;
+    };
+    input.addEventListener('change', show);
+    ['dragenter', 'dragover'].forEach(t => zone.addEventListener(t, e => { e.preventDefault(); zone.classList.add('is-drag'); }));
+    ['dragleave', 'drop'].forEach(t => zone.addEventListener(t, () => zone.classList.remove('is-drag')));
+    zone.addEventListener('drop', e => { e.preventDefault(); if (e.dataTransfer.files.length) { input.files = e.dataTransfer.files; show(); } });
+    document.getElementById('uploadForm').addEventListener('submit', () => { btn.disabled = true; btn.classList.add('is-loading'); });
+    show();
+  })();
+</script>
+{% endblock %}

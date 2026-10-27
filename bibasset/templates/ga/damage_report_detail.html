@@ -1,6 +1,5 @@
 {% extends "base.html" %}
 {% load static waktu rupiah %}
-{% block legacy_css %}{% endblock %}
 {% block title %}Laporan #{{ report.pk }} · {{ report.title }}{% endblock %}
 {% block nav_damage %}active{% endblock %}
 {% block extra_head %}<link rel="stylesheet" href="{% static 'css/pages/damage_report.css' %}?v=2">{% endblock %}

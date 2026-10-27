@@ -9,17 +9,6 @@
 .actions .skip { margin-left: 12px; font: inherit; font-size: 13px; color: var(--ink-3); background: none; border: 0; cursor: pointer; text-decoration: none; padding: 6px 8px; border-radius: 8px; }
 .actions .skip:hover { color: var(--ink); background: var(--off-tint); }
 
-/* Dialog pilih aset */
-.picker { width: min(560px, calc(100vw - 32px)); max-height: min(720px, calc(100vh - 48px)); }
-.picker[open] { display: flex; flex-direction: column; }
-.picker-search { padding: 12px 20px; border-bottom: 1px solid var(--rule-soft); }
-.picker-list { list-style: none; margin: 0; padding: 0; overflow-y: auto; flex: 1; }
-.picker-list { padding: 6px 8px; }
-.picker-list a { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 10px 12px; border-radius: 8px; color: var(--ink); text-decoration: none; font-size: 14px; }
-.picker-list strong { font-weight: 500; }
-.picker-list a:hover, .picker-list a:focus-visible { background: var(--brand-25); }
-.picker-list .cell-sub { display: block; }
-
 @media (max-width: 860px) {
   .sched-table thead { display: none; }
   .sched-table, .sched-table tbody, .sched-table tr, .sched-table td { display: block; width: 100%; }

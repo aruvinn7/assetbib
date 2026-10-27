@@ -11,16 +11,12 @@
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300..700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
 
-  {# CSS library per halaman (mis. Bootstrap) — dimuat sebelum base.css supaya tema tetap menang #}
-  {% block vendor_css %}{% endblock %}
-  <link rel="stylesheet" href="{% static 'css/base.css' %}?v=13">
+  <link rel="stylesheet" href="{% static 'css/base.css' %}?v=17">
 
   {# Pulihkan sidebar ringkas sebelum render supaya tidak berkedip #}
   <script>try { if (localStorage.getItem('sbMini') === '1') document.documentElement.classList.add('sb-mini-pending'); } catch (e) {}</script>
 
   {% block extra_head %}{% endblock %}
-  {# Penyelaras gaya untuk halaman berkelas lama; halaman yang sudah dibangun ulang mengosongkan block ini #}
-  {% block legacy_css %}<link rel="stylesheet" href="{% static 'css/legacy.css' %}?v=5">{% endblock %}
 </head>
 
 <body>
@@ -93,8 +89,8 @@
         </ul>
       </li>
       {% if emp.ga_profile %}
-      <li><a href="{% url 'import_asset' %}" class="menu-item"><i class="mi-icon fa-solid fa-file-import" aria-hidden="true"></i><span class="mi-text">Import aset</span></a></li>
-      <li><a href="{% url 'import_finansial' %}" class="menu-item"><i class="mi-icon fa-solid fa-file-invoice-dollar" aria-hidden="true"></i><span class="mi-text">Import finansial</span></a></li>
+      <li><a href="{% url 'import_asset' %}" class="menu-item {% block nav_import_asset %}{% endblock %}"><i class="mi-icon fa-solid fa-file-import" aria-hidden="true"></i><span class="mi-text">Import aset</span></a></li>
+      <li><a href="{% url 'import_finansial' %}" class="menu-item {% block nav_import_fin %}{% endblock %}"><i class="mi-icon fa-solid fa-file-invoice-dollar" aria-hidden="true"></i><span class="mi-text">Import finansial</span></a></li>
       {% endif %}
     </ul>
     {% endif %}
@@ -409,7 +405,7 @@
 </dialog>
 {% endif %}
 <div class="toasts" id="toasts" aria-live="polite" aria-atomic="false"></div>
-<script src="{% static 'js/app.js' %}?v=2"></script>
+<script src="{% static 'js/app.js' %}?v=3"></script>
 {% endif %}
 {% endwith %}
 

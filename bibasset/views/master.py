@@ -148,8 +148,9 @@ def location_delete(request, pk):
 @role_required(is_ga_or_finance)
 def assetgroup_list(request):
     return render(request, "master/assetgroup_list.html", {
+        # Aset terhubung ke grup lewat kategorinya
         "groups": AssetGroup.objects.prefetch_related('categories').annotate(
-            asset_count=Count('asset', distinct=True),
+            asset_count=Count('categories__assets', distinct=True),
         ).order_by('name')
     })
 
@@ -163,7 +164,9 @@ def assetgroup_create(request):
 
 @role_required(is_ga_or_finance)
 def assetgroup_update(request, pk):
-    group = get_object_or_404(AssetGroup, pk=pk)
+    group = get_object_or_404(
+        AssetGroup.objects.annotate(asset_count=Count('categories__assets', distinct=True)), pk=pk,
+    )
     if request.method == "POST":
         if _save_form(request, AssetGroupForm(request.POST, instance=group),
                       "Asset Group '{obj.name}' berhasil diperbarui."):

@@ -1,6 +1,5 @@
 {% extends "base.html" %}
 {% load static rupiah math_filter waktu %}
-{% block legacy_css %}{% endblock %}
 {% block title %}{{ asset.nama_asset }} · {{ asset.asset_number }}{% endblock %}
 {% block nav_assets %}active{% endblock %}
 {% block extra_head %}<link rel="stylesheet" href="{% static 'css/pages/asset_detail.css' %}?v=4">{% endblock %}
@@ -207,7 +206,7 @@
         <div class="more-row"><button type="button" class="btn sm outline" id="showMore">Tampilkan semua {{ maintenance_records|length }} pekerjaan</button></div>
         {% endif %}
         {% else %}
-        <div class="empty"><strong>Belum ada riwayat maintenance</strong>{% if emp.ga_profile %}<a href="{% url 'maintenance_create' asset.id %}">Catat maintenance pertama</a>{% endif %}</div>
+        <div class="empty"><strong>Belum ada riwayat maintenance</strong>{% if emp.ga_profile and asset.lifecycle_status != 'writeoff' %}<a href="{% url 'maintenance_create' asset.id %}" data-quick-maint>Catat maintenance pertama</a>{% endif %}</div>
         {% endif %}
       </section>
 

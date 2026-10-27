@@ -1,0 +1,88 @@
+{% extends "base.html" %}
+{% block title %}Interval khusus · {{ asset.asset_number }}{% endblock %}
+{% block nav_maintenance %}active{% endblock %}
+
+{% block content %}
+<div class="page">
+  <div class="crumbs">
+    <a href="{% url 'asset_detail' asset.id %}">{{ asset.asset_number }}</a><i class="fa-solid fa-chevron-right" aria-hidden="true" style="font-size:10px"></i>Interval khusus
+  </div>
+  <div class="page-head">
+    <div><h1>{% if config %}Ubah interval khusus{% else %}Atur interval khusus{% endif %}</h1><div class="sub">{{ asset.nama_asset }}</div></div>
+  </div>
+
+  <form method="post" class="form-layout">
+    {% csrf_token %}
+    <div class="form-main">
+      <section class="fsec" aria-labelledby="secInterval">
+        <div class="fsec-head"><h2 id="secInterval">Interval maintenance</h2>
+          <p>{% if category_interval %}Standar kategori {{ asset.asset_category.name }} adalah setiap {{ category_interval }} hari. Isi hanya bila aset ini perlu interval yang berbeda.{% else %}Kategori aset ini belum punya interval standar, jadi interval khusus menentukan jadwal otomatisnya.{% endif %}</p>
+        </div>
+        <div class="fsec-body">
+          <div class="field">
+            <label for="intervalInput">Interval (hari) <span class="req" aria-hidden="true">*</span></label>
+            <div class="input-affix interval-input">
+              <input class="input" type="number" id="intervalInput" name="custom_interval_days" min="1" max="999" required inputmode="numeric"
+                     value="{% firstof posted.custom_interval_days config.custom_interval_days '' %}" aria-describedby="intervalHint">
+              <span aria-hidden="true">hari</span>
+            </div>
+            <p class="field-hint" id="intervalHint" aria-live="polite">Contoh: 14 = 2 minggu, 30 = 1 bulan, 90 = 3 bulan.</p>
+            <div class="fill-row"><span>Isi cepat:</span>
+              <button type="button" class="fill-chip" data-days="7">1 minggu</button>
+              <button type="button" class="fill-chip" data-days="14">2 minggu</button>
+              <button type="button" class="fill-chip" data-days="30">1 bulan</button>
+              <button type="button" class="fill-chip" data-days="90">3 bulan</button>
+              <button type="button" class="fill-chip" data-days="180">6 bulan</button>
+            </div>
+          </div>
+          <div class="field">
+            <label for="reason">Alasan <span class="req" aria-hidden="true">*</span></label>
+            <textarea class="textarea" id="reason" name="reason" rows="3" required placeholder="Mis. dipakai 24 jam di area berdebu, perlu dicek lebih sering">{% firstof posted.reason config.reason '' %}</textarea>
+          </div>
+        </div>
+      </section>
+
+      <div class="form-bar">
+        <span class="bar-hint">Menyimpan menghitung ulang jadwal maintenance berikutnya.</span>
+        <a href="{% url 'asset_detail' asset.id %}" class="btn outline">Batal</a>
+        <button type="submit" class="btn">Simpan interval</button>
+      </div>
+    </div>
+
+    <aside class="form-side">
+      <section class="panel" aria-labelledby="assetInfo">
+        <div class="panel-head"><h2 id="assetInfo">Aset</h2></div>
+        <div class="panel-body">
+          <dl class="kv">
+            <div><dt>Nomor</dt><dd>{{ asset.asset_number }}</dd></div>
+            <div><dt>Kategori</dt><dd>{{ asset.asset_category.name|default:"—" }}</dd></div>
+            <div><dt>Standar</dt><dd>{% if category_interval %}Setiap {{ category_interval }} hari{% else %}<span class="dim">Belum diatur</span>{% endif %}</dd></div>
+            {% if config %}<div><dt>Saat ini</dt><dd>Setiap {{ config.custom_interval_days }} hari</dd></div>{% endif %}
+          </dl>
+        </div>
+      </section>
+    </aside>
+  </form>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+  (() => {
+    const input = document.getElementById('intervalInput');
+    const hint = document.getElementById('intervalHint');
+    const base = hint.textContent;
+    const std = {{ category_interval|default:"null" }};
+    const describe = () => {
+      const v = parseInt(input.value, 10);
+      if (!v || v < 1) { hint.textContent = base; return; }
+      const parts = [v >= 30 ? `±${(v / 30).toFixed(v % 30 ? 1 : 0).replace('.', ',')} bulan` : `±${(v / 7).toFixed(v % 7 ? 1 : 0).replace('.', ',')} minggu`];
+      if (std) parts.push(v < std ? `lebih sering dari standar (${std} hari)` : v > std ? `lebih jarang dari standar (${std} hari)` : 'sama dengan standar kategori');
+      hint.textContent = `Sekali setiap ${v} hari · ${parts.join(' · ')}.`;
+    };
+    input.addEventListener('input', describe);
+    document.querySelectorAll('[data-days]').forEach(b => b.addEventListener('click', () => { input.value = b.dataset.days; describe(); input.focus(); }));
+    describe();
+  })();
+</script>
+{% endblock %}

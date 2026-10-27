@@ -281,3 +281,36 @@ class AccessAndFlowTest(TestCase):
                                          tanggal_pelaksanaan=date.today(), deskripsi_pekerjaan='-')
         self.asset.refresh_from_db()
         self.assertEqual(self.asset.lifecycle_status, 'writeoff')
+
+    def test_all_simple_pages_render(self):
+        """Semua halaman tanpa parameter URL terbuka tanpa error 500 untuk tiap peran."""
+        from django.urls import get_resolver, reverse
+        names = [p.name for p in get_resolver('bibasset.urls').url_patterns
+                 if p.name and not p.pattern.converters and p.name not in {'logout'}]
+        self.assertGreater(len(names), 20)
+        for user in (self.ga_user, self.fin_user, self.usr_user):
+            self.client.force_login(user)
+            for name in names:
+                with self.subTest(user=user.username, page=name):
+                    self.assertLess(self.client.get(reverse(name)).status_code, 500)
+
+    def test_maintenance_blocked_for_writeoff_asset(self):
+        Asset.objects.filter(pk=self.asset.pk).update(lifecycle_status='writeoff')
+        self.client.force_login(self.ga_user)
+        r = self.client.post(f'/maintenance/asset/{self.asset.pk}/create/', {
+            'maintenance_type': 'corrective', 'tanggal_pelaksanaan': '2025-06-01', 'deskripsi_pekerjaan': '-', 'hasil': 'ok'})
+        self.assertRedirects(r, f'/asset/{self.asset.pk}/detail/', fetch_redirect_response=False)
+        self.assertFalse(MaintenanceRecord.objects.filter(asset=self.asset).exists())
+
+    def test_import_finansial_lists_skipped_rows(self):
+        import io
+        from openpyxl import Workbook
+        wb = Workbook(); ws = wb.active
+        ws.append(['asset_number', 'nilai_awal_aset', 'nilai_residual', 'umur_ekonomis'])
+        ws.append(['AC-1', 10_000_000, 1_000_000, 5])
+        ws.append(['TIDAK-ADA', 5_000_000, 0, 4])
+        buf = io.BytesIO(); wb.save(buf); buf.seek(0); buf.name = 'fin.xlsx'
+        self.client.force_login(self.ga_user)
+        r = self.client.post('/asset/import/finansial/', {'excel_file': buf})
+        self.assertContains(r, "Aset &#x27;TIDAK-ADA&#x27; tidak ditemukan di sistem")
+        self.assertTrue(AssetFinancial.objects.filter(asset=self.asset).exists())

@@ -86,7 +86,7 @@ def _draft_editor(request, ba):
             except ValueError:
                 tanggal = None
             kosong = [it.asset.nama_asset for it in items if not it.kerusakan]
-            if not tanggal or tanggal > date.today():
+            if not tanggal or tanggal > timezone.localdate():
                 messages.error(request, 'Isi tanggal verifikasi (tidak boleh di masa depan).', extra_tags='field:tanggal|Tanggal verifikasi')
             elif not items:
                 messages.error(request, 'Draf masih kosong.')
@@ -105,7 +105,7 @@ def _draft_editor(request, ba):
                 .select_related('lokasi_asset').order_by('nama_asset'))
     if ba.department_id:
         kandidat = kandidat.filter(owned_by_department_id=ba.department_id)
-    tanggal = date.today()
+    tanggal = timezone.localdate()
     return render(request, 'berita_acara/draft.html', {
         'ba': ba,
         'items': items,
@@ -208,7 +208,7 @@ def ba_penghapusan(request, pk):
         keterangan = posted.get('keterangan', '').strip()
         if not assets:
             messages.error(request, 'Pilih minimal satu aset yang dihapuskan.')
-        elif not tanggal or tanggal > date.today() or tanggal < ba.tanggal:
+        elif not tanggal or tanggal > timezone.localdate() or tanggal < ba.tanggal:
             messages.error(request, f'Tanggal penghapusan antara {ba.tanggal:%d/%m/%Y} dan hari ini.',
                            extra_tags='field:tanggal|Tanggal penghapusan')
         elif alasan not in dict(AssetWriteOff.REASON):
@@ -222,7 +222,7 @@ def ba_penghapusan(request, pk):
             messages.success(request, f'{len(assets)} aset di-write off. {baru.nomor} terbit.')
             return redirect('ba_detail', pk=baru.pk)
     return render(request, 'berita_acara/penghapusan.html', {
-        'ba': ba, 'items': items, 'today': date.today(), 'reasons': AssetWriteOff.REASON,
+        'ba': ba, 'items': items, 'today': timezone.localdate(), 'reasons': AssetWriteOff.REASON,
         'pilih': {int(x) for x in posted.getlist('item') if x.isdigit()} if posted else
                  {it.pk for it in items if it.rekomendasi == 'hapus'},
         'cur_alasan': (posted or {}).get('alasan', 'rusak'),

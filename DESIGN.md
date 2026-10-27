@@ -178,9 +178,20 @@ Form tambah/edit aset, finansial, BOM, dan master data memakai komponen bersama 
 
 **Pelacakan:** halaman lokasi, pemegang aset, dan riwayat perpindahan berada di satu menu, dengan tab bersama (`components/_tracking_tabs.html`).
 
-## Halaman berkelas lama
+## Pola bersama halaman
 
-Halaman yang belum dibangun ulang adalah import Excel, form maintenance halaman penuh dan interval khusus, laporan kerusakan (GA & karyawan), dashboard karyawan, serah terima, riwayat perpindahan, dan aset per lokasi. Halaman-halaman ini masih memakai kelas lama di `static/css/pages/*.css`. `static/css/legacy.css` dimuat **setelah** CSS halaman dan menyelaraskan tampilannya ke sistem ini tanpa mengubah tata letak. Link CSS halaman harus berada di `{% block extra_head %}` agar urutan ini benar. Halaman yang sudah dibangun ulang mengosongkan `{% block legacy_css %}`.
+Semua halaman memakai sistem yang sama; `legacy.css` dan kelas lama (`pg-*`, `db-card`, `mv-*` lama, eyebrow) sudah dihapus. CSS khusus halaman ada di `static/css/pages/*.css` dan dimuat lewat `{% block extra_head %}`.
+
+- **`.table.stack`**: tabel yang di bawah 760px berubah jadi kartu bertumpuk. `td.lead` = judul kartu, `td.act` = aksi, `td[data-label]` = pasangan label–nilai. Dipakai Pelacakan, import, dan aset per lokasi.
+- **`.pick-list`** (`.cols` untuk grid): daftar ringkas berisi satu aksi per baris (aset tanpa pemegang).
+- **`data-filter-for="<id select>"`** pada `<input>` di atas `<select>` panjang: menyaring opsi sambil mengetik; bila tinggal satu, opsi itu langsung terpilih (`static/js/app.js`).
+- **`data-palette-open="maint"`**: membuka palet langsung di mode pilih aset untuk dicatat maintenance-nya (menggantikan dialog daftar semua aset).
+- **Riwayat perpindahan** memakai `<details>` per aset (bisa dipakai keyboard tanpa JS); satu `<template>` form dipasang di slot aset/baris yang dibuka. Setelah simpan, halaman kembali ke saringan yang sama dengan aset itu terbuka (`#mv-<id>`).
+- **Aset per lokasi**: pohon lokasi dirender server dalam keadaan terbuka sampai lokasi terpilih.
+- **Form maintenance**: isian dialog cepat dan halaman penuh sama-sama dari `maintenance/_fields.html`. Interval khusus (buat/ubah) memakai satu template `maintenance/config_form.html`.
+- **Import Excel**: satu template `asset/import.html` untuk aset & finansial (isi kolom, langkah, dan aturan dari `IMPORT_PAGES` di `views/import_views.py`), hasilnya di `asset/import_result.html`.
+- **Teks meta 13px** (sub-baris tabel, catatan, hint) adalah ukuran tetap di antara label 12px dan body 14px.
+- Angka tidak dianimasikan (tanpa count-up); nilainya langsung benar saat halaman tampil.
 
 ## Do's and Don'ts
 

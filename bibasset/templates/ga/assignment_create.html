@@ -1,133 +1,121 @@
 {% extends "base.html" %}
 {% load static %}
-{% block title %}Serahkan Aset ke Karyawan{% endblock %}
-
-{% block extra_head %}<link rel="stylesheet" href="{% static 'css/pages/ga_assignment_create.css' %}?v=3">{% endblock %}
-
+{% block title %}Serahkan aset · Pelacakan{% endblock %}
 {% block nav_tracking %}active{% endblock %}
+{% block extra_head %}<link rel="stylesheet" href="{% static 'css/pages/tracking.css' %}?v=3">{% endblock %}
 
 {% block content %}
-
-<div class="pg-wrap">
-
-  <a href="{% url 'assignment_list' %}" class="back-link anim">← Kembali ke Serah Terima</a>
-
-  <div class="anim">
-    <div class="pg-eyebrow">General Affairs</div>
-    <div class="pg-title">Serahkan <em>Aset</em></div>
-    <div class="pg-sub">Assign aset ke karyawan pemegang — histori serah terima akan tersimpan otomatis</div>
+<div class="page">
+  <div class="crumbs">
+    <a href="{% url 'assignment_list' %}">Pemegang aset</a><i class="fa-solid fa-chevron-right" aria-hidden="true" style="font-size:10px"></i>Serahkan aset
+  </div>
+  <div class="page-head">
+    <div><h1>Serahkan aset ke karyawan</h1><div class="sub">Pemegang lama otomatis ditutup dan riwayatnya tercatat di Pelacakan.</div></div>
   </div>
 
-  <!-- INFO BOX -->
-  <div class="info-box anim">
-    <div class="info-box-text">
-      <strong>Catatan:</strong> Jika aset sudah dipegang karyawan lain, assignment lama akan otomatis
-      ditutup dan dipindahkan ke karyawan baru. Riwayat serah terima tetap tersimpan.
-    </div>
-  </div>
+  <form method="post" class="form-layout">
+    {% csrf_token %}
+    <div class="form-main">
+      <section class="fsec" aria-labelledby="secAsset">
+        <div class="fsec-head"><h2 id="secAsset">Aset & penerima</h2><p>Hanya aset berstatus Aktif dan karyawan berperan User yang bisa dipilih.</p></div>
+        <div class="fsec-body">
+          <div class="field">
+            <label for="asset_id">Aset <span class="req" aria-hidden="true">*</span></label>
+            <div class="select-filter">
+              <label class="visually-hidden" for="assetFilter">Saring daftar aset</label>
+              <input class="input" type="search" id="assetFilter" data-filter-for="asset_id" data-count-id="assetCount" placeholder="Ketik nama, nomor, atau lokasi untuk menyaring…" autocomplete="off">
+            </div>
+            <select name="asset_id" id="asset_id" class="select" required aria-describedby="assetCount">
+              <option value="">Pilih aset ({{ assets|length }})</option>
+              {% for asset in assets %}
+              <option value="{{ asset.id }}" data-num="{{ asset.asset_number }}" data-cat="{{ asset.asset_category.name|default:'—' }}"
+                      data-loc="{{ asset.lokasi_asset|default:'—' }}" data-holder="{{ asset.holder_name|default:'' }}"
+                      {% if selected_asset and selected_asset.id == asset.id %}selected{% endif %}>{{ asset.nama_asset }} · {{ asset.asset_number }}{% if asset.lokasi_asset %} · {{ asset.lokasi_asset.name }}{% endif %}</option>
+              {% endfor %}
+            </select>
+            <p class="field-hint" id="assetCount" aria-live="polite"></p>
+          </div>
 
-  <!-- FORM CARD -->
-  <div class="db-card anim">
-    <div class="db-card-header">
-      <div class="db-card-title">
-        <span class="db-card-title-dot" style="background:var(--accent)"></span>
-        Form Serah Terima Aset
-      </div>
-    </div>
-    <div class="card-body">
-      <form method="POST">
-        {% csrf_token %}
+          <div class="field">
+            <label for="assigned_to">Penerima <span class="req" aria-hidden="true">*</span></label>
+            <div class="select-filter">
+              <label class="visually-hidden" for="empFilter">Saring daftar karyawan</label>
+              <input class="input" type="search" id="empFilter" data-filter-for="assigned_to" placeholder="Ketik nama, jabatan, atau departemen…" autocomplete="off">
+            </div>
+            <select name="assigned_to" id="assigned_to" class="select" required>
+              <option value="">Pilih karyawan ({{ employees|length }})</option>
+              {% for emp in employees %}
+              <option value="{{ emp.id }}">{{ emp.nama }} · {{ emp.jabatan }}{% if emp.department %} · {{ emp.department.name }}{% endif %}</option>
+              {% endfor %}
+            </select>
+          </div>
+        </div>
+      </section>
 
-        <!-- PILIH ASET -->
-        <div class="form-group">
-          <label class="form-label" for="asset_id">Aset <span>*</span></label>
-          <select name="asset_id" id="asset_id" class="form-control" required onchange="previewAsset(this)">
-            <option value="">— Pilih aset yang akan diserahkan —</option>
-            {% for asset in assets %}
-            <option value="{{ asset.id }}"
-              data-num="{{ asset.asset_number }}"
-              data-cat="{{ asset.asset_category|default:'-' }}"
-              data-loc="{{ asset.lokasi_asset|default:'-' }}"
-              {% if selected_asset and selected_asset.id == asset.id %}selected{% endif %}>
-              {{ asset.nama_asset }} — {{ asset.asset_number }}
-            </option>
-            {% endfor %}
-          </select>
-          <div class="form-hint">Hanya aset dengan status Active yang ditampilkan.</div>
-
-          <!-- Asset preview -->
-          <div class="asset-preview" id="assetPreview">
-            <div class="asset-preview-name" id="previewName">—</div>
-            <div class="asset-preview-meta">
-              <span id="previewNum"></span>
-              · Kategori: <span id="previewCat"></span>
-              · Lokasi: <span id="previewLoc"></span>
+      <section class="fsec" aria-labelledby="secHandover">
+        <div class="fsec-head"><h2 id="secHandover">Serah terima</h2><p>Tanggal dan kondisi aset saat diserahkan.</p></div>
+        <div class="fsec-body">
+          <div class="fgrid">
+            <div class="field">
+              <label for="assigned_date">Tanggal serah terima</label>
+              <input type="date" name="assigned_date" id="assigned_date" class="input" value="{% now 'Y-m-d' %}" max="{% now 'Y-m-d' %}">
+            </div>
+            <div class="field span-all">
+              <label for="notes">Catatan <span class="opt">opsional</span></label>
+              <textarea name="notes" id="notes" class="textarea" rows="3" placeholder="Contoh: kondisi baik, lengkap dengan charger dan tas."></textarea>
             </div>
           </div>
         </div>
+      </section>
 
-        <hr class="form-divider">
-
-        <!-- PILIH KARYAWAN -->
-        <div class="form-group">
-          <label class="form-label" for="assigned_to">Diserahkan ke Karyawan <span>*</span></label>
-          <select name="assigned_to" id="assigned_to" class="form-control" required>
-            <option value="">— Pilih karyawan penerima —</option>
-            {% for emp in employees %}
-            <option value="{{ emp.id }}">
-              {{ emp.nama }} — {{ emp.jabatan }}{% if emp.department %} ({{ emp.department }}){% endif %}
-            </option>
-            {% endfor %}
-          </select>
-          <div class="form-hint">Hanya karyawan dengan UserProfile yang dapat menerima aset.</div>
-        </div>
-
-        <!-- TANGGAL -->
-        <div class="form-group">
-          <label class="form-label" for="assigned_date">Tanggal Serah Terima</label>
-          <input type="date" name="assigned_date" id="assigned_date" class="form-control"
-                 value="{% now 'Y-m-d' %}">
-          <div class="form-hint">Kosongkan untuk menggunakan tanggal hari ini.</div>
-        </div>
-
-        <!-- CATATAN -->
-        <div class="form-group">
-          <label class="form-label" for="notes">Catatan Serah Terima</label>
-          <textarea name="notes" id="notes" class="form-control"
-                    placeholder="Contoh: Kondisi baik, sudah dilengkapi charger dan tas. Diserahkan saat onboarding karyawan baru."></textarea>
-          <div class="form-hint">Opsional — dokumentasikan kondisi aset saat diserahkan.</div>
-        </div>
-
-        <hr class="form-divider">
-
-        <div class="form-actions">
-          <button type="submit" class="btn-submit">
-            Serahkan Aset
-          </button>
-          <a href="{% url 'assignment_list' %}" class="btn-cancel">Batal</a>
-        </div>
-      </form>
+      <div class="form-bar">
+        <span class="bar-hint"><span class="req">*</span> wajib diisi</span>
+        <a href="{% url 'assignment_list' %}" class="btn outline">Batal</a>
+        <button type="submit" class="btn">Serahkan aset</button>
+      </div>
     </div>
-  </div>
 
+    <aside class="form-side">
+      <section class="panel" aria-labelledby="pickedTitle">
+        <div class="panel-head"><h2 id="pickedTitle">Aset terpilih</h2></div>
+        <div class="panel-body">
+          <p class="picked-empty" id="pickedEmpty">Pilih aset untuk melihat lokasi dan pemegangnya saat ini.</p>
+          <dl class="kv" id="pickedInfo" hidden>
+            <div><dt>Nama</dt><dd id="pkName"></dd></div>
+            <div><dt>Nomor</dt><dd id="pkNum"></dd></div>
+            <div><dt>Kategori</dt><dd id="pkCat"></dd></div>
+            <div><dt>Lokasi</dt><dd id="pkLoc"></dd></div>
+            <div><dt>Pemegang</dt><dd id="pkHolder"></dd></div>
+          </dl>
+          <p class="note warn" id="pickedMove" hidden><i class="fa-solid fa-right-left" aria-hidden="true"></i><span>Aset ini sedang dipegang <strong id="pkHolderName"></strong>. Penyerahan akan menutup pemegang lama.</span></p>
+        </div>
+      </section>
+    </aside>
+  </form>
 </div>
+{% endblock %}
 
+{% block extra_scripts %}
 <script>
-  function previewAsset(select) {
-    const opt = select.options[select.selectedIndex];
-    const preview = document.getElementById('assetPreview');
-    if (!opt.value) { preview.classList.remove('show'); return; }
-    document.getElementById('previewName').textContent = opt.text.split(' — ')[0];
-    document.getElementById('previewNum').textContent  = opt.dataset.num;
-    document.getElementById('previewCat').textContent  = opt.dataset.cat;
-    document.getElementById('previewLoc').textContent  = opt.dataset.loc;
-    preview.classList.add('show');
-  }
-
-  // Auto-trigger preview jika ada selected_asset (pre-select dari URL)
-  window.addEventListener('DOMContentLoaded', () => {
+  (() => {
     const sel = document.getElementById('asset_id');
-    if (sel && sel.value) previewAsset(sel);
-  });
+    const $ = id => document.getElementById(id);
+    const show = () => {
+      const o = sel.selectedOptions[0];
+      const picked = o && o.value;
+      $('pickedEmpty').hidden = !!picked;
+      $('pickedInfo').hidden = !picked;
+      $('pickedMove').hidden = !(picked && o.dataset.holder);
+      if (!picked) return;
+      $('pkName').textContent = o.textContent.split(' · ')[0];
+      $('pkNum').textContent = o.dataset.num;
+      $('pkCat').textContent = o.dataset.cat;
+      $('pkLoc').textContent = o.dataset.loc;
+      $('pkHolder').textContent = o.dataset.holder || 'Belum ada';
+      $('pkHolderName').textContent = o.dataset.holder;
+    };
+    sel.addEventListener('change', show);
+    show();
+  })();
 </script>
 {% endblock %}

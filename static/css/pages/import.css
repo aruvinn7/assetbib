@@ -1,0 +1,35 @@
+/* Import Excel — unggah file & hasil import (aset dan finansial) */
+.form-main > .panel { margin-top: 20px; }
+
+.dropzone {
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; min-height: 180px; padding: 24px;
+  border: 1.5px dashed var(--field); border-radius: var(--r-lg); background: var(--ground); color: var(--ink-2);
+  text-align: center; cursor: pointer; transition: border-color .15s, background-color .15s;
+}
+.dropzone > i { font-size: 30px; color: var(--safe); }
+.dropzone .dz-main { font-size: 16px; font-weight: 500; color: var(--ink); }
+.dropzone .dz-or { display: block; font-size: 13px; font-weight: 400; color: var(--ink-3); margin-top: 2px; }
+.dropzone .dz-file { padding: 4px 12px; border-radius: 999px; background: var(--panel); border: 1px solid var(--rule); font-size: 13px; color: var(--ink-2); font-variant-numeric: tabular-nums; }
+.dropzone:hover, .dropzone.is-drag { border-color: var(--brand-300); background: var(--brand-25); }
+.dropzone:has(input:focus-visible) { border-color: var(--brand-500); box-shadow: var(--focus-ring); }
+.dropzone.has-file { border-style: solid; border-color: var(--safe-line); background: var(--safe-tint); }
+.dropzone.is-bad { border-style: solid; border-color: var(--danger-line-strong); background: var(--danger-tint); }
+.dropzone.is-bad > i { color: var(--danger); }
+
+.col-table td { vertical-align: top; }
+.col-table .code { white-space: nowrap; }
+.req-tag { font-size: 13px; font-weight: 500; color: var(--danger-ink); }
+.steps { margin: 0; padding: 16px 20px 16px 40px; display: grid; gap: 10px; font-size: 14px; color: var(--ink-2); }
+.steps li::marker { color: var(--brand-600); font-weight: 600; }
+
+.res-note { align-items: center; margin-bottom: 16px; }
+.res-note .sign { width: 20px; height: 20px; flex: none; }
+.res-note span { flex: 1; }
+.res-note strong { color: var(--danger-ink); font-weight: 600; }
+.res-table td { vertical-align: top; }
+.res-table .lead { min-width: 240px; }
+.res-table tr.is-rejected td { background: var(--danger-tint); }
+.row-msg { margin: 6px 0 0; padding: 6px 10px; border-radius: var(--r); font-size: 13px; line-height: 1.45; }
+.row-msg.danger { background: var(--panel); border: 1px solid var(--danger-line); color: var(--danger-ink); }
+.row-msg.warn { background: var(--warning-tint); color: var(--warning-ink); }
+.dim { color: var(--ink-3); }

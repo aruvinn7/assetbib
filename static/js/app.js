@@ -55,6 +55,25 @@
 
   window.App = { toast, refresh, rememberAsset };
 
+  // ── Kolom cari untuk <select> panjang: <input data-filter-for="idSelect"> ──
+  // Menyembunyikan opsi yang tidak cocok; bila tinggal satu, opsi itu langsung terpilih.
+  const fold = s => s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+  document.querySelectorAll('[data-filter-for]').forEach(inp => {
+    const sel = document.getElementById(inp.dataset.filterFor);
+    if (!sel) return;
+    const opts = [...sel.options].filter(o => o.value);
+    const hint = inp.dataset.countId ? document.getElementById(inp.dataset.countId) : null;
+    inp.addEventListener('input', () => {
+      const words = fold(inp.value).split(/\s+/).filter(Boolean);
+      const hits = opts.filter(o => { const t = fold(o.textContent); const m = words.every(w => t.includes(w)); o.hidden = !m; return m; });
+      if (hint) hint.textContent = words.length ? `${hits.length} cocok` : '';
+      if (words.length && hits.length === 1 && sel.value !== hits[0].value) {
+        sel.value = hits[0].value;
+        sel.dispatchEvent(new Event('change', { bubbles: true }));
+      }
+    });
+  });
+
   // ── Dialog "Catat maintenance" ─────────────────────────
   const qm = $('#quickMaint'), qmBody = $('#quickMaintBody');
   let dirty = false;
@@ -232,9 +251,9 @@
     if (newTab) window.open(it.url, '_blank'); else location.href = it.url;
   }
 
-  function open(prefill = '') {
+  function open(prefill = '', startMode = null) {
     if (pal.open) { input.select(); return; }
-    setMode(null);
+    setMode(startMode);
     input.value = prefill;
     pal.showModal();
     input.focus();
@@ -262,8 +281,9 @@
     if ((e.key === 'k' || e.key === 'K') && (e.ctrlKey || e.metaKey)) { e.preventDefault(); open(); }
     else if (e.key === '/' && !typing && !document.querySelector('dialog[open]')) { e.preventDefault(); open(); }
   });
+  // data-palette-open="maint" membuka palet langsung di mode pilih aset untuk dicatat maintenance-nya
   document.querySelectorAll('[data-palette-open]').forEach(el => {
-    el.addEventListener('click', e => { e.preventDefault(); open(); });
+    el.addEventListener('click', e => { e.preventDefault(); open('', el.dataset.paletteOpen || null); });
   });
   const gs = $('#globalSearch');
   gs?.addEventListener('focus', () => { const v = gs.value; gs.blur(); open(v); });

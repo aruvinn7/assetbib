@@ -1,9 +1,8 @@
 {% extends "base.html" %}
 {% load static math_filter %}
-{% block legacy_css %}{% endblock %}
 {% block title %}Maintenance{% endblock %}
 {% block nav_maintenance %}active{% endblock %}
-{% block extra_head %}<link rel="stylesheet" href="{% static 'css/pages/maintenance_list.css' %}?v=4">{% endblock %}
+{% block extra_head %}<link rel="stylesheet" href="{% static 'css/pages/maintenance_list.css' %}?v=5">{% endblock %}
 
 {% block content %}
 <div class="page">
@@ -14,7 +13,7 @@
       <div class="sub" id="maintCount" data-refresh>{{ overdue_count|add:upcoming_count }} jadwal perlu ditindaklanjuti · {{ done_count }} sudah selesai</div>
     </div>
     <div class="page-actions">
-      <button type="button" class="btn" data-open="pickAsset"><i class="fa-solid fa-plus" aria-hidden="true"></i>Catat maintenance</button>
+      <button type="button" class="btn" data-palette-open="maint" aria-haspopup="dialog"><i class="fa-solid fa-plus" aria-hidden="true"></i>Catat maintenance</button>
     </div>
   </div>
 
@@ -84,26 +83,6 @@
   </section>
 </div>
 
-<dialog class="picker" id="pickAsset" aria-labelledby="pickTitle">
-  <div class="panel-head"><h2 id="pickTitle">Pilih aset yang dikerjakan</h2><button type="button" class="icon-btn" data-close aria-label="Tutup"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button></div>
-  <div class="picker-search">
-    <label class="visually-hidden" for="pickSearch">Cari aset</label>
-    <input class="input" type="search" id="pickSearch" placeholder="Cari nama atau nomor aset…" autocomplete="off">
-  </div>
-  <ul class="picker-list" id="pickList">
-    {% for asset in all_active_assets %}
-    <li data-search="{{ asset.nama_asset|lower }} {{ asset.asset_number|lower }}">
-      <a href="{% url 'maintenance_create' asset.id %}" data-quick-maint>
-        <span><strong>{{ asset.nama_asset }}</strong><span class="cell-sub">{{ asset.asset_number }} · {{ asset.asset_category.name|default:"—" }}</span></span>
-        {% if asset.maint_status == 'overdue' %}{% include "components/_status.html" with kind="warning" label="Terlambat" %}{% elif asset.maint_status == 'upcoming_soon' %}{% include "components/_status.html" with kind="mandatory" label="Segera" %}{% endif %}
-      </a>
-    </li>
-    {% empty %}
-    <li class="empty">Tidak ada aset aktif.</li>
-    {% endfor %}
-  </ul>
-  <p class="empty" id="pickNone" hidden>Aset tidak ditemukan.</p>
-</dialog>
 {% endblock %}
 
 {% block extra_scripts %}
@@ -114,19 +93,5 @@
     input?.addEventListener('input', () => { clearTimeout(t); t = setTimeout(() => document.getElementById('searchForm').submit(), 400); });
   })();
 
-  (() => {
-    const dlg = document.getElementById('pickAsset');
-    const search = document.getElementById('pickSearch');
-    const items = [...dlg.querySelectorAll('#pickList li[data-search]')];
-    document.querySelector('[data-open="pickAsset"]').addEventListener('click', () => { dlg.showModal(); search.focus(); });
-    dlg.querySelector('[data-close]').addEventListener('click', () => dlg.close());
-    dlg.addEventListener('click', e => { if (e.target === dlg) dlg.close(); });
-    search.addEventListener('input', () => {
-      const q = search.value.toLowerCase().trim();
-      let n = 0;
-      items.forEach(li => { const m = li.dataset.search.includes(q); li.hidden = !m; if (m) n++; });
-      document.getElementById('pickNone').hidden = n > 0;
-    });
-  })();
 </script>
 {% endblock %}

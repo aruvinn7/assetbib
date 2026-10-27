@@ -1,196 +1,65 @@
 {% extends "base.html" %}
-{% load static %}
-{% block title %}Input Maintenance — {{ asset.nama_asset }}{% endblock %}
-
-{% block extra_head %}<link rel="stylesheet" href="{% static 'css/pages/maintenance_create.css' %}?v=3">{% endblock %}
+{% block title %}Catat maintenance · {{ asset.asset_number }}{% endblock %}
+{% block nav_maintenance %}active{% endblock %}
 
 {% block content %}
-
-<div class="wrap">
-
-  <!-- HEADER -->
-  <div class="page-header anim">
-    <div class="page-eyebrow">Maintenance Record — Input</div>
-    <h1 class="page-title">Input <em>Maintenance</em></h1>
+<div class="page">
+  <div class="crumbs">
+    <a href="{% url 'asset_detail' asset.id %}">{{ asset.asset_number }}</a><i class="fa-solid fa-chevron-right" aria-hidden="true" style="font-size:10px"></i>Catat maintenance
+  </div>
+  <div class="page-head">
+    <div><h1>Catat maintenance</h1><div class="sub">{{ asset.nama_asset }}</div></div>
   </div>
 
-  <!-- ASSET BANNER -->
-  <div class="asset-banner anim">
-    <div>
-      <div class="asset-banner-num">{{ asset.asset_number }}</div>
-      <div class="asset-banner-name">{{ asset.nama_asset }}</div>
-      <div class="asset-banner-meta">
-        {{ asset.asset_category.name|default:"—" }} ·
-        {{ asset.lokasi_asset|default:"—" }} ·
-        {{ asset.owned_by_department.name|default:"—" }}
+  <form method="post" class="form-layout" action="{% url 'maintenance_create' asset.id %}">
+    {% csrf_token %}
+    {% if active_schedule %}<input type="hidden" name="schedule_id" value="{{ active_schedule.pk }}">{% endif %}
+    <div class="form-main">
+      <section class="panel">
+        <div class="panel-body qm-page">{% include "maintenance/_fields.html" %}</div>
+      </section>
+      <div class="form-bar">
+        <span class="bar-hint">Jadwal berikutnya dibuat otomatis dari interval aset.</span>
+        <a href="{% url 'asset_detail' asset.id %}" class="btn outline">Batal</a>
+        <button type="submit" class="btn">Simpan maintenance</button>
       </div>
     </div>
-    <div class="asset-banner-right">
-      {% with interval=asset.get_effective_interval_days %}
-        {% if interval %}
-          <div class="interval-chip">Interval: setiap {{ interval }} hari</div>
-          {% if asset.maintenance_config %}
-            <div style="font-size:12px;color:var(--muted);margin-top:4px;font-family:var(--mono);">custom override</div>
-          {% endif %}
-        {% endif %}
-      {% endwith %}
-    </div>
-  </div>
 
-  <!-- SCHEDULE ALERT -->
-  {% if active_schedule %}
-    {% if active_schedule.status == 'overdue' %}
-    <div class="schedule-alert overdue anim">
-      <div>
-        <strong>Jadwal ini sudah OVERDUE!</strong><br>
-        Dijadwalkan: {{ active_schedule.scheduled_date|date:"d M Y" }} —
-        sudah {{ active_schedule.days_remaining|cut:"-" }} hari terlambat.
-        Jadwal ini akan ditandai selesai setelah Anda submit.
-      </div>
-    </div>
-    {% else %}
-    <div class="schedule-alert upcoming anim">
-      <div>
-        <strong>Melaksanakan jadwal maintenance.</strong>
-        Dijadwalkan: {{ active_schedule.scheduled_date|date:"d M Y" }}.
-        Jadwal ini akan ditandai selesai setelah Anda submit.
-      </div>
-    </div>
-    {% endif %}
-  {% endif %}
-
-  <!-- CHECKLIST HINT -->
-  {% if checklist_hint %}
-  <div class="form-card anim" style="margin-bottom:18px;">
-    <div class="form-card-header">
-      <div class="form-card-title">Checklist Standar — {{ asset.asset_category.name }}</div>
-    </div>
-    <div style="padding:16px 22px;">
-      <div class="checklist-box">
-        <div class="checklist-title">Checklist yang harus dilakukan:</div>
-        {% for line in checklist_hint.splitlines %}
-          {% if line.strip %}
-          <div class="checklist-item">
-            <span class="checklist-num">{{ forloop.counter }}</span>
-            {{ line|slice:"3:" }}
-          </div>
-          {% endif %}
-        {% endfor %}
-      </div>
-    </div>
-  </div>
-  {% endif %}
-
-  <!-- FORM -->
-  <div class="form-card anim">
-    <div class="form-card-header">
-      <div class="form-card-title">Detail Pelaksanaan Maintenance</div>
-    </div>
-
-    <form method="POST">
-      {% csrf_token %}
-      {% if active_schedule %}
-        <input type="hidden" name="schedule_id" value="{{ active_schedule.pk }}">
-      {% endif %}
-
-      <div class="form-body">
-
-        <!-- ROW 1: TYPE + TANGGAL -->
-        <div class="form-row">
-          <div class="form-group">
-            <label>Tipe Maintenance <span>*</span></label>
-            <select name="maintenance_type" required>
-              <option value="">-- Pilih Tipe --</option>
-              <option value="preventive">Preventive — Terjadwal rutin</option>
-              <option value="corrective">Corrective — Perbaikan setelah rusak</option>
-              <option value="inspection">Inspection — Pengecekan visual/ringan</option>
-            </select>
-          </div>
-          <div class="form-group">
-            <label>Tanggal Pelaksanaan <span>*</span></label>
-            <input type="date" name="tanggal_pelaksanaan" value="{{ today|date:'Y-m-d' }}" required>
-          </div>
+    <aside class="form-side">
+      <section class="panel" aria-labelledby="assetInfo">
+        <div class="panel-head"><h2 id="assetInfo">Aset</h2></div>
+        <div class="panel-body">
+          <dl class="kv">
+            <div><dt>Nomor</dt><dd>{{ asset.asset_number }}</dd></div>
+            <div><dt>Kategori</dt><dd>{{ asset.asset_category.name|default:"—" }}</dd></div>
+            <div><dt>Lokasi</dt><dd>{{ asset.lokasi_asset|default:"—" }}</dd></div>
+            <div><dt>Departemen</dt><dd>{{ asset.owned_by_department.name|default:"—" }}</dd></div>
+            <div><dt>Interval</dt><dd>{% if interval %}Setiap {{ interval }} hari <span class="dim">· {% if asset.maintenance_config %}khusus aset ini{% else %}standar kategori{% endif %}</span>{% else %}<span class="dim">Belum diatur</span>{% endif %}</dd></div>
+          </dl>
+          <ul class="side-links">
+            {% if asset.maintenance_config %}
+            <li><a href="{% url 'maintenance_config_update' asset.id %}"><i class="fa-solid fa-clock-rotate-left" aria-hidden="true"></i>Ubah interval khusus</a></li>
+            {% else %}
+            <li><a href="{% url 'maintenance_config_create' asset.id %}"><i class="fa-solid fa-clock-rotate-left" aria-hidden="true"></i>Atur interval khusus</a></li>
+            {% endif %}
+            <li><a href="{% url 'asset_detail' asset.id %}"><i class="fa-solid fa-box" aria-hidden="true"></i>Detail & riwayat aset</a></li>
+          </ul>
         </div>
-
-        <!-- DESKRIPSI -->
-        <div class="form-group">
-          <label>Deskripsi Pekerjaan <span>*</span></label>
-          <textarea name="deskripsi_pekerjaan" required
-            placeholder="Jelaskan apa yang dikerjakan selama maintenance ini..."></textarea>
-        </div>
-
-        <!-- HASIL / KONDISI -->
-        <div class="form-group">
-          <label>Hasil / Kondisi Aset <span>*</span></label>
-          <div class="result-grid">
-
-            <div class="result-option">
-              <input type="radio" name="hasil" id="hasil_ok" value="ok" checked>
-              <label for="hasil_ok" class="result-label success-label">
-                <div>
-                  <div class="result-text">Baik</div>
-                  <div class="result-sub">Tidak ada masalah</div>
-                </div>
-              </label>
-            </div>
-
-            <div class="result-option">
-              <input type="radio" name="hasil" id="hasil_minor" value="minor_issue">
-              <label for="hasil_minor" class="result-label warning-label">
-                <div>
-                  <div class="result-text">Minor Issue</div>
-                  <div class="result-sub">Masih bisa beroperasi</div>
-                </div>
-              </label>
-            </div>
-
-            <div class="result-option">
-              <input type="radio" name="hasil" id="hasil_major" value="major_issue">
-              <label for="hasil_major" class="result-label danger-label">
-                <div>
-                  <div class="result-text">Major Issue</div>
-                  <div class="result-sub">Perlu tindak lanjut segera</div>
-                </div>
-              </label>
-            </div>
-
-            <div class="result-option">
-              <input type="radio" name="hasil" id="hasil_replaced" value="replaced_component">
-              <label for="hasil_replaced" class="result-label">
-                <div>
-                  <div class="result-text">Komponen Diganti</div>
-                  <div class="result-sub">Ada penggantian part</div>
-                </div>
-              </label>
-            </div>
-
-          </div>
-        </div>
-
-        <!-- ROW 3: BIAYA + CATATAN -->
-        <div class="form-row">
-          <div class="form-group">
-            <label>Biaya (Rp)</label>
-            <input type="number" name="biaya" value="0" min="0" step="1000"
-              placeholder="0">
-          </div>
-          <div class="form-group">
-            <label>Catatan Tambahan</label>
-            <input type="text" name="catatan_tambahan"
-              placeholder="Catatan opsional...">
-          </div>
-        </div>
-
-      </div><!-- /form-body -->
-
-      <div class="form-footer">
-        <a href="{% url 'maintenance_list' %}" class="btn btn-outline">← Batal</a>
-        <button type="submit" class="btn btn-primary">
-          Simpan & Generate Jadwal Berikutnya
-        </button>
-      </div>
-    </form>
-  </div>
-
+      </section>
+    </aside>
+  </form>
 </div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+  // Tombol "Pakai lagi" mengisi deskripsi pekerjaan (sama dengan dialog cepat)
+  document.querySelector('.qm-page')?.addEventListener('click', e => {
+    const b = e.target.closest('[data-fill]');
+    if (!b) return;
+    const ta = document.getElementById('qmDesc');
+    ta.value = b.dataset.fill;
+    ta.focus();
+  });
+</script>
 {% endblock %}

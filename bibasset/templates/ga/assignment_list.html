@@ -1,220 +1,85 @@
 {% extends "base.html" %}
 {% load static %}
 {% block title %}Pemegang aset · Pelacakan{% endblock %}
-
-{% block extra_head %}<link rel="stylesheet" href="{% static 'css/pages/ga_assignment_list.css' %}?v=3">{% endblock %}
-
 {% block nav_tracking %}active{% endblock %}
+{% block extra_head %}<link rel="stylesheet" href="{% static 'css/pages/tracking.css' %}?v=3">{% endblock %}
 
 {% block content %}
-
-<div class="pg-wrap">
+<div class="page">
   {% include "components/_tracking_tabs.html" with current="holder" %}
 
-  <!-- TOP BAR -->
-  <div class="pg-topbar anim">
+  <div class="page-head">
     <div>
-      <div class="pg-eyebrow">General Affairs</div>
-      <h1 class="pg-title">Pemegang aset</h1>
-      <div class="pg-sub">Kelola pemegang aset dan histori serah terima karyawan</div>
+      <h1>Pemegang aset</h1>
+      <div class="sub">{{ total_assigned }} aset sedang dipegang karyawan · {{ total_unassigned }} aset aktif belum punya pemegang</div>
     </div>
-    <a href="{% url 'assignment_create' %}" class="btn-primary-custom">
-      ＋ Serahkan Aset
-    </a>
-  </div>
-
-  <!-- STAT CARDS -->
-  <div class="pg-stats anim">
-    <div class="pg-stat blue">
-      <div class="pg-stat-bg"></div>
-      <div class="pg-stat-num count-up">{{ total_assigned }}</div>
-      <div class="pg-stat-label">Sedang Dipegang</div>
-      <div class="pg-stat-sub">Aktif saat ini</div>
-    </div>
-    <div class="pg-stat slate">
-      <div class="pg-stat-bg"></div>
-      <div class="pg-stat-num count-up">{{ total_unassigned }}</div>
-      <div class="pg-stat-label">Belum Ada Pemegang</div>
-      <div class="pg-stat-sub">Perlu diserahkan</div>
-    </div>
-    <div class="pg-stat green">
-      <div class="pg-stat-bg"></div>
-      <div class="pg-stat-num count-up">{{ total_assigned|add:total_unassigned }}</div>
-      <div class="pg-stat-label">Total Aset Aktif</div>
-      <div class="pg-stat-sub">lifecycle: active</div>
+    <div class="page-actions">
+      <a href="{% url 'assignment_create' %}" class="btn"><i class="fa-solid fa-handshake" aria-hidden="true"></i>Serahkan aset</a>
     </div>
   </div>
 
-  <!-- MAIN GRID -->
-  <div class="pg-main">
-
-    <!-- KIRI: Tabel assignment aktif -->
-    <div class="db-card anim">
-      <div class="db-card-header">
-        <div class="db-card-title">
-          <span class="db-card-title-dot" style="background:var(--accent)"></span>
-          Aset Aktif Saat Ini
-          {% if total_assigned > 0 %}
-            <span class="badge active" style="margin-left:2px;">{{ total_assigned }}</span>
-          {% endif %}
-        </div>
+  <div class="stack-gap">
+    <section class="panel" aria-labelledby="heldTitle">
+      <div class="panel-head">
+        <h2 id="heldTitle">Sedang dipegang</h2>
+        <form method="get" class="search panel-search" role="search">
+          <i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i>
+          <label class="visually-hidden" for="heldSearch">Cari aset atau pemegang</label>
+          <input class="input" type="search" id="heldSearch" name="q" value="{{ search }}" placeholder="Cari aset, karyawan, departemen…" autocomplete="off">
+        </form>
       </div>
 
       {% if assignments %}
-
-      <!-- Desktop table -->
-      <div style="overflow-x:auto;" class="desktop-table">
-        <table class="data-table">
-          <thead>
-            <tr>
-              <th style="padding-left:16px;">Aset</th>
-              <th>Pemegang</th>
-              <th class="hide-mobile">Departemen</th>
-              <th class="hide-mobile">Sejak</th>
-              <th>Aksi</th>
-            </tr>
-          </thead>
+      <div class="table-wrap">
+        <table class="table stack">
+          <thead><tr><th>Aset</th><th>Pemegang</th><th>Departemen</th><th class="num">Sejak</th><th><span class="visually-hidden">Aksi</span></th></tr></thead>
           <tbody>
-            {% for assignment in assignments %}
+          {% for a in assignments %}
             <tr>
-              <td style="padding-left:16px;">
-                <div class="cell-name">{{ assignment.asset.nama_asset }}</div>
-                <div class="cell-sub">{{ assignment.asset.asset_number }}</div>
+              <td class="lead">
+                <a class="row-link" href="{% url 'asset_detail' a.asset_id %}">{{ a.asset.nama_asset }}</a>
+                <div class="cell-sub">{{ a.asset.asset_number }}{% if a.asset.lokasi_asset %} · {{ a.asset.lokasi_asset.name }}{% endif %}</div>
               </td>
-              <td>
-                <div class="cell-name">{{ assignment.assigned_to.nama }}</div>
-                <div class="cell-sub">{{ assignment.assigned_to.jabatan }}</div>
-              </td>
-              <td class="hide-mobile" style="font-size:12px;color:var(--text-soft);">
-                {{ assignment.assigned_to.department|default:"—" }}
-              </td>
-              <td class="hide-mobile">
-                <span style="font-family:var(--mono);font-size:12px;color:var(--text-soft);">
-                  {{ assignment.assigned_date|date:"d M Y" }}
-                </span>
-              </td>
-              <td>
-                <form method="POST" action="{% url 'assignment_return' assignment.pk %}"
-                      onsubmit="return confirm('Kembalikan aset ini dari {{ assignment.assigned_to.nama|escapejs }}?')">
+              <td data-label="Pemegang"><span class="row-name">{{ a.assigned_to.nama }}</span><div class="cell-sub">{{ a.assigned_to.jabatan|default:"—" }}</div></td>
+              <td data-label="Departemen">{{ a.assigned_to.department.name|default:"—" }}</td>
+              <td data-label="Sejak" class="num nowrap">{{ a.assigned_date|date:"d M Y" }}</td>
+              <td class="act">
+                <form method="post" action="{% url 'assignment_return' a.pk %}"
+                      onsubmit="return confirm('Tandai {{ a.asset.nama_asset|escapejs }} sudah dikembalikan oleh {{ a.assigned_to.nama|escapejs }}?')">
                   {% csrf_token %}
-                  <input type="hidden" name="return_notes" value="Dikembalikan melalui halaman serah terima">
-                  <button type="submit" class="btn-danger-custom">
-                    ↩ Kembalikan
-                  </button>
+                  <button type="submit" class="btn sm outline"><i class="fa-solid fa-rotate-left" aria-hidden="true"></i>Kembalikan</button>
                 </form>
               </td>
             </tr>
-            {% endfor %}
+          {% endfor %}
           </tbody>
         </table>
       </div>
-
-      <!-- Mobile cards -->
-      <div class="mobile-cards">
-        {% for assignment in assignments %}
-        <div class="mobile-card">
-          <div class="mobile-card-header">
-            <div>
-              <div class="cell-name">{{ assignment.asset.nama_asset }}</div>
-              <div class="cell-sub">{{ assignment.asset.asset_number }}</div>
-            </div>
-            <form method="POST" action="{% url 'assignment_return' assignment.pk %}"
-                  onsubmit="return confirm('Kembalikan aset dari {{ assignment.assigned_to.nama|escapejs }}?')">
-              {% csrf_token %}
-              <input type="hidden" name="return_notes" value="Dikembalikan melalui halaman serah terima">
-              <button type="submit" class="btn-danger-custom" style="font-size:12px;padding:4px 10px;">
-                ↩ Kembalikan
-              </button>
-            </form>
-          </div>
-          <div class="mobile-card-meta">
-            <span style="font-size:12px;font-weight:700;color:var(--text);">
-              {{ assignment.assigned_to.nama }}
-            </span>
-            <span style="font-family:var(--mono);font-size:12px;color:var(--muted);">
-              {{ assignment.assigned_to.jabatan }}
-            </span>
-            {% if assignment.assigned_to.department %}
-            <span style="font-family:var(--mono);font-size:12px;color:var(--muted);">
-              {{ assignment.assigned_to.department }}
-            </span>
-            {% endif %}
-            <span style="font-family:var(--mono);font-size:12px;color:var(--muted);">
-              {{ assignment.assigned_date|date:"d M Y" }}
-            </span>
-          </div>
-        </div>
-        {% endfor %}
-      </div>
-
+      {% elif search %}
+      <div class="empty"><strong>Tidak ada pemegang yang cocok dengan “{{ search }}”</strong><a href="{{ request.path }}">Tampilkan semua</a></div>
       {% else %}
-      <div class="empty-state">
-        <div class="empty-label">Belum ada aset yang diserahkan</div>
-        <p>Gunakan tombol "Serahkan Aset" untuk mulai.</p>
-      </div>
+      <div class="empty"><strong>Belum ada aset yang diserahkan</strong><a href="{% url 'assignment_create' %}">Serahkan aset pertama</a></div>
       {% endif %}
-    </div>
+    </section>
 
-    <!-- KANAN: Belum ada pemegang -->
-    <div class="db-card anim">
-      <div class="db-card-header">
-        <div class="db-card-title">
-          <span class="db-card-title-dot" style="background:var(--warning)"></span>
-          Belum Ada Pemegang
-          {% if total_unassigned > 0 %}
-            <span class="badge maint" style="margin-left:2px;">{{ total_unassigned }}</span>
-          {% endif %}
-        </div>
-      </div>
-
+    <section class="panel" aria-labelledby="freeTitle">
+      <div class="panel-head"><h2 id="freeTitle">Belum ada pemegang</h2><span class="meta">{{ total_unassigned }} aset</span></div>
       {% if unassigned_assets %}
-      <div>
-        {% for asset in unassigned_assets|slice:":15" %}
-        <div class="unassigned-item">
-          <div style="min-width:0;">
-            <div class="unassigned-name" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
-              {{ asset.nama_asset }}
-            </div>
-            <div class="unassigned-num">
-              {{ asset.asset_number }}
-              {% if asset.lokasi_asset %} · {{ asset.lokasi_asset }}{% endif %}
-            </div>
-          </div>
-          <a href="{% url 'assignment_create_for_asset' asset.id %}" class="btn-assign">
-            Serahkan →
-          </a>
-        </div>
+      <ul class="pick-list cols">
+        {% for asset in unassigned_assets %}
+        <li>
+          <span class="pl-text"><strong title="{{ asset.nama_asset }}">{{ asset.nama_asset }}</strong><span>{{ asset.asset_number }}{% if asset.lokasi_asset %} · {{ asset.lokasi_asset.name }}{% endif %}</span></span>
+          <a class="btn sm outline" href="{% url 'assignment_create_for_asset' asset.id %}" aria-label="Serahkan {{ asset.nama_asset }}">Serahkan</a>
+        </li>
         {% endfor %}
-        {% if unassigned_assets.count > 15 %}
-        <div style="padding:10px 16px;text-align:center;">
-          <span style="font-family:var(--mono);font-size:12px;color:var(--muted);">
-            + {{ unassigned_assets.count|add:"-15" }} aset lainnya
-          </span>
-        </div>
-        {% endif %}
-      </div>
-      {% else %}
-      <div class="empty-state">
-        <div class="empty-label">Semua aset sudah ada pemegang</div>
-        <p>Tidak ada aset tanpa pemegang saat ini.</p>
-      </div>
+      </ul>
+      {% if total_unassigned > unassigned_assets|length %}
+      <p class="panel-note">Menampilkan {{ unassigned_assets|length }} aset terbaru. Aset lain bisa dicari di <a href="{% url 'assignment_create' %}">form serah terima</a>.</p>
       {% endif %}
-    </div>
-
+      {% else %}
+      <div class="empty"><strong>Semua aset aktif sudah punya pemegang</strong></div>
+      {% endif %}
+    </section>
   </div>
 </div>
-
-<script>
-  document.querySelectorAll('.count-up').forEach(el => {
-    const target = parseInt(el.textContent);
-    if (isNaN(target) || target === 0) return;
-    let current = 0;
-    const step = Math.max(1, Math.ceil(target / 25));
-    const timer = setInterval(() => {
-      current = Math.min(current + step, target);
-      el.textContent = current;
-      if (current >= target) clearInterval(timer);
-    }, 28);
-  });
-</script>
 {% endblock %}

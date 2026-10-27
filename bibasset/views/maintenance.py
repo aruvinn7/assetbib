@@ -1,6 +1,5 @@
 # views/maintenance.py  [OPTIMIZED]
 import re
-from datetime import date
 
 from django.contrib import messages
 from django.core.paginator import Paginator
@@ -9,13 +8,13 @@ from django.db.models import Count, Q
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_POST
+from django.utils import timezone
 
 from ..decorators import role_required
 from ..forms import MaintenanceConfigForm, MaintenanceRecordForm, flash_form_errors
 from ..models import (
     Asset, MaintenanceRecord, MaintenanceSchedule,
-    initialize_schedule_for_asset, nearest_active_schedules, refresh_overdue_schedules_daily,
-    schedule_status,
+    initialize_schedule_for_asset, refresh_overdue_schedules_daily,
 )
 from ..roles import is_ga
 
@@ -26,6 +25,10 @@ def maintenance_create(request, asset_id):
         Asset.objects.select_related("asset_category", "maintenance_config"),
         id=asset_id
     )
+    if asset.lifecycle_status == 'writeoff':
+        # Aset write off tidak dirawat lagi; dialog cepat ikut diarahkan ke detail aset (res.redirected)
+        messages.error(request, f"Aset '{asset.nama_asset}' sudah di-write off, maintenance tidak bisa dicatat.")
+        return redirect("asset_detail", pk=asset.id)
     checklist_hint = asset.asset_category.maintenance_description if asset.asset_category else ""
     # Dipanggil dari dialog "Catat cepat" (fetch) → balas parsial/JSON, bukan halaman penuh
     is_dialog = request.headers.get("X-Requested-With") == "fetch"
@@ -63,35 +66,27 @@ def maintenance_create(request, asset_id):
         "id", "scheduled_date", "status", "damage_report"
     ).order_by('scheduled_date').first()
 
-    if is_dialog:
-        # Deskripsi yang pernah dipakai untuk aset ini → tombol isi cepat
-        recent = []
-        for d in asset.maintenance_records.order_by('-tanggal_pelaksanaan').values_list('deskripsi_pekerjaan', flat=True)[:25]:
-            if d not in recent:
-                recent.append(d)
-        default_type = ''
-        if active_schedule:
-            default_type = 'corrective' if active_schedule.damage_report_id else 'preventive'
-        return render(request, "maintenance/_quick_form.html", {
-            "asset":           asset,
-            "form":            form,
-            "posted":          request.POST if request.method == "POST" else None,
-            # Nomor di awal baris dibuang; <ol> sudah menomori
-            "checklist_lines": [re.sub(r'^\s*\d+\s*[.)]\s*', '', l).strip() for l in checklist_hint.splitlines() if l.strip()],
-            "active_schedule": active_schedule,
-            "today":           date.today(),
-            "recent":          recent[:3],
-            "default_type":    default_type,
-            "results":         MaintenanceRecord.RESULT,
-        }, status=422 if form is not None else 200)
-
-    return render(request, "maintenance/create.html", {
+    # Deskripsi yang pernah dipakai untuk aset ini → tombol isi cepat
+    recent = []
+    for d in asset.maintenance_records.order_by('-tanggal_pelaksanaan').values_list('deskripsi_pekerjaan', flat=True)[:25]:
+        if d not in recent:
+            recent.append(d)
+    default_type = ''
+    if active_schedule:
+        default_type = 'corrective' if active_schedule.damage_report_id else 'preventive'
+    # Dialog & halaman penuh memakai isian yang sama (maintenance/_fields.html)
+    return render(request, "maintenance/_quick_form.html" if is_dialog else "maintenance/create.html", {
         "asset":           asset,
-        "checklist_hint":  checklist_hint,
-        "active_schedule": active_schedule,
-        "today":           date.today(),
+        "form":            form,
         "posted":          request.POST.dict() if request.method == "POST" else None,
-    })
+        # Nomor di awal baris dibuang; <ol> sudah menomori
+        "checklist_lines": [re.sub(r'^\s*\d+\s*[.)]\s*', '', l).strip() for l in checklist_hint.splitlines() if l.strip()],
+        "active_schedule": active_schedule,
+        "today":           timezone.localdate(),
+        "recent":          recent[:3],
+        "default_type":    default_type,
+        "interval":        asset.get_effective_interval_days(),
+    }, status=422 if form is not None else 200)
 
 
 @role_required(is_ga)
@@ -151,19 +146,6 @@ def maintenance_list(request):
         sch.interval_days      = sch.asset.get_effective_interval_days()
         sch.is_custom_interval = hasattr(sch.asset, 'maintenance_config')
 
-    # ── Modal: badge status jadwal terdekat per aset aktif — 1 query untuk semua aset ──
-    all_active_assets = list(
-        Asset.objects
-        .filter(lifecycle_status='active')
-        .select_related('asset_category')
-        .only('id', 'nama_asset', 'asset_number', 'asset_category__name')
-        .order_by('nama_asset')
-    )
-    nearest = nearest_active_schedules(all_active_assets)
-    today   = date.today()
-    for asset in all_active_assets:
-        asset.maint_status = schedule_status(nearest.get(asset.id), today)
-
     context = {
         'page_obj':          page_obj,
         'schedules':         page_obj,
@@ -173,7 +155,6 @@ def maintenance_list(request):
         'overdue_count':     schedule_stats['overdue'],
         'upcoming_count':    schedule_stats['upcoming'],
         'done_count':        schedule_stats['done'],
-        'all_active_assets': all_active_assets,
     }
     return render(request, 'maintenance/list.html', context)
 
@@ -211,18 +192,21 @@ def maintenance_config_create(request, asset_id):
                 config.save()
                 asset.maintenance_config = config
                 initialize_schedule_for_asset(asset)
+            messages.success(request, f"Interval khusus {config.custom_interval_days} hari disimpan; jadwal berikutnya dihitung ulang.")
             return redirect("asset_detail", pk=asset.id)
         flash_form_errors(request, form)
 
-    return render(request, "maintenance/config_create.html", {
+    return render(request, "maintenance/config_form.html", {
         "asset":             asset,
+        "config":            None,
         "category_interval": category_interval,
+        "posted":            request.POST.dict() if request.method == "POST" else None,
     })
 
 
 @role_required(is_ga)
 def maintenance_config_update(request, asset_id):
-    asset  = get_object_or_404(Asset.objects.select_related("maintenance_config"), id=asset_id)
+    asset  = get_object_or_404(Asset.objects.select_related("asset_category", "maintenance_config"), id=asset_id)
     if not hasattr(asset, 'maintenance_config'):
         return redirect("maintenance_config_create", asset_id=asset.id)
     config = asset.maintenance_config
@@ -233,13 +217,16 @@ def maintenance_config_update(request, asset_id):
             with transaction.atomic():
                 form.save()
                 initialize_schedule_for_asset(asset)
+            messages.success(request, f"Interval khusus diubah menjadi {config.custom_interval_days} hari; jadwal berikutnya dihitung ulang.")
             return redirect("asset_detail", pk=asset.id)
         flash_form_errors(request, form)
         config.refresh_from_db()
 
-    return render(request, "maintenance/config_update.html", {
-        "asset":  asset,
-        "config": config,
+    return render(request, "maintenance/config_form.html", {
+        "asset":             asset,
+        "config":            config,
+        "category_interval": asset.asset_category.default_interval_in_days() if asset.asset_category else None,
+        "posted":            request.POST.dict() if request.method == "POST" else None,
     })
 
 

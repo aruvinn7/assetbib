@@ -1,4 +1,5 @@
 from django.utils.functional import SimpleLazyObject
+from django.utils import timezone
 
 from .roles import get_user_role
 
@@ -22,7 +23,7 @@ def user_roles(request):
 
 def _build_notifications(role):
     """Pengingat untuk lonceng header (GA & Finance), dibangun dari hitungan ringan."""
-    from datetime import date, timedelta
+    from datetime import timedelta
 
     from django.db.models import Count, Q
     from django.urls import reverse
@@ -33,7 +34,7 @@ def _build_notifications(role):
 
     items = []
     if role == 'ga':
-        today = date.today()
+        today = timezone.localdate()
         sched = MaintenanceSchedule.objects.aggregate(
             overdue=Count('id', filter=Q(status='overdue')),
             soon=Count('id', filter=Q(status='upcoming', scheduled_date__range=[today, today + timedelta(days=7)])),
@@ -59,7 +60,7 @@ def _build_notifications(role):
                           'sub': 'Tempatkan agar mudah dilacak', 'url': reverse('asset_list') + '?location=none'})
         # Berita acara: temuan yang menumpuk ≥ 7 hari di draf, dan BA terbit yang belum ditandatangani
         draf = BeritaAcaraItem.objects.filter(ba__status='draft', ba__jenis='kerusakan').aggregate(n=Count('id'), awal=Min('created_at'))
-        if draf['n'] and (date.today() - draf['awal'].date()).days >= 7:
+        if draf['n'] and (timezone.localdate() - draf['awal'].date()).days >= 7:
             items.append({'kind': 'report', 'text': f"{draf['n']} temuan kerusakan belum dibuatkan berita acara",
                           'sub': 'Tinjau draf lalu terbitkan', 'url': reverse('ba_list')})
         ttd = BeritaAcara.objects.filter(status='terbit').count()

@@ -6,6 +6,7 @@ from decimal import Decimal
 
 from django import forms
 from django.contrib import messages
+from django.utils import timezone
 
 from .models import (
     Asset, AssetCategory, AssetComponent, AssetFinancial, AssetGroup,
@@ -90,9 +91,8 @@ class WriteOffForm(forms.ModelForm):
         self.fields['nilai_jual'].required = False
 
     def clean_tanggal(self):
-        from datetime import date
         tanggal = self.cleaned_data['tanggal']
-        if tanggal > date.today():
+        if tanggal > timezone.localdate():
             raise forms.ValidationError('Tidak boleh di masa depan.')
         if self.asset and tanggal < self.asset.tanggal_pembelian:
             raise forms.ValidationError('Tidak boleh sebelum tanggal pembelian aset.')

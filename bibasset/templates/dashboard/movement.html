@@ -1,341 +1,231 @@
 {% extends "base.html" %}
 {% load static %}
 {% block title %}Riwayat perpindahan · Pelacakan{% endblock %}
-
-{% block extra_head %}<link rel="stylesheet" href="{% static 'css/pages/dashboard_movement.css' %}?v=4">{% endblock %}
-
 {% block nav_tracking %}active{% endblock %}
+{% block extra_head %}<link rel="stylesheet" href="{% static 'css/pages/tracking.css' %}?v=3">{% endblock %}
 
 {% block content %}
-
-<div class="mv-wrap">
+{% with is_ga=request.user.employee.ga_profile %}
+<div class="page">
   {% include "components/_tracking_tabs.html" with current="movement" %}
 
-  <!-- HEADER -->
-  <div class="mv-header anim">
+  <div class="page-head">
     <div>
-      <div class="mv-eyebrow">PT Borneo Indobara · Asset Tracking</div>
-      <h1 class="mv-title">Riwayat perpindahan</h1>
+      <h1>Riwayat perpindahan</h1>
+      <div class="sub">{{ stats.has_movement }} dari {{ stats.total }} aset punya catatan perpindahan{% if stats.no_movement %} · {{ stats.no_movement }} belum pernah dicatat{% endif %}</div>
     </div>
-    <a href="{% url 'dashboard' %}" class="btn-back">← Dashboard</a>
   </div>
 
-  <!-- STATS (filter jalan di server, berlaku ke semua halaman) -->
-  <div class="mv-stats anim">
-    <a href="{{ request.path }}{% querystring mv=None page=None %}" class="mv-stat {% if movement_filter == 'all' %}active-filter{% endif %}">
-      <div class="mv-stat-num" style="color:var(--accent);">{{ stats.total }}</div>
-      <div class="mv-stat-label">Total Aset</div>
-    </a>
-    <a href="{{ request.path }}{% querystring mv='has' page=None %}" class="mv-stat {% if movement_filter == 'has' %}active-filter{% endif %}">
-      <div class="mv-stat-num" style="color:var(--success);">{{ stats.has_movement }}</div>
-      <div class="mv-stat-label">Ada Histori</div>
-    </a>
-    <a href="{{ request.path }}{% querystring mv='no' page=None %}" class="mv-stat {% if movement_filter == 'no' %}active-filter{% endif %}">
-      <div class="mv-stat-num" style="color:var(--warning);">{{ stats.no_movement }}</div>
-      <div class="mv-stat-label">Belum Dicatat</div>
-    </a>
-  </div>
-
-  <!-- TOOLBAR -->
-  <div class="mv-toolbar anim">
-    <form method="get" class="mv-search-wrap" id="mvSearchForm">
+  <div class="toolbar">
+    <nav class="filters" aria-label="Saring aset">
+      <a class="chip {% if not status_filter %}active{% endif %}" href="{{ request.path }}{% querystring status=None page=None %}" {% if not status_filter %}aria-current="true"{% endif %}>Semua status</a>
+      <a class="chip {% if status_filter == 'active' %}active{% endif %}" href="{{ request.path }}{% querystring status='active' page=None %}" {% if status_filter == 'active' %}aria-current="true"{% endif %}><svg class="sign" aria-hidden="true"><use href="#sign-safe"/></svg>Aktif</a>
+      <a class="chip {% if status_filter == 'maintenance' %}active{% endif %}" href="{{ request.path }}{% querystring status='maintenance' page=None %}" {% if status_filter == 'maintenance' %}aria-current="true"{% endif %}><svg class="sign" aria-hidden="true"><use href="#sign-mandatory"/></svg>Maintenance</a>
+      <a class="chip {% if status_filter == 'writeoff' %}active{% endif %}" href="{{ request.path }}{% querystring status='writeoff' page=None %}" {% if status_filter == 'writeoff' %}aria-current="true"{% endif %}><svg class="sign" aria-hidden="true"><use href="#sign-off"/></svg>Write off</a>
+      <span class="filter-sep" aria-hidden="true"></span>
+      <a class="chip {% if movement_filter == 'has' %}active{% endif %}" href="{{ request.path }}{% querystring mv='has' page=None %}" {% if movement_filter == 'has' %}aria-current="true"{% endif %}>Ada riwayat <span class="count">{{ stats.has_movement }}</span></a>
+      <a class="chip {% if movement_filter == 'no' %}active{% endif %}" href="{{ request.path }}{% querystring mv='no' page=None %}" {% if movement_filter == 'no' %}aria-current="true"{% endif %}>Belum dicatat <span class="count">{{ stats.no_movement }}</span></a>
+      {% if movement_filter != 'all' %}<a class="chip" href="{{ request.path }}{% querystring mv=None page=None %}" aria-label="Hapus saringan riwayat"><i class="fa-solid fa-xmark" aria-hidden="true"></i></a>{% endif %}
+    </nav>
+    <form method="get" class="search" id="mvSearchForm" role="search">
       {% if status_filter %}<input type="hidden" name="status" value="{{ status_filter }}">{% endif %}
       {% if movement_filter != 'all' %}<input type="hidden" name="mv" value="{{ movement_filter }}">{% endif %}
-      <input type="search" name="q" class="mv-search" id="mvSearch"
-        placeholder="Cari nama aset, nomor, lokasi..." value="{{ search }}">
+      <i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i>
+      <label class="visually-hidden" for="mvSearch">Cari aset</label>
+      <input class="input" type="search" name="q" id="mvSearch" placeholder="Cari nama, nomor, lokasi…" value="{{ search }}" autocomplete="off">
     </form>
-    <a href="{{ request.path }}{% querystring status=None page=None %}"          class="mv-filter-btn {% if not status_filter %}active{% endif %}">Semua</a>
-    <a href="{{ request.path }}{% querystring status='active' page=None %}"      class="mv-filter-btn {% if status_filter == 'active' %}active{% endif %}">Aktif</a>
-    <a href="{{ request.path }}{% querystring status='maintenance' page=None %}" class="mv-filter-btn {% if status_filter == 'maintenance' %}active{% endif %}">Maintenance</a>
-    <a href="{{ request.path }}{% querystring status='writeoff' page=None %}"    class="mv-filter-btn {% if status_filter == 'writeoff' %}active{% endif %}">Write off</a>
-    <button type="button" onclick="expandAll()"   class="mv-filter-btn">⊞ Buka Semua</button>
-    <button type="button" onclick="collapseAll()" class="mv-filter-btn">⊟ Tutup Semua</button>
   </div>
 
+  <section class="panel" aria-label="Aset dan riwayat perpindahannya">
+    {% if assets %}
+    <div class="mv-bulk">
+      <span>{{ page_obj.paginator.count }} aset · klik baris untuk melihat riwayat</span>
+      <span class="mv-bulk-btns">
+        <button type="button" class="link-btn" data-mv-all="open"><i class="fa-solid fa-angles-down" aria-hidden="true"></i>Buka semua</button>
+        <button type="button" class="link-btn" data-mv-all="close"><i class="fa-solid fa-angles-up" aria-hidden="true"></i>Tutup semua</button>
+      </span>
+    </div>
+    <div class="mv-list">
+      {% for asset in assets %}
+      <details class="mv-item" id="mv-{{ asset.pk }}">
+        <summary>
+          <i class="fa-solid fa-chevron-right mv-chev" aria-hidden="true"></i>
+          <span class="mv-asset">
+            <strong>{{ asset.nama_asset }}</strong>
+            <span class="cell-sub">{{ asset.asset_number }}{% if asset.asset_category %} · {{ asset.asset_category.group.name }}{% endif %}</span>
+          </span>
+          <span class="mv-now">
+            {% if asset.current_movement %}
+              <span class="mv-now-who"><i class="fa-regular fa-user" aria-hidden="true"></i>{{ asset.current_movement.held_by.nama|default:"Tanpa pemegang" }}</span>
+              <span class="mv-now-where"><i class="fa-solid fa-location-dot" aria-hidden="true"></i>{{ asset.current_movement.location|default:"Lokasi belum diisi" }}</span>
+            {% else %}
+              <span class="mv-now-none">Belum ada catatan perpindahan</span>
+            {% endif %}
+          </span>
+          <span class="mv-meta">
+            {% include "components/_lifecycle.html" with status=asset.lifecycle_status %}
+            <span class="count-pill" title="Jumlah catatan perpindahan">{{ asset.movement_count }}×</span>
+          </span>
+        </summary>
 
-  <!-- ASSET LIST -->
-  <div class="mv-asset-list anim" id="mvAssetList">
+        <div class="mv-body">
+          <div class="mv-body-actions">
+            <a class="btn sm outline" href="{% url 'asset_detail' asset.pk %}">Detail aset</a>
+            {% if is_ga and asset.lifecycle_status != 'writeoff' %}
+            <button type="button" class="btn sm" data-mv-add="{{ asset.pk }}" data-name="{{ asset.nama_asset }}"><i class="fa-solid fa-plus" aria-hidden="true"></i>Catat perpindahan</button>
+            {% endif %}
+          </div>
+          <div class="mv-form-slot" id="mvform-{{ asset.pk }}"></div>
 
-    {% for asset in assets %}
-    <div class="mv-asset-card {% if asset.movement_count > 0 %}has-movement{% else %}no-movement{% endif %}"
-         id="mvcard-{{ asset.pk }}"
-         >
-
-      {# ── ASSET ROW ── #}
-      <div class="mv-asset-row {% if asset.movement_count > 0 %}open{% endif %}"
-           id="mvrow-{{ asset.pk }}">
-
-        {# Kiri: klik = toggle timeline #}
-        <div class="mv-row-toggle" onclick="toggleAsset({{ asset.pk }})">
-          <span class="mv-toggle-icon {% if asset.movement_count > 0 %}open{% endif %}"
-                id="mvarrow-{{ asset.pk }}"><i class="fa-solid fa-chevron-right" aria-hidden="true"></i></span>
-
-          {% include "components/_lifecycle.html" with status=asset.lifecycle_status %}
-
-          <span class="mv-asset-num">{{ asset.asset_number }}</span>
-          <span class="mv-asset-name" title="{{ asset.nama_asset }}">{{ asset.nama_asset }}</span>
-          <span class="mv-asset-group">{{ asset.asset_category.group.name|default:"—" }}</span>
-
-          {% if asset.current_movement %}
-            <span class="mv-holder-name">{{ asset.current_movement.held_by.nama|default:"—" }}</span>
-            <span class="mv-loc-pill">{{ asset.current_movement.location|default:"—" }}</span>
-          {% else %}
-            <span class="mv-loc-none">Belum dicatat</span>
-          {% endif %}
-
-          <span class="mv-count-badge">{{ asset.movement_count }}×</span>
-        </div>
-
-        {# Kanan: tombol aksi — tidak toggle accordion #}
-        <div class="mv-row-actions" onclick="event.stopPropagation()">
-          <a href="{% url 'asset_detail' asset.pk %}" class="mv-btn outline">Detail</a>
-          {% if request.user.employee.ga_profile and asset.lifecycle_status != 'writeoff' %}
-          <button type="button" onclick="openAddForm({{ asset.pk }}, '{{ asset.nama_asset|escapejs }}')" class="mv-btn primary">＋ Catat</button>
-          {% elif asset.lifecycle_status == 'writeoff' %}
-          <span class="mv-btn outline" style="opacity:.4;cursor:not-allowed;pointer-events:none;"
-            title="Aset write off tidak dapat dicatat movement">Write off</span>
-          {% endif %}
-        </div>
-      </div>
-
-      {# ── ADD FORM: slot; form bersama dipindah ke sini oleh openAddForm() ── #}
-      <div class="mv-add-form-panel" id="mvform-{{ asset.pk }}"></div>
-
-      {# ── TIMELINE ── #}
-      <div class="mv-timeline-panel {% if asset.movement_count > 0 %}open{% endif %}"
-           id="mvpanel-{{ asset.pk }}">
-
-        {% if asset.movement_history %}
-        <div class="mv-timeline">
-          {% for mv in asset.movement_history %}
-          <div class="mv-tl-item" id="mvtl-{{ mv.pk }}">
-
-            <div class="mv-tl-dot {% if mv.is_current %}current{% else %}past{% endif %}"></div>
-
-            <div class="mv-tl-body {% if mv.is_current %}current-body{% endif %}">
-              <div class="mv-tl-top">
-                <span class="mv-tl-tag {% if mv.is_current %}current{% else %}past{% endif %}">
-                  {% if mv.is_current %}● Sekarang{% else %}Lama{% endif %}
+          {% if asset.movement_history %}
+          <ol class="mv-timeline">
+            {% for mv in asset.movement_history %}
+            <li class="{% if mv.is_current %}is-current{% endif %}">
+              <div class="mv-tl-head">
+                <span class="mv-tl-when">
+                  {% if mv.is_current %}<strong>Saat ini</strong> · {% endif %}{{ mv.moved_in|date:"d M Y, H:i" }}{% if mv.moved_out %} – {{ mv.moved_out|date:"d M Y" }}{% endif %}
+                  <span class="cell-sub">{{ mv.duration_display }}</span>
                 </span>
-                <span class="mv-tl-time">
-                  {{ mv.moved_in|date:"d M Y · H:i" }}
-                  {% if mv.moved_out %} → {{ mv.moved_out|date:"d M Y · H:i" }}{% endif %}
-                </span>
-                <span class="mv-tl-duration">{{ mv.duration_display }}</span>
-
-                {% if request.user.employee.ga_profile and asset.lifecycle_status != 'writeoff' %}
-                <div class="mv-tl-actions">
-                  <button class="tl-btn edit" type="button"
-                    data-held="{{ mv.held_by_id|default:'' }}" data-dept="{{ mv.department_id|default:'' }}"
-                    data-loc="{{ mv.location_id|default:'' }}" data-notes="{{ mv.notes }}"
-                    onclick="openEditForm({{ mv.pk }}, this)">Edit</button>
-                  <form method="post" action="{% url 'movement_delete' mv.pk %}"
-                    style="display:inline;"
-                    onsubmit="return confirm('Hapus record movement ini?')">
-                    {% csrf_token %}
-                    <button type="submit" class="tl-btn del">Hapus</button>
+                {% if is_ga and asset.lifecycle_status != 'writeoff' %}
+                <span class="row-actions">
+                  <button type="button" data-mv-edit="{{ mv.pk }}" data-held="{{ mv.held_by_id|default:'' }}" data-dept="{{ mv.department_id|default:'' }}" data-loc="{{ mv.location_id|default:'' }}" data-notes="{{ mv.notes }}">Edit</button>
+                  <form method="post" action="{% url 'movement_delete' mv.pk %}" onsubmit="return confirm('Hapus catatan perpindahan ini?{% if mv.is_current %} Catatan sebelumnya akan menjadi posisi saat ini.{% endif %}')">
+                    {% csrf_token %}<button type="submit" class="del">Hapus</button>
                   </form>
-                </div>
+                </span>
                 {% endif %}
               </div>
-
-              <div class="mv-tl-details">
-                <div class="mv-tl-detail">
-                  <span class="mv-tl-detail-key">Pemegang</span>
-                  <span class="mv-tl-detail-val {% if not mv.held_by %}none{% endif %}">
-                    {{ mv.held_by.nama|default:"—" }}
-                  </span>
-                </div>
-                <div class="mv-tl-detail">
-                  <span class="mv-tl-detail-key">Departemen</span>
-                  <span class="mv-tl-detail-val {% if not mv.department %}none{% endif %}">
-                    {{ mv.department.name|default:"—" }}
-                  </span>
-                </div>
-                <div class="mv-tl-detail">
-                  <span class="mv-tl-detail-key">Lokasi</span>
-                  <span class="mv-tl-detail-val {% if not mv.location %}none{% endif %}">
-                    {{ mv.location|default:"—" }}
-                  </span>
-                </div>
-              </div>
-
-              {% if mv.notes %}
-              <div class="mv-tl-notes">{{ mv.notes }}</div>
+              <dl class="mv-tl-facts">
+                <div><dt>Pemegang</dt><dd>{{ mv.held_by.nama|default:"—" }}</dd></div>
+                <div><dt>Departemen</dt><dd>{{ mv.department.name|default:"—" }}</dd></div>
+                <div><dt>Lokasi</dt><dd>{{ mv.location|default:"—" }}</dd></div>
+              </dl>
+              {% if mv.notes or mv.recorded_by %}
+              <p class="mv-tl-note">{{ mv.notes }}{% if mv.notes and mv.recorded_by %} · {% endif %}{% if mv.recorded_by %}<span class="cell-sub">dicatat {{ mv.recorded_by.nama }}</span>{% endif %}</p>
               {% endif %}
-              {% if mv.recorded_by %}
-              <div style="margin-top:4px;font-size:12px;color:var(--muted);font-family:var(--mono);">
-                Dicatat oleh: {{ mv.recorded_by.nama }}
-              </div>
-              {% endif %}
-
-              {# Inline edit: slot; form bersama dipindah ke sini oleh openEditForm() #}
-              <div class="mv-tl-edit-panel" id="mvedit-{{ mv.pk }}"></div>
-
-            </div>
-          </div>
-          {% endfor %}
-        </div>
-
-        {% else %}
-        <div class="mv-empty-timeline">
-          Belum ada histori movement untuk aset ini.
-          {% if request.user.employee.ga_profile and asset.lifecycle_status != 'writeoff' %}
-            Klik <strong>＋ Catat</strong> untuk mulai mencatat.
+              <div class="mv-form-slot" id="mvedit-{{ mv.pk }}"></div>
+            </li>
+            {% endfor %}
+          </ol>
           {% elif asset.lifecycle_status == 'writeoff' %}
-            <span style="color:var(--danger);font-weight:700;">Aset telah di-write off — movement tidak dapat ditambahkan.</span>
+          <p class="mv-empty">Aset sudah di-write off; perpindahan tidak bisa dicatat lagi.</p>
+          {% else %}
+          <p class="mv-empty">Belum ada catatan perpindahan untuk aset ini.</p>
           {% endif %}
         </div>
-        {% endif %}
-
-      </div>
+      </details>
+      {% endfor %}
     </div>
-    {% empty %}
-    <div style="text-align:center;padding:48px;color:var(--muted);
-      font-family:var(--mono);font-size:12px;">
-      Tidak ada aset ditemukan.
+    {% include "components/_pagination.html" with label="aset" %}
+    {% else %}
+    <div class="empty">
+      {% if search %}<strong>Tidak ada aset yang cocok dengan “{{ search }}”</strong><a href="{{ request.path }}{% querystring q=None page=None %}">Hapus pencarian</a>
+      {% else %}<strong>Tidak ada aset dengan saringan ini</strong><a href="{{ request.path }}">Tampilkan semua aset</a>{% endif %}
     </div>
-    {% endfor %}
-
-  </div>
-
-  {% include "components/_pagination.html" with label="aset" %}
+    {% endif %}
+  </section>
 </div>
 
-{% if request.user.employee.ga_profile %}
-{# Satu form tambah + satu form edit untuk semua aset (dulu diulang per aset → HTML 3 MB) #}
+{% if is_ga %}
+{# Satu form untuk semua aset, dipindah ke slot yang dibuka (dulu diulang per aset → HTML 3 MB) #}
 <template id="mvFormTpl">
-  <form method="post">
+  <form method="post" class="mv-form">
     {% csrf_token %}
-    <div class="mv-form-title" style="font-size:12px;font-weight:800;color:var(--accent);
-      font-family:var(--mono);margin-bottom:8px;text-transform:uppercase;"></div>
-    <div class="mv-form-grid">
-      <div>
-        <div class="mv-form-label">Pemegang / Peminjam</div>
-        <select name="held_by" class="mv-form-select">
-          <option value="">— Tanpa pemegang</option>
-          {% for emp in employees %}
-          <option value="{{ emp.pk }}">{{ emp.nama }} ({{ emp.department.name|default:"—" }})</option>
-          {% endfor %}
+    <p class="mv-form-title"></p>
+    <div class="fgrid">
+      <div class="field">
+        <label>Pemegang</label>
+        <select name="held_by" class="select">
+          <option value="">Tanpa pemegang</option>
+          {% for emp in employees %}<option value="{{ emp.pk }}">{{ emp.nama }}{% if emp.department %} · {{ emp.department.name }}{% endif %}</option>{% endfor %}
         </select>
       </div>
-      <div>
-        <div class="mv-form-label">Departemen</div>
-        <select name="department" class="mv-form-select">
-          <option value="">— Pilih departemen</option>
-          {% for dept in departments %}
-          <option value="{{ dept.pk }}">{{ dept.name }}</option>
-          {% endfor %}
+      <div class="field">
+        <label>Departemen</label>
+        <select name="department" class="select">
+          <option value="">Pilih departemen</option>
+          {% for dept in departments %}<option value="{{ dept.pk }}">{{ dept.name }}</option>{% endfor %}
         </select>
       </div>
-      <div>
-        <div class="mv-form-label">Lokasi</div>
-        <select name="location" class="mv-form-select">
-          <option value="">— Pilih lokasi</option>
-          {% for loc in locations %}
-          <option value="{{ loc.pk }}">{{ loc }}</option>
-          {% endfor %}
+      <div class="field">
+        <label>Lokasi</label>
+        <select name="location" class="select">
+          <option value="">Pilih lokasi</option>
+          {% for loc in locations %}<option value="{{ loc.pk }}">{{ loc }}</option>{% endfor %}
         </select>
       </div>
-      <div>
-        <div class="mv-form-label">Catatan (opsional)</div>
-        <input type="text" name="notes" class="mv-form-input" placeholder="Alasan pemindahan...">
+      <div class="field">
+        <label>Catatan <span class="opt">opsional</span></label>
+        <input type="text" name="notes" class="input" placeholder="Alasan pemindahan">
       </div>
     </div>
     <div class="mv-form-actions">
-      <button type="button" class="mv-form-cancel" onclick="closeSharedForm()">Batal</button>
-      <button type="submit" class="mv-form-submit">Simpan</button>
+      <button type="button" class="btn sm outline" data-mv-cancel>Batal</button>
+      <button type="submit" class="btn sm">Simpan</button>
     </div>
   </form>
 </template>
 {% endif %}
+{% endwith %}
+{% endblock %}
 
+{% block extra_scripts %}
 <script>
-function toggleAsset(pk) {
-  const panel = document.getElementById('mvpanel-' + pk);
-  const arrow = document.getElementById('mvarrow-' + pk);
-  const row   = document.getElementById('mvrow-'   + pk);
-  if (!panel) return;
-  const open = panel.classList.toggle('open');
-  arrow.classList.toggle('open', open);
-  row.classList.toggle('open',   open);
-}
+  (() => {
+    const CREATE = "{% url 'movement_create' 0 %}", UPDATE = "{% url 'movement_update' 0 %}";
+    const tpl = document.getElementById('mvFormTpl');
+    let slot = null, uid = 0;
 
-const MV_CREATE_URL = "{% url 'movement_create' 0 %}";
-const MV_UPDATE_URL = "{% url 'movement_update' 0 %}";
-let sharedSlot = null;
+    const close = () => { if (slot) slot.replaceChildren(); slot = null; };
+    // Form bersama dipasang di slot yang dituju; klik kedua pada tombol yang sama menutupnya
+    function mount(target, action, title) {
+      if (!tpl || !target) return null;
+      const again = target === slot;
+      close();
+      if (again) return null;
+      target.append(tpl.content.cloneNode(true));
+      slot = target;
+      const form = target.querySelector('form');
+      form.action = action;
+      form.querySelector('.mv-form-title').textContent = title;
+      // label ↔ isian unik per pemasangan
+      uid++;
+      form.querySelectorAll('.field').forEach((f, i) => {
+        const el = f.querySelector('select, input'); const lb = f.querySelector('label');
+        el.id = `mvf-${uid}-${i}`; lb.htmlFor = el.id;
+      });
+      form.querySelector('select').focus();
+      return form;
+    }
 
-function closeSharedForm() {
-  if (sharedSlot) { sharedSlot.innerHTML = ''; sharedSlot.classList.remove('open'); }
-  sharedSlot = null;
-}
+    document.addEventListener('click', e => {
+      const add = e.target.closest('[data-mv-add]');
+      const edit = e.target.closest('[data-mv-edit]');
+      const all = e.target.closest('[data-mv-all]');
+      if (add) {
+        mount(document.getElementById('mvform-' + add.dataset.mvAdd), CREATE.replace('/0/', `/${add.dataset.mvAdd}/`), `Catat perpindahan ${add.dataset.name}`);
+      } else if (edit) {
+        const form = mount(document.getElementById('mvedit-' + edit.dataset.mvEdit), UPDATE.replace('/0/', `/${edit.dataset.mvEdit}/`), 'Ubah catatan perpindahan');
+        if (form) {
+          form.held_by.value = edit.dataset.held; form.department.value = edit.dataset.dept;
+          form.location.value = edit.dataset.loc; form.notes.value = edit.dataset.notes;
+        }
+      } else if (e.target.closest('[data-mv-cancel]')) {
+        close();
+      } else if (all) {
+        document.querySelectorAll('.mv-item').forEach(d => { d.open = all.dataset.mvAll === 'open'; });
+        if (all.dataset.mvAll === 'close') close();
+      }
+    });
 
-function mountSharedForm(slot, action, title) {
-  const tpl = document.getElementById('mvFormTpl');
-  if (!tpl || !slot) return null;
-  const wasOpen = slot === sharedSlot;
-  closeSharedForm();
-  if (wasOpen) return null;              // klik kedua = tutup
-  slot.appendChild(tpl.content.cloneNode(true));
-  slot.classList.add('open');
-  sharedSlot = slot;
-  const form = slot.querySelector('form');
-  form.action = action;
-  form.querySelector('.mv-form-title').textContent = title;
-  return form;
-}
+    // Buka aset yang baru saja diubah (anchor #mv-<id>) atau satu-satunya hasil
+    const target = location.hash && document.querySelector(location.hash + '.mv-item');
+    const items = document.querySelectorAll('.mv-item');
+    if (target) target.open = true; else if (items.length === 1) items[0].open = true;
 
-function openAddForm(pk, name) {
-  const form = mountSharedForm(
-    document.getElementById('mvform-' + pk),
-    MV_CREATE_URL.replace('/0/', '/' + pk + '/'),
-    '＋ Catat Movement Baru — ' + name
-  );
-  if (!form) return;
-  document.getElementById('mvpanel-' + pk)?.classList.add('open');
-  document.getElementById('mvarrow-' + pk)?.classList.add('open');
-  document.getElementById('mvrow-' + pk)?.classList.add('open');
-}
-
-function openEditForm(mvPk, btn) {
-  const form = mountSharedForm(
-    document.getElementById('mvedit-' + mvPk),
-    MV_UPDATE_URL.replace('/0/', '/' + mvPk + '/'),
-    'Edit Movement'
-  );
-  if (!form) return;
-  form.held_by.value    = btn.dataset.held;
-  form.department.value = btn.dataset.dept;
-  form.location.value   = btn.dataset.loc;
-  form.notes.value      = btn.dataset.notes;
-  form.querySelector('.mv-form-submit').textContent = 'Update';
-}
-
-function expandAll() {
-  document.querySelectorAll('.mv-timeline-panel').forEach(p => p.classList.add('open'));
-  document.querySelectorAll('.mv-toggle-icon').forEach(a => a.classList.add('open'));
-  document.querySelectorAll('.mv-asset-row').forEach(r => r.classList.add('open'));
-}
-
-function collapseAll() {
-  closeSharedForm();
-  document.querySelectorAll('.mv-timeline-panel')
-    .forEach(p => p.classList.remove('open'));
-  document.querySelectorAll('.mv-toggle-icon').forEach(a => a.classList.remove('open'));
-  document.querySelectorAll('.mv-asset-row').forEach(r => r.classList.remove('open'));
-}
-
-// Search: submit ke server 400ms setelah berhenti mengetik
-(() => {
-  const input = document.getElementById('mvSearch');
-  let t;
-  input?.addEventListener('input', () => {
-    clearTimeout(t);
-    t = setTimeout(() => document.getElementById('mvSearchForm').submit(), 400);
-  });
-})();
-
-{% if messages %}window.scrollTo({ top: 0, behavior: 'smooth' });{% endif %}
-
+    const input = document.getElementById('mvSearch');
+    let t;
+    input?.addEventListener('input', () => { clearTimeout(t); t = setTimeout(() => input.form.submit(), 450); });
+  })();
 </script>
 {% endblock %}

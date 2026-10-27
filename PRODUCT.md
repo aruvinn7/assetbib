@@ -42,7 +42,7 @@ Menggantikan pencatatan terpisah (spreadsheet, catatan manual) dengan satu alur 
 
 ## Capabilities and Constraints
 
-- **Stack:** Django 5.1, SQLite, template server-side, JavaScript vanilla. Chart memakai Chart.js; Bootstrap 5 hanya dimuat di halaman laporan kerusakan.
+- **Stack:** Django 5.1, SQLite, template server-side, JavaScript vanilla. Chart memakai Chart.js; tidak ada framework CSS (semua gaya dari `static/css/base.css` + CSS per halaman).
 - **Bahasa:** antarmuka berbahasa Indonesia. Sebagian istilah teknis tetap dalam bahasa Inggris: Active, Maintenance, Write Off, preventive, corrective, inspection, writeoff.
 - **Role** ditentukan dari profile Employee: GAProfile, FinanceProfile, UserProfile.
 - **Status aset:** active, maintenance, writeoff.

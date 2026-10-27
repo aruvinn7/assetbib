@@ -2,6 +2,7 @@
 from datetime import date
 
 from django.shortcuts import get_object_or_404, redirect, render
+from django.utils import timezone
 
 from ..decorators import role_required
 from ..forms import AssetFinancialForm, flash_form_errors
@@ -69,7 +70,7 @@ def financial_detail(request, asset_id):
         start = fin.book_value(max(date(year, 1, 1), asset.tanggal_pembelian))
         end = fin.book_value(min(date(year, 12, 31), end_cap) if end_cap else date(year, 12, 31))
         rows.append({'year': year, 'start': start, 'dep': start - end, 'end': end,
-                     'current': year == date.today().year, 'past': year < date.today().year})
+                     'current': year == timezone.localdate().year, 'past': year < timezone.localdate().year})
         if end <= fin.nilai_residual or (end_cap and year >= end_cap.year):
             break
     book = fin.book_value()

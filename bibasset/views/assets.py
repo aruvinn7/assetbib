@@ -1,6 +1,5 @@
 # views/assets.py [OPTIMIZED + PAGINATION]
 import os
-from datetime import date
 from decimal import Decimal
 
 from django.contrib import messages
@@ -16,6 +15,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils.http import urlencode
 from django.views.decorators.http import require_POST
+from django.utils import timezone
 
 from ..decorators import role_required
 from ..forms import AssetForm, AssetUpdateForm, WriteOffForm, flash_form_errors
@@ -205,7 +205,7 @@ def asset_write_off(request, pk):
                               asset=asset, report_status__in=DamageReport.ACTIVE_STATUS).count(),
         'reasons':        AssetWriteOff.REASON,
         'cur_reason':     form.data.get('alasan') or suggested,
-        'today':          date.today(),
+        'today':          timezone.localdate(),
     })
 
 

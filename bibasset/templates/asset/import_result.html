@@ -1,337 +1,120 @@
 {% extends "base.html" %}
 {% load static %}
-{% block title %}Hasil Import — AssetMS{% endblock %}
-{% block extra_head %}<link rel="stylesheet" href="{% static 'css/pages/asset_import_result.css' %}?v=4">{% endblock %}
+{% block title %}Hasil import {{ import_type|lower }}{% endblock %}
+{% block nav_import_asset %}{% if import_type == 'Aset' %}active{% endif %}{% endblock %}
+{% block nav_import_fin %}{% if import_type != 'Aset' %}active{% endif %}{% endblock %}
+{% block extra_head %}<link rel="stylesheet" href="{% static 'css/pages/import.css' %}?v=2">{% endblock %}
 
 {% block content %}
+<div class="page">
+  <nav class="track-tabs" aria-label="Jenis import">
+    <span class="track-label"><i class="fa-solid fa-file-import" aria-hidden="true"></i>Import Excel</span>
+    <div class="track-list">
+      <a href="{% url 'import_asset' %}" {% if import_type == 'Aset' %}aria-current="page"{% endif %}><i class="fa-solid fa-box" aria-hidden="true"></i>Aset</a>
+      <a href="{% url 'import_finansial' %}" {% if import_type == 'Finansial' %}aria-current="page"{% endif %}><i class="fa-solid fa-coins" aria-hidden="true"></i>Finansial</a>
+    </div>
+  </nav>
 
-<div class="wrap">
-
-  <!-- HEADER -->
-  <div class="anim" style="margin-bottom:16px;">
-    <span class="page-eyebrow">Import {{ import_type }}</span>
-    <h1 class="page-title">Hasil <em>Import</em> {{ import_type }}</h1>
-    <div style="display:flex;gap:8px;flex-wrap:wrap;">
-      <a href="{% url list_url %}" class="btn btn-primary">Lihat Daftar Aset</a>
-      <a href="{% url back_url %}" class="btn btn-outline">⬆ Import Lagi</a>
-      {% if import_type == 'Aset' %}
-      <a href="{% url 'import_finansial' %}" class="btn btn-success">Lanjut Import Finansial</a>
-      {% endif %}
-    </div>
-  </div>
-
-  <!-- STAT ROW -->
-  <div class="stat-row anim">
-    <div class="stat-mini blue">
-      <div class="stat-mini-num">{{ result_rows|length }}</div>
-      <div class="stat-mini-label">Total Baris</div>
-    </div>
-    <div class="stat-mini green">
-      <div class="stat-mini-num">{{ success_count }}</div>
-      <div class="stat-mini-label">Berhasil</div>
-    </div>
-    <div class="stat-mini red">
-      <div class="stat-mini-num">{{ rejected_count }}</div>
-      <div class="stat-mini-label">Tertolak</div>
-    </div>
-    <div class="stat-mini amber">
-      <div class="stat-mini-num">{{ warn_count }}</div>
-      <div class="stat-mini-label">Auto-fix</div>
-    </div>
-  </div>
-
-  {% if rejected_count > 0 %}
-  <div class="note danger reject-note">
-    <svg class="sign" aria-hidden="true"><use href="#sign-danger"/></svg>
+  <div class="page-head">
     <div>
-      <strong>{{ rejected_count }} baris tertolak</strong> — perbaiki data di Excel sesuai keterangan merah, lalu upload ulang hanya baris yang bermasalah.
-      <button type="button" class="link-btn" onclick="showFilter('rejected')">Tampilkan yang tertolak saja</button>
+      <h1>Hasil import {{ import_type|lower }}</h1>
+      <div class="sub">
+        {% if import_type == 'Aset' %}{{ result_rows|length }} baris diproses · {{ success_count }} aset masuk{% if rejected_count %} · {{ rejected_count }} ditolak{% endif %}{% if warn_count %} · {{ warn_count }} dikoreksi otomatis{% endif %}
+        {% else %}{{ success_count }} data finansial masuk{% if skipped_rows %} · {{ skipped_rows|length }} baris dilewati{% endif %}{% endif %}
+      </div>
+    </div>
+    <div class="page-actions">
+      <a href="{% url back_url %}" class="btn outline"><i class="fa-solid fa-upload" aria-hidden="true"></i>Import lagi</a>
+      {% if import_type == 'Aset' and success_count %}<a href="{% url 'import_finansial' %}" class="btn outline">Lanjut import finansial</a>{% endif %}
+      <a href="{% url list_url %}" class="btn">Buka daftar aset</a>
     </div>
   </div>
-  {% endif %}
 
-  <!-- FILTER TABS -->
-  <div class="toolbar anim">
-    <span style="font-size:12px;font-weight:700;color:var(--muted);font-family:var(--mono);">TAMPILKAN:</span>
-    <button onclick="showFilter('all')"      class="filter-tab active" id="tab-all">Semua ({{ result_rows|length }})</button>
-    <button onclick="showFilter('success')"  class="filter-tab green"  id="tab-success">Berhasil ({{ success_count }})</button>
-    <button onclick="showFilter('rejected')" class="filter-tab red"    id="tab-rejected">Tertolak ({{ rejected_count }})</button>
-  </div>
-
-  <!-- TABLE CARD -->
-  <div class="card anim">
-    <div class="card-header">
-      <div class="card-title">
-        <span class="card-title-dot" style="background:var(--accent);"></span>
-        Semua Baris — <span id="visibleCount">{{ result_rows|length }}</span> item
-      </div>
-      <div style="display:flex;align-items:center;gap:8px;">
-        <span style="font-size:12px;color:var(--muted);font-family:var(--mono);">
-          Kosong = belum diisi &nbsp;|&nbsp; <span style="color:var(--accent);">⟳ auto-fix</span> = nama dikoreksi otomatis
-        </span>
-      </div>
+  {% if import_type == 'Aset' %}
+    {% if rejected_count %}
+    <div class="note danger res-note" role="status">
+      <svg class="sign" aria-hidden="true"><use href="#sign-danger"/></svg>
+      <span><strong>{{ rejected_count }} baris ditolak.</strong> Perbaiki di Excel sesuai alasan di tiap baris, lalu unggah ulang baris itu saja. Baris lain sudah tersimpan.</span>
+      <button type="button" class="link-btn" data-res-filter="rejected">Tampilkan yang ditolak</button>
     </div>
-
-    {% if result_rows %}
-
-    <!-- ═══ DESKTOP TABLE ═══ -->
-    <div style="overflow-x:auto;" class="desktop-table">
-    <table class="tbl" id="resultTable">
-      <thead>
-        <tr>
-          <th>#</th>
-          <th>Status</th>
-          <th>No. PO</th>
-          <th>Asset Number</th>
-          <th>Nama Aset</th>
-          <th>Tgl Pembelian</th>
-          <th>Lokasi</th>
-          <th>Departemen</th>
-          <th>Group</th>
-          <th>Kategori</th>
-          <th>Lifecycle</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for row in result_rows %}
-        <tr class="result-row
-            {% if row.status == 'rejected' %}row-rejected
-            {% elif row.warnings %}row-warning-only
-            {% else %}row-success{% endif %}"
-            data-status="{{ row.status }}"
-            data-haswarn="{% if row.warnings %}1{% else %}0{% endif %}">
-
-          <!-- # -->
-          <td style="font-family:var(--mono);font-size:12px;color:var(--muted);white-space:nowrap;">
-            {{ row.row_num }}
-          </td>
-
-          <!-- STATUS -->
-          <td style="white-space:nowrap;">
-            {% if row.status == 'rejected' %}
-              <span class="badge-rejected">Tertolak</span>
-            {% elif row.warnings %}
-              <span class="badge-warn">Auto-fix</span>
-            {% else %}
-              <span class="badge-ok">✓ OK</span>
-            {% endif %}
-          </td>
-
-          <!-- NO PO -->
-          <td>
-            {% if row.no_po %}
-              <span class="val-filled" style="font-family:var(--mono);font-size:12px;">{{ row.no_po }}</span>
-            {% else %}
-              <span class="val-empty">— belum diisi</span>
-            {% endif %}
-          </td>
-
-          <!-- ASSET NUMBER -->
-          <td>
-            {% if row.asset_number %}
-              <span style="font-family:var(--mono);font-size:12px;font-weight:700;">{{ row.asset_number }}</span>
-            {% else %}
-              <span class="val-empty">— belum diisi</span>
-            {% endif %}
-            {# Keterangan tertolak muncul di bawah asset_number agar mudah dibaca #}
-            {% if row.status == 'rejected' %}
-            <div class="reject-box">
-              <span>{{ row.reject_reason }}</span>
-            </div>
-            {% endif %}
-          </td>
-
-          <!-- NAMA ASET -->
-          <td style="max-width:200px;">
-            {% if row.nama_asset %}
-              <div style="font-weight:700;font-size:12px;line-height:1.3;">{{ row.nama_asset }}</div>
-            {% else %}
-              <span class="val-empty">— belum diisi</span>
-            {% endif %}
-          </td>
-
-          <!-- TGL PEMBELIAN -->
-          <td>
-            {% if row.tanggal_pembelian %}
-              <span style="font-family:var(--mono);font-size:12px;">{{ row.tanggal_pembelian|date:"d M Y" }}</span>
-            {% else %}
-              <span class="val-empty">— format salah</span>
-            {% endif %}
-          </td>
-
-          <!-- LOKASI -->
-          <td style="max-width:160px;">
-            {% if row.lokasi_asset %}
-              <span class="val-filled" style="font-size:12px;line-height:1.3;display:block;">{{ row.lokasi_asset }}</span>
-            {% else %}
-              <span class="val-empty">— belum diisi</span>
-            {% endif %}
-          </td>
-
-          <!-- DEPARTEMEN -->
-          <td>
-            {% if row.department %}
-              <span style="font-size:12px;font-weight:600;color:var(--text-soft);background:var(--surface2);
-                padding:2px 7px;border-radius:var(--r);border:1px solid var(--border);white-space:nowrap;">
-                {{ row.department }}
-              </span>
-            {% else %}
-              <span class="val-empty">— belum diisi</span>
-            {% endif %}
-          </td>
-
-          <!-- ASSET GROUP -->
-          <td>
-            {% if row.asset_group %}
-              <span style="font-size:12px;color:var(--text-soft);">{{ row.asset_group }}</span>
-            {% else %}
-              <span class="val-empty">— belum diisi</span>
-            {% endif %}
-          </td>
-
-          <!-- ASSET CATEGORY -->
-          <td>
-            {% if row.asset_category %}
-              <span style="font-size:12px;color:var(--text-soft);">{{ row.asset_category }}</span>
-            {% else %}
-              <span class="val-empty">— belum diisi</span>
-            {% endif %}
-          </td>
-
-          <!-- LIFECYCLE -->
-          <td>
-            {% if row.lifecycle_status %}{% include "components/_lifecycle.html" with status=row.lifecycle_status %}
-            {% else %}<span class="val-empty">—</span>{% endif %}
-          </td>
-
-        </tr>
-        {# Warning notes untuk auto-fix — muncul sebagai baris tipis di bawah baris data #}
-        {% if row.warnings and row.status != 'rejected' %}
-        <tr class="result-row" data-status="{{ row.status }}" data-haswarn="1"
-            style="background:var(--warning-tint);">
-          <td></td>
-          <td></td>
-          <td colspan="9" style="padding:3px 10px 6px;">
-            {% for w in row.warnings %}
-            <div class="warn-box" style="margin-bottom:{% if not forloop.last %}4px{% else %}0{% endif %};">
-              <span>{{ w }}</span>
-            </div>
-            {% endfor %}
-          </td>
-        </tr>
-        {% endif %}
-        {% endfor %}
-      </tbody>
-    </table>
-    </div>
-
-    <!-- ═══ MOBILE CARD LIST ═══ -->
-    <div class="mobile-list" id="mobileList">
-      {% for row in result_rows %}
-      <div class="mc-item result-row
-          {% if row.status == 'rejected' %}row-rejected
-          {% elif row.warnings %}row-warning-only
-          {% else %}row-success{% endif %}"
-          data-status="{{ row.status }}"
-          data-haswarn="{% if row.warnings %}1{% else %}0{% endif %}">
-        <div class="mc-num">{{ row.row_num }}</div>
-        <div class="mc-body">
-          <div class="mc-name">
-            {% if row.nama_asset %}{{ row.nama_asset }}{% else %}<span class="val-empty">— nama kosong</span>{% endif %}
-          </div>
-          <div class="mc-sub">
-            {% if row.asset_number %}{{ row.asset_number }}{% else %}<span class="val-empty">no. kosong</span>{% endif %}
-            · {% if row.asset_group %}{{ row.asset_group }}{% else %}—{% endif %}
-          </div>
-          <div class="mc-meta">
-            {% if row.status == 'rejected' %}
-              <span class="badge-rejected">Tertolak</span>
-            {% elif row.warnings %}
-              <span class="badge-warn">Auto-fix</span>
-            {% else %}
-              <span class="badge-ok">✓ OK</span>
-            {% endif %}
-
-            {% if row.lifecycle_status %}{% include "components/_lifecycle.html" with status=row.lifecycle_status %}{% endif %}
-
-            {% if row.tanggal_pembelian %}
-              <span style="font-size:12px;color:var(--muted);font-family:var(--mono);">{{ row.tanggal_pembelian|date:"d M Y" }}</span>
-            {% else %}
-              <span class="val-empty">tgl salah</span>
-            {% endif %}
-          </div>
-          {% if row.department or row.lokasi_asset %}
-          <div style="font-size:12px;color:var(--text-soft);margin-top:4px;">
-            {% if row.department %}{{ row.department }}{% endif %}
-            {% if row.lokasi_asset %} · {{ row.lokasi_asset }}{% endif %}
-          </div>
-          {% endif %}
-          {% if row.status == 'rejected' %}
-          <div class="reject-box" style="margin-top:5px;">
-            <span>{{ row.reject_reason }}</span>
-          </div>
-          {% endif %}
-          {% for w in row.warnings %}
-          <div class="warn-box" style="margin-top:4px;">
-            <span>{{ w }}</span>
-          </div>
-          {% endfor %}
-        </div>
-      </div>
-      {% endfor %}
-    </div>
-
-    <!-- EMPTY STATE (saat filter tidak ada hasil) -->
-    <div id="filterEmpty" class="empty" style="display:none;"><strong>Tidak ada baris untuk filter ini</strong>Pilih filter lain di atas.</div>
-
-    {% else %}
-    <div class="empty"><strong>Tidak ada data yang diproses</strong>Pastikan file Excel berisi data di bawah baris judul kolom.</div>
     {% endif %}
-  </div>
 
+    <section class="panel" aria-label="Baris yang diproses">
+      {% if result_rows %}
+      <div class="panel-head">
+        <div class="filters" role="group" aria-label="Saring baris">
+          <button type="button" class="chip active" data-res-filter="all" aria-pressed="true">Semua <span class="count">{{ result_rows|length }}</span></button>
+          <button type="button" class="chip" data-res-filter="success" aria-pressed="false"><svg class="sign" aria-hidden="true"><use href="#sign-safe"/></svg>Masuk <span class="count">{{ success_count }}</span></button>
+          <button type="button" class="chip" data-res-filter="rejected" aria-pressed="false"><svg class="sign" aria-hidden="true"><use href="#sign-danger"/></svg>Ditolak <span class="count">{{ rejected_count }}</span></button>
+        </div>
+        <span class="meta"><span id="visibleCount">{{ result_rows|length }}</span> baris ditampilkan</span>
+      </div>
+      <div class="table-wrap">
+        <table class="table stack res-table" id="resultTable">
+          <thead><tr><th class="num">Baris</th><th>Status</th><th>Aset</th><th>Pembelian</th><th>Lokasi</th><th>Departemen</th><th>Kategori</th></tr></thead>
+          <tbody>
+          {% for row in result_rows %}
+            <tr data-status="{% if row.status == 'rejected' %}rejected{% else %}success{% endif %}" class="{% if row.status == 'rejected' %}is-rejected{% endif %}">
+              <td data-label="Baris" class="num">{{ row.row_num }}</td>
+              <td data-label="Status">{% if row.status == 'rejected' %}{% include "components/_status.html" with kind="danger" label="Ditolak" %}{% elif row.warnings %}{% include "components/_status.html" with kind="warning" label="Dikoreksi" %}{% else %}{% include "components/_status.html" with kind="safe" label="Masuk" %}{% endif %}</td>
+              <td class="lead">
+                <span class="row-name">{{ row.nama_asset|default:"(nama kosong)" }}</span>
+                <div class="cell-sub">{{ row.asset_number|default:"nomor kosong" }}{% if row.no_po %} · PO {{ row.no_po }}{% endif %}</div>
+                {% if row.status == 'rejected' %}<p class="row-msg danger">{{ row.reject_reason }}</p>{% endif %}
+                {% for w in row.warnings %}<p class="row-msg warn">{{ w }}</p>{% endfor %}
+              </td>
+              <td data-label="Pembelian" class="nowrap">{% if row.tanggal_pembelian %}{{ row.tanggal_pembelian|date:"d M Y" }}{% else %}<span class="dim">format salah</span>{% endif %}</td>
+              <td data-label="Lokasi">{{ row.lokasi_asset|default:"—" }}</td>
+              <td data-label="Departemen">{{ row.department|default:"—" }}</td>
+              <td data-label="Kategori">{% if row.asset_category %}{{ row.asset_category }}{% if row.asset_group %}<div class="cell-sub">{{ row.asset_group }}</div>{% endif %}{% else %}—{% endif %}</td>
+            </tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      <p class="empty" id="filterEmpty" hidden>Tidak ada baris untuk saringan ini.</p>
+      {% else %}
+      <div class="empty"><strong>Tidak ada baris yang diproses</strong>Pastikan data diisi di bawah baris judul kolom template.</div>
+      {% endif %}
+    </section>
+
+  {% else %}
+    <section class="panel" aria-labelledby="skipTitle">
+      <div class="panel-head"><h2 id="skipTitle">Baris yang dilewati</h2>{% if skipped_rows %}<span class="meta">{{ skipped_rows|length }} baris</span>{% endif %}</div>
+      {% if skipped_rows %}
+      <div class="table-wrap">
+        <table class="table stack">
+          <thead><tr><th class="num">Baris</th><th>Alasan</th></tr></thead>
+          <tbody>
+          {% for row_num, reason in skipped_rows %}
+            <tr><td data-label="Baris" class="num">{{ row_num }}</td><td class="lead">{{ reason }}</td></tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      <p class="panel-note">Perbaiki baris ini di Excel lalu unggah ulang; data finansial yang sudah masuk tidak akan tergandakan.</p>
+      {% else %}
+      <div class="empty"><strong>Semua baris masuk</strong>{% if success_count %}{{ success_count }} aset sekarang punya nilai buku.{% endif %}</div>
+      {% endif %}
+    </section>
+  {% endif %}
 </div>
+{% endblock %}
 
+{% block extra_scripts %}
 <script>
-  let currentFilter = 'all';
-
-  function showFilter(filter) {
-    currentFilter = filter;
-
-    // Update tab styling
-    document.querySelectorAll('.filter-tab').forEach(t => t.classList.remove('active'));
-    const activeTab = document.getElementById('tab-' + filter);
-    if (activeTab) activeTab.classList.add('active');
-
-    // Filter rows
-    const rows = document.querySelectorAll('.result-row');
-    let visible = 0;
-
-    rows.forEach(row => {
-      const status   = row.dataset.status;
-      const hasWarn  = row.dataset.haswarn === '1';
-      let show = false;
-
-      if (filter === 'all')      show = true;
-      else if (filter === 'success') show = (status !== 'rejected');
-      else if (filter === 'rejected') show = (status === 'rejected');
-
-      row.style.display = show ? '' : 'none';
-      if (show && row.tagName !== undefined) visible++;
-    });
-
-    // Visible count — hitung hanya baris data (bukan warning sub-rows)
-    const dataRows = document.querySelectorAll('.result-row[data-status]');
-    let visibleData = 0;
-    dataRows.forEach(r => { if (r.style.display !== 'none') visibleData++; });
-
-    const countEl = document.getElementById('visibleCount');
-    if (countEl) countEl.textContent = visibleData;
-
-    // Show/hide empty state
-    const isEmpty = visibleData === 0;
-    const emptyEl = document.getElementById('filterEmpty');
-    if (emptyEl) emptyEl.style.display = isEmpty ? 'block' : 'none';
-  }
+  (() => {
+    const rows = [...document.querySelectorAll('#resultTable tbody tr')];
+    if (!rows.length) return;
+    const chips = document.querySelectorAll('.chip[data-res-filter]');
+    function apply(f) {
+      let n = 0;
+      rows.forEach(r => { const show = f === 'all' || r.dataset.status === f; r.hidden = !show; if (show) n++; });
+      chips.forEach(c => { const on = c.dataset.resFilter === f; c.classList.toggle('active', on); c.setAttribute('aria-pressed', on); });
+      document.getElementById('visibleCount').textContent = n;
+      document.getElementById('filterEmpty').hidden = n > 0;
+    }
+    document.querySelectorAll('[data-res-filter]').forEach(b => b.addEventListener('click', () => apply(b.dataset.resFilter)));
+  })();
 </script>
-
 {% endblock %}

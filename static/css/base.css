@@ -46,26 +46,6 @@
   --header-h: 68px;
   --gutter: clamp(16px, 2.4vw, 24px);
   --page-max: 1536px;
-
-  /* Alias token lama — dipakai CSS halaman yang belum dibangun ulang */
-  --bg: var(--ground);
-  --surface: var(--panel);
-  --surface2: var(--ground);
-  --border: var(--rule);
-  --accent: var(--brand-500);
-  --accent2: var(--brand-600);
-  --success: var(--safe);
-  --warning: var(--warning-ink);
-  --danger2: var(--danger-ink);
-  --purple: var(--brand-500);
-  --text: var(--ink);
-  --text-soft: var(--ink-2);
-  --muted: var(--ink-3);
-  --mono: var(--sans);
-  --shadow: var(--shadow-lg);
-  --r-sm: var(--r);
-  --shell-h: var(--header-h);
-  --nav-h: var(--header-h);
 }
 
 /* ── Dasar ─────────────────────────────────────────────── */
@@ -95,14 +75,6 @@ html { scrollbar-color: #D0D5DD transparent; }
 .skip-link:focus { left: 8px; }
 
 .sign { width: 18px; height: 18px; flex: none; display: inline-block; vertical-align: -4px; }
-
-/* Netralkan pola halaman lama yang belum dibangun ulang */
-.anim { opacity: 1 !important; transform: none !important; animation: none !important; }
-.page-eyebrow, .pg-eyebrow, .loc-eyebrow, .mv-eyebrow, .db-greeting-eyebrow { display: none !important; }
-.page-title, .pg-title, .loc-title, .mv-title { font-weight: 600 !important; letter-spacing: 0 !important; color: var(--ink) !important; }
-.page-title em, .pg-title em, .loc-title em, .mv-title em { color: inherit !important; font-style: normal !important; }
-main .card-dot, main .panel-dot { display: none; }
-main .card-title, main .panel-title { text-transform: none; letter-spacing: 0; font-size: 16px; font-weight: 600; color: var(--ink); }
 
 /* ── Kerangka: sidebar + area konten ───────────────────── */
 .app-body { margin-left: var(--sidebar-w); min-width: 0; min-height: 100vh; display: flex; flex-direction: column; transition: margin-left .2s ease; }
@@ -496,7 +468,7 @@ kbd {
 .dlg-title h2 { font-size: 18px; font-weight: 600; color: var(--ink); line-height: 26px; }
 .dlg-title p { font-size: 14px; color: var(--ink-2); margin-top: 2px; }
 .dlg-title p span { color: var(--ink-3); }
-.dlg-body { padding: 18px 20px; display: grid; gap: 18px; overflow-y: auto; }
+.dlg-body, .qm-page { padding: 18px 20px; display: grid; gap: 18px; overflow-y: auto; }
 .dlg-foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; padding: 14px 20px; border-top: 1px solid var(--rule-soft); background: var(--ground); }
 .dlg-actions { display: flex; gap: 10px; margin-left: auto; }
 .dlg-link { font-size: 14px; color: var(--ink-3); text-decoration: underline; text-underline-offset: 3px; }
@@ -525,6 +497,10 @@ dialog[open]::backdrop { animation: fade-in .2s ease-out; }
 .input-affix { position: relative; }
 .input-affix span { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: var(--ink-3); font-size: 14px; pointer-events: none; }
 .input-affix .input { padding-left: 40px; font-variant-numeric: tabular-nums; }
+/* Satuan di kanan (mis. "hari"): <div class="input-affix interval-input"><input><span>hari</span></div> */
+.input-affix .input + span { left: auto; right: 14px; }
+.input-affix .input:has(+ span) { padding-left: 14px; padding-right: 52px; }
+.interval-input { max-width: 220px; }
 .qm-field { border: 0; padding: 0; margin: 0; display: grid; gap: 8px; min-width: 0; }
 .qm-field legend { font-size: 14px; font-weight: 500; color: var(--ink-2); padding: 0; margin-bottom: 8px; }
 .qm-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
@@ -775,3 +751,33 @@ a.stat:hover { border-color: var(--brand-200); box-shadow: var(--shadow-sm); }
   .loc-row { flex-wrap: wrap; }
   .loc-row .row-actions { width: 100%; text-align: left; padding-left: 36px; }
 }
+
+/* ── Pola bersama halaman yang dibangun ulang (Pelacakan, karyawan, import) ── */
+/* Tabel yang berubah jadi kartu bertumpuk di layar sempit: tiap <td data-label> jadi pasangan label–nilai.
+   <td class="lead"> = judul kartu (lebar penuh), <td class="act"> = aksi di kanan bawah. */
+@media (max-width: 760px) {
+  .table.stack thead { display: none; }
+  .table.stack, .table.stack tbody, .table.stack tr, .table.stack td { display: block; width: 100%; }
+  .table.stack tr { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 10px 16px; padding: 14px 16px; border-bottom: 1px solid var(--rule-soft); }
+  .table.stack tbody tr:last-child { border-bottom: 0; }
+  .table.stack td { padding: 0; border: 0; text-align: left; min-width: 0; }
+  .table.stack td.lead { grid-column: 1 / -1; }
+  .table.stack td.act { grid-column: 1 / -1; display: flex; justify-content: flex-end; gap: 8px; }
+  .table.stack td[data-label]:not(.lead)::before { content: attr(data-label); display: block; font-size: 12px; color: var(--ink-3); margin-bottom: 2px; }
+  .table.stack td.hide-sm { display: none; }
+}
+
+/* Daftar ringkas berisi baris + satu aksi (aset tanpa pemegang, aset per lokasi) */
+.pick-list { list-style: none; margin: 0; padding: 4px 0; }
+.pick-list li { display: flex; align-items: center; gap: 12px; padding: 10px 20px; border-bottom: 1px solid var(--rule-soft); }
+.pick-list li:last-child { border-bottom: 0; }
+.pick-list.cols { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); column-gap: 0; }
+.pick-list.cols li:last-child { border-bottom: 1px solid var(--rule-soft); }
+.pick-list .pl-text { flex: 1; min-width: 0; }
+.pick-list .pl-text strong { display: block; font-weight: 500; color: var(--ink); font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pick-list .pl-text span { display: block; font-size: 12px; color: var(--ink-3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* Kolom cari kecil di atas <select> panjang (data-filter-for) */
+.select-filter { margin-bottom: 8px; }
+.select-filter .input { height: 38px; }
+.field-hint:empty { display: none; }

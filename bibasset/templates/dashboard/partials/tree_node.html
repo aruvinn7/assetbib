@@ -1,41 +1,17 @@
-<div class="tree-node">
-  <a href="{% url 'location_dashboard' %}?location={{ node.pk }}"
-    class="tree-node-row tl{{ level }} {% if selected_id == node.pk|stringformat:'s' %}selected{% endif %}"
-    data-nid="{{ node.pk }}"
-    data-name="{{ node.name|lower }}"
+{# Satu node pohon lokasi (rekursif). Terbuka bila ada di jalur lokasi terpilih. #}
+{% with open=node.pk|stringformat:'s' %}
+<li class="tn" data-name="{{ node.name|lower }}">
+  <div class="tn-row {% if selected_id == open %}is-selected{% endif %}">
     {% if node.children_list %}
-      onclick="event.preventDefault();toggleNode({{ node.pk }});window.location=this.href;"
-    {% endif %}>
-
-    {% if node.children_list %}
-      <span class="tree-toggle" id="tt-{{ node.pk }}"
-        onclick="event.preventDefault();event.stopPropagation();toggleNode({{ node.pk }});">›</span>
-    {% else %}
-      <span style="width:22px;flex-shrink:0;display:inline-block;"></span>
-    {% endif %}
-
-    <span style="font-size:12px;margin-right:4px;">
-      {% if level == 0 %}
-      {% elif level == 1 %}
-      {% elif level == 2 %}
-      {% else %}{% endif %}
-    </span>
-
-    <span class="tree-node-name">{{ node.name }}</span>
-
-    {% if node.total_assets > 0 %}
-      <span class="tree-node-count has">{{ node.total_assets }}</span>
-    {% else %}
-      <span class="tree-node-count">0</span>
-    {% endif %}
-  </a>
-
-  {% if node.children_list %}
-  <div class="tree-children {% if node.pk in breadcrumb_pks %}open{% endif %}"
-    id="tc-{{ node.pk }}">
-    {% for child in node.children_list %}
-      {% include "dashboard/partials/tree_node.html" with node=child level=level|add:1 %}
-    {% endfor %}
+    <button type="button" class="tn-toggle" aria-expanded="{% if node.pk in breadcrumb_pks %}true{% else %}false{% endif %}" aria-controls="tn-{{ node.pk }}" aria-label="Buka/tutup {{ node.name }}"><i class="fa-solid fa-chevron-right" aria-hidden="true"></i></button>
+    {% else %}<span class="tn-space" aria-hidden="true"></span>{% endif %}
+    <a href="{% url 'location_dashboard' %}?location={{ node.pk }}" {% if selected_id == open %}aria-current="page"{% endif %}>{{ node.name }}</a>
+    <span class="tn-count {% if not node.total_assets %}is-zero{% endif %}">{{ node.total_assets }}</span>
   </div>
+  {% if node.children_list %}
+  <ul class="tn-children" id="tn-{{ node.pk }}" {% if node.pk not in breadcrumb_pks %}hidden{% endif %}>
+    {% for child in node.children_list %}{% include "dashboard/partials/tree_node.html" with node=child %}{% endfor %}
+  </ul>
   {% endif %}
-</div>
+</li>
+{% endwith %}

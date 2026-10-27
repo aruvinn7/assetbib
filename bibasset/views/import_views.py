@@ -31,6 +31,54 @@ MAX_ROWS             = 500
 
 
 # ================================================================
+# HALAMAN UPLOAD — satu template untuk import aset & finansial
+# ================================================================
+IMPORT_PAGES = {
+    'aset': {
+        'title': 'Import aset dari Excel',
+        'sub': 'Tambahkan banyak aset sekaligus dari template Excel. Jadwal maintenance awal dibuat otomatis dari interval kategori.',
+        'template_url': 'download_template_asset',
+        'columns': [
+            ('no_po', True, 'Nomor purchase order.'),
+            ('asset_number', True, 'Kode unik aset; tidak boleh sama dengan aset yang sudah ada.'),
+            ('nama_asset', True, 'Nama lengkap aset.'),
+            ('tanggal_pembelian', True, 'Format YYYY-MM-DD, mis. 2024-02-20.'),
+            ('lokasi_asset', False, 'Nama lokasi seperti di master data; salah ketik ringan diperbaiki otomatis.'),
+            ('department', False, 'Nama departemen pemilik aset.'),
+            ('asset_group', False, 'Membantu mencari kategori. Grup tanpa kategori masuk ke kategori “Lainnya” grup itu.'),
+            ('asset_category', False, 'Kategori di dalam grup; menentukan interval maintenance otomatis.'),
+            ('lifecycle_status', False, 'active, maintenance, atau writeoff. Kosong = active.'),
+        ],
+        'steps': [
+            'Unduh template aset, lalu baca sheet RULES & PANDUAN.',
+            'Isi sheet DATA IMPORT dan hapus baris contoh berwarna biru.',
+            'Unggah file. Baris yang ditolak ditampilkan beserta alasannya; baris lain tetap masuk.',
+        ],
+    },
+    'finansial': {
+        'title': 'Import data finansial dari Excel',
+        'sub': 'Isi nilai perolehan, residual, dan umur ekonomis untuk banyak aset sekaligus.',
+        'template_url': 'download_template_finansial',
+        'columns': [
+            ('asset_number', True, 'Kode aset yang sudah terdaftar di sistem.'),
+            ('nilai_awal_aset', True, 'Harga perolehan dalam rupiah, angka saja tanpa titik/koma.'),
+            ('nilai_residual', True, 'Nilai sisa di akhir umur ekonomis; boleh 0, tidak boleh melebihi nilai awal.'),
+            ('umur_ekonomis', True, 'Umur ekonomis dalam tahun, bilangan bulat 1–100.'),
+        ],
+        'steps': [
+            'Pastikan asetnya sudah terdaftar (lewat Import aset atau Tambah aset).',
+            'Unduh template finansial, lalu isi satu baris per aset.',
+            'Unggah file. Aset yang sudah punya data finansial dilewati.',
+        ],
+    },
+}
+
+
+def _import_page(request, kind):
+    return render(request, 'asset/import.html', {'kind': kind, 'page': IMPORT_PAGES[kind], 'max_rows': MAX_ROWS})
+
+
+# ================================================================
 # HELPER: baca nilai sel Excel — selalu string bersih
 # ================================================================
 
@@ -208,7 +256,7 @@ def _read_excel_rows(file_obj, required_cols: set):
 @role_required(is_ga)
 def import_asset(request):
     if request.method != 'POST':
-        return render(request, 'asset/import_asset.html')
+        return _import_page(request, 'aset')
 
     file_obj = request.FILES.get('excel_file')
     if not file_obj:
@@ -372,7 +420,7 @@ def import_asset(request):
         MaintenanceSchedule.objects.bulk_create(schedules, batch_size=200)
         # Aset yang diimport langsung berstatus write off tetap butuh catatan write off
         AssetWriteOff.objects.bulk_create([
-            AssetWriteOff(asset=a, tanggal=date.today(), alasan='lainnya', created_by=created_by,
+            AssetWriteOff(asset=a, tanggal=timezone.localdate(), alasan='lainnya', created_by=created_by,
                           keterangan='Diimport dari Excel dengan status write off. Lengkapi alasan bila perlu.')
             for a in created if a.lifecycle_status == 'writeoff'
         ])
@@ -399,7 +447,7 @@ def import_asset(request):
 @role_required(is_ga_or_finance)
 def import_finansial(request):
     if request.method != 'POST':
-        return render(request, 'asset/import_finansial.html')
+        return _import_page(request, 'finansial')
 
     file_obj = request.FILES.get('excel_file')
     if not file_obj:
@@ -508,9 +556,9 @@ def import_finansial(request):
 
 def _add_import_messages(request, success_count, skipped_rows, label):
     if success_count > 0:
-        messages.success(request, f"✅ {success_count} {label} berhasil diimport.")
+        messages.success(request, f"{success_count} {label} berhasil diimport.")
     if skipped_rows:
-        messages.warning(request, f"⚠️ {len(skipped_rows)} baris dilewati. Lihat detail di bawah.")
+        messages.warning(request, f"{len(skipped_rows)} baris dilewati. Lihat alasannya di bawah.")
     if success_count == 0 and not skipped_rows:
         messages.error(request, "Tidak ada data yang diproses. Pastikan file tidak kosong.")
 
@@ -525,6 +573,7 @@ from openpyxl import Workbook
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 from openpyxl.utils import get_column_letter
 from django.http import HttpResponse
+from django.utils import timezone
 
 
 def _make_border():

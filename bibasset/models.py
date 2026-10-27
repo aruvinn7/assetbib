@@ -289,7 +289,7 @@ class Asset(models.Model):
 
     @property
     def umur_asset_detail(self):
-        years, months = selisih_tahun_bulan(self.tanggal_pembelian, date.today())
+        years, months = selisih_tahun_bulan(self.tanggal_pembelian, timezone.localdate())
         return {"years": years, "months": months}
 
     def __str__(self):
@@ -426,7 +426,7 @@ class AssetFinancial(models.Model):
     def _as_of(self, on=None):
         """Tanggal acuan penyusutan: hari ini, tapi berhenti di tanggal write off."""
         if on is None:
-            on = date.today()
+            on = timezone.localdate()
             if self.asset.lifecycle_status == 'writeoff' and hasattr(self.asset, 'write_off'):
                 on = min(on, self.asset.write_off.tanggal)
         return on
@@ -653,7 +653,7 @@ class MaintenanceSchedule(models.Model):
         ]
 
     def days_remaining(self):
-        return (self.scheduled_date - date.today()).days
+        return (self.scheduled_date - timezone.localdate()).days
 
     def __str__(self):
         return f"{self.asset.asset_number} — {self.scheduled_date} [{self.get_status_display()}]"
@@ -782,7 +782,7 @@ class DamageReport(models.Model):
         # 3. Buat jadwal corrective urgent
         MaintenanceSchedule.objects.create(
             asset=self.asset,
-            scheduled_date=date.today(),
+            scheduled_date=timezone.localdate(),
             status='overdue',
             damage_report=self,
             notes=(
@@ -843,7 +843,7 @@ def schedule_status(sch, today=None):
         return 'not_configured'
     if sch.status == 'overdue':
         return 'overdue'
-    if (sch.scheduled_date - (today or date.today())).days <= UPCOMING_SOON_DAYS:
+    if (sch.scheduled_date - (today or timezone.localdate())).days <= UPCOMING_SOON_DAYS:
         return 'upcoming_soon'
     return 'on_track'
 
@@ -864,7 +864,7 @@ def attach_maintenance_status(assets):
     """
     assets  = list(assets)
     nearest = nearest_active_schedules(assets)
-    today   = date.today()
+    today   = timezone.localdate()
     for asset in assets:
         asset._maintenance_status_cache = (
             schedule_status(nearest.get(asset.pk), today)
@@ -881,7 +881,7 @@ def refresh_overdue_schedules():
     """Bulk update: upcoming → overdue untuk yang sudah lewat tanggal."""
     return MaintenanceSchedule.objects.filter(
         status='upcoming',
-        scheduled_date__lt=date.today(),
+        scheduled_date__lt=timezone.localdate(),
     ).update(status='overdue')
 
 
@@ -891,7 +891,7 @@ def refresh_overdue_schedules_daily():
     sekali per hari per proses, bukan di setiap page load.
     """
     from django.core.cache import cache
-    key = f"overdue_refreshed:{date.today().isoformat()}"
+    key = f"overdue_refreshed:{timezone.localdate().isoformat()}"
     if cache.add(key, True, timeout=60 * 60 * 24):
         refresh_overdue_schedules()
 
@@ -980,7 +980,7 @@ def sync_holder(asset, held_by, by=None, tanggal=None, notes=''):
     pemegang movement terkini (held_by). Pemegang sama → dibiarkan; berbeda → yang lama
     ditutup ('transferred' bila ada penerima baru, 'returned' bila tidak) dan yang baru dibuka.
     """
-    tanggal = tanggal or date.today()
+    tanggal = tanggal or timezone.localdate()
     current = AssetAssignment.objects.filter(asset=asset, status='active').first()
     if current and current.assigned_to_id == getattr(held_by, 'pk', None):
         return current
@@ -1074,7 +1074,7 @@ def cancel_write_off(asset, by=None):
                     recorded_by=by, notes='Write off dibatalkan')
     # BA Penghapusan yang sudah bernomor tetap disimpan sebagai dokumen; pembatalannya dicatat
     for ba in BeritaAcara.objects.filter(jenis='penghapusan', items__asset=asset):
-        baris = f'{date.today():%d/%m/%Y}: write off {asset.asset_number} dibatalkan oleh {by.nama if by else "GA"}.'
+        baris = f'{timezone.localdate():%d/%m/%Y}: write off {asset.asset_number} dibatalkan oleh {by.nama if by else "GA"}.'
         ba.catatan = f'{ba.catatan}\n{baris}' if ba.catatan else baris
         ba.save(update_fields=['catatan', 'updated_at'])
 
@@ -1160,7 +1160,7 @@ class BeritaAcara(models.Model):
 
     def isi_baku(self, tanggal=None):
         """Paragraf pembuka baku; dipakai bila GA tidak menulis sendiri."""
-        d = tanggal or self.tanggal or date.today()
+        d = tanggal or self.tanggal or timezone.localdate()
         hari = f'{NAMA_HARI[d.weekday()]} tanggal {tanggal_panjang(d)}'
         dept = self.department.name if self.department else 'GA'
         if self.jenis == 'penghapusan':
@@ -1182,7 +1182,7 @@ class BeritaAcara(models.Model):
 
     @property
     def tanggal_tempat(self):
-        return f'{BA_KOTA}, {tanggal_panjang(self.tanggal or date.today())}'
+        return f'{BA_KOTA}, {tanggal_panjang(self.tanggal or timezone.localdate())}'
 
     def baris_dokumen(self):
         """
@@ -1190,7 +1190,7 @@ class BeritaAcara(models.Model):
         digabung jadi satu baris "N unit", seperti BA manual.
         """
         rows = {}
-        acuan = self.tanggal or date.today()
+        acuan = self.tanggal or timezone.localdate()
         for it in self.items.select_related('asset', 'asset__write_off').order_by('id'):
             a = it.asset
             po = a.no_po if a.no_po and a.no_po.strip(' -') else a.asset_number
