@@ -38,8 +38,9 @@ INSTALLED_APPS = [
     'django.contrib.contenttypes',
     'django.contrib.sessions',
     'django.contrib.messages',
+    # bibasset sebelum staticfiles supaya perintah runserver-nya (port bawaan 8001) yang dipakai
+    'bibasset',
     'django.contrib.staticfiles',
-    'bibasset'
 ]
 
 MIDDLEWARE = [
