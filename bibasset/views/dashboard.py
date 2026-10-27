@@ -191,7 +191,7 @@ def dashboard(request):
         pending  = Count('id', filter=Q(report_status='pending')),
         critical = Count('id', filter=Q(
             severity='critical',
-            report_status__in=['pending', 'acknowledged', 'in_progress']
+            report_status__in=DamageReport.ACTIVE_STATUS
         )),
     )
 
@@ -263,8 +263,7 @@ def dashboard(request):
 
         # ── Table data (minimal columns) ──
         'critical_schedules': (
-            MaintenanceSchedule.objects
-            .filter(status__in=['upcoming', 'overdue'])
+            MaintenanceSchedule.objects.active()
             .select_related('asset', 'asset__asset_category', 'asset__lokasi_asset')
             .only(
                 'id', 'status', 'scheduled_date',
@@ -284,7 +283,7 @@ def dashboard(request):
 
         'pending_damage_reports': (
             DamageReport.objects
-            .filter(report_status__in=['pending', 'acknowledged', 'in_progress'])
+            .filter(report_status__in=DamageReport.ACTIVE_STATUS)
             .select_related('asset', 'reported_by')
             .only(
                 'id', 'title', 'severity', 'report_status', 'reported_at',

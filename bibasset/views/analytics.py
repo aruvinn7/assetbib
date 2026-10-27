@@ -171,7 +171,7 @@ def performance_dashboard(request):
                 .annotate(dur=ExpressionWrapper(F('resolved_at') - F('reported_at'), output_field=DurationField())))
     avg_dur = resolved.aggregate(a=Avg('dur'))['a']
     report_stats = DamageReport.objects.aggregate(
-        active=Count('id', filter=Q(report_status__in=['pending', 'acknowledged', 'in_progress'])),
+        active=Count('id', filter=Q(report_status__in=DamageReport.ACTIVE_STATUS)),
         pending=Count('id', filter=Q(report_status='pending')),
         period=Count('id', filter=Q(reported_at__date__gte=start)),
         rejected=Count('id', filter=Q(report_status='rejected', reported_at__date__gte=start)),

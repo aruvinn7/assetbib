@@ -22,9 +22,17 @@ def make_employee(username, profile=None):
 
 class HealthRulesTest(TestCase):
     def test_threshold_tiers(self):
-        self.assertEqual(get_repair_threshold(1_000_000)['critical'], 60)
-        self.assertEqual(get_repair_threshold(5_000_000)['critical'], 75)
-        self.assertEqual(get_repair_threshold(100_000_000)['critical'], 100)
+        # Satu nilai per tier REPAIR_THRESHOLD_TIERS; batas atas tier masuk ke tier berikutnya
+        self.assertEqual(get_repair_threshold(1_000_000),
+                         {'warning': 15, 'waspada': 30, 'critical': 50})
+        self.assertEqual(get_repair_threshold(2_000_000)['warning'], 20)
+        self.assertEqual(get_repair_threshold(5_000_000),
+                         {'warning': 20, 'waspada': 35, 'critical': 50})
+        self.assertEqual(get_repair_threshold(20_000_000),
+                         {'warning': 25, 'waspada': 40, 'critical': 60})
+        self.assertEqual(get_repair_threshold(100_000_000),
+                         {'warning': 30, 'waspada': 50, 'critical': 75})
+        self.assertEqual(get_repair_threshold(None)['critical'], 50)
 
     def test_compute_health(self):
         self.assertEqual(compute_health(0, 0, None)[0], 'no_data')

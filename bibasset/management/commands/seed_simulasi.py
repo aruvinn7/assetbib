@@ -515,7 +515,7 @@ class Command(BaseCommand):
         for number, key, title, hours, status, ga_note in ACTIVE_NOW:
             asset = Asset.objects.get(asset_number=number)
             if asset.lifecycle_status != 'active' or asset.damage_reports.filter(
-                    report_status__in=['pending', 'acknowledged', 'in_progress']).exists():
+                    report_status__in=DamageReport.ACTIVE_STATUS).exists():
                 continue
             tpl = templates[title]
             reported = datetime.now(TZ) - timedelta(hours=hours)

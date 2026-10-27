@@ -40,7 +40,7 @@ def _build_notifications(role):
         )
         damage = DamageReport.objects.aggregate(
             pending=Count('id', filter=Q(report_status='pending')),
-            critical=Count('id', filter=Q(severity='critical', report_status__in=['pending', 'acknowledged', 'in_progress'])),
+            critical=Count('id', filter=Q(severity='critical', report_status__in=DamageReport.ACTIVE_STATUS)),
         )
         no_location = Asset.objects.filter(lokasi_asset__isnull=True).count()
         maint_url = reverse('maintenance_list')

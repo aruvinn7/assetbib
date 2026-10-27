@@ -200,9 +200,9 @@ def asset_write_off(request, pk):
         'health':         health,
         'ratio':          ratio,
         'holder':         holder.assigned_to if holder else None,
-        'schedule_count': asset.schedules.filter(status__in=['upcoming', 'overdue']).count(),
+        'schedule_count': asset.schedules.active().count(),
         'report_count':   DamageReport.objects.filter(
-                              asset=asset, report_status__in=['pending', 'acknowledged', 'in_progress']).count(),
+                              asset=asset, report_status__in=DamageReport.ACTIVE_STATUS).count(),
         'reasons':        AssetWriteOff.REASON,
         'cur_reason':     form.data.get('alasan') or suggested,
         'today':          date.today(),
@@ -237,7 +237,7 @@ def asset_quickview(request, pk):
         'health':        health,
         'ratio':         ratio,
         'book_value':    asset.financial.book_value() if nilai_awal is not None else None,
-        'next_schedule': asset.schedules.filter(status__in=['upcoming', 'overdue']).order_by('scheduled_date').first(),
+        'next_schedule': asset.schedules.active().order_by('scheduled_date').first(),
         'last_record':   asset.maintenance_records.select_related('performed_by')
                               .order_by('-tanggal_pelaksanaan', '-id').first(),
         'open_report':   asset.get_pending_damage_report(),

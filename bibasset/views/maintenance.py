@@ -1,6 +1,6 @@
 # views/maintenance.py  [OPTIMIZED]
 import re
-from datetime import date, timedelta
+from datetime import date
 
 from django.contrib import messages
 from django.core.paginator import Paginator
@@ -14,7 +14,8 @@ from ..decorators import role_required
 from ..forms import MaintenanceConfigForm, MaintenanceRecordForm, flash_form_errors
 from ..models import (
     Asset, MaintenanceRecord, MaintenanceSchedule,
-    initialize_schedule_for_asset, refresh_overdue_schedules_daily,
+    initialize_schedule_for_asset, nearest_active_schedules, refresh_overdue_schedules_daily,
+    schedule_status,
 )
 from ..roles import is_ga
 
@@ -58,9 +59,9 @@ def maintenance_create(request, asset_id):
         if not is_dialog:
             flash_form_errors(request, form)
 
-    active_schedule = asset.schedules.filter(
-        status__in=['upcoming', 'overdue']
-    ).only("id", "scheduled_date", "status", "damage_report").order_by('scheduled_date').first()
+    active_schedule = asset.schedules.active().only(
+        "id", "scheduled_date", "status", "damage_report"
+    ).order_by('scheduled_date').first()
 
     if is_dialog:
         # Deskripsi yang pernah dipakai untuk aset ini → tombol isi cepat
@@ -127,7 +128,7 @@ def maintenance_list(request):
     if status_filter:
         schedules_qs = schedules_qs.filter(status=status_filter)
     else:
-        schedules_qs = schedules_qs.filter(status__in=['upcoming', 'overdue'])
+        schedules_qs = schedules_qs.active()
 
     if search_query:
         schedules_qs = schedules_qs.filter(
@@ -147,31 +148,13 @@ def maintenance_list(request):
     page_number = request.GET.get('page')
     page_obj    = paginator.get_page(page_number)
 
-    # ── Pre-compute interval & custom flag di Python, bukan di template ──
-    # Ini menghilangkan N+1 dari get_effective_interval_days & maintenance_config
-    today = date.today()
+    # ── Interval & custom flag per baris — relasi sudah di-select_related, jadi 0 query ──
     for sch in page_obj:
-        asset = sch.asset
-        config = getattr(asset, 'maintenance_config', None)
-        if config:
-            sch.interval_days      = config.custom_interval_days
-            sch.is_custom_interval = True
-        elif asset.asset_category_id:
-            # Ambil dari category — sudah di-select_related, tidak query lagi
-            sch.interval_days      = asset.asset_category.default_interval_in_days()
-            sch.is_custom_interval = False
-        else:
-            sch.interval_days      = None
-            sch.is_custom_interval = False
+        sch.interval_days      = sch.asset.get_effective_interval_days()
+        sch.is_custom_interval = hasattr(sch.asset, 'maintenance_config')
 
-        # Pre-compute days_remaining juga agar tidak dipanggil 2x di template
-        delta = (sch.scheduled_date - today).days
-        sch.days_remaining = delta   # negatif kalau overdue
-
-    # ── Modal: all_active_assets — pre-compute maintenance_status juga ──
-    # Kalau maintenance_status adalah @property yang query DB, ini N+1 lagi di modal.
-    # Solusi: annotate subquery atau cukup hilangkan badge dari modal (badge tidak krusial).
-    all_active_assets = (
+    # ── Modal: badge status jadwal terdekat per aset aktif — 1 query untuk semua aset ──
+    all_active_assets = list(
         Asset.objects
         .filter(lifecycle_status='active')
         .select_related('asset_group', 'asset_category')
@@ -179,26 +162,10 @@ def maintenance_list(request):
               'asset_group__name', 'asset_category__name')
         .order_by('nama_asset')
     )
-    # Pre-compute maint_status untuk modal — 1 query untuk semua aset
-    soon_limit = today + timedelta(days=7)
-    status_rank = {'overdue': 0, 'upcoming_soon': 1, 'on_track': 2}
-    asset_status = {}
-    for asset_id, st, sched_date in MaintenanceSchedule.objects.active().values_list(
-        'asset_id', 'status', 'scheduled_date'
-    ):
-        if st == 'overdue':
-            cur = 'overdue'
-        elif sched_date <= soon_limit:
-            cur = 'upcoming_soon'
-        else:
-            cur = 'on_track'
-        prev = asset_status.get(asset_id)
-        if prev is None or status_rank[cur] < status_rank[prev]:
-            asset_status[asset_id] = cur
-
-    all_active_assets = list(all_active_assets)
+    nearest = nearest_active_schedules(all_active_assets)
+    today   = date.today()
     for asset in all_active_assets:
-        asset.maint_status = asset_status.get(asset.id)
+        asset.maint_status = schedule_status(nearest.get(asset.id), today)
 
     context = {
         'page_obj':          page_obj,

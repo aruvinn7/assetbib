@@ -18,7 +18,6 @@ from ..models import (
 )
 from ..roles import is_ga, is_user_role
 
-ACTIVE_REPORT_STATUS = ['pending', 'acknowledged', 'in_progress']
 SEVERITY_ORDER = ['critical', 'high', 'medium', 'low']
 
 
@@ -48,7 +47,7 @@ def user_dashboard(request):
     ).order_by('-reported_at')
 
     # TEKNIK 3: 1 query untuk pending count
-    pending_count = my_reports_qs.filter(report_status__in=ACTIVE_REPORT_STATUS).count()
+    pending_count = my_reports_qs.filter(report_status__in=DamageReport.ACTIVE_STATUS).count()
 
     context = {
         'active_assignments': active_assignments,
@@ -97,7 +96,7 @@ def damage_report_create(request, asset_id=None):
             return redirect('user_dashboard')
 
         active_report = DamageReport.objects.filter(
-            asset=asset, report_status__in=ACTIVE_REPORT_STATUS,
+            asset=asset, report_status__in=DamageReport.ACTIVE_STATUS,
         ).only('id').first()
 
         if active_report:
@@ -150,7 +149,7 @@ def user_damage_report_list(request):
 
     # TEKNIK 3: 1 query agregat untuk summary counts
     counts = reports.aggregate(
-        active=Count('id', filter=Q(report_status__in=ACTIVE_REPORT_STATUS)),
+        active=Count('id', filter=Q(report_status__in=DamageReport.ACTIVE_STATUS)),
         resolved=Count('id', filter=Q(report_status='resolved')),
     )
 
@@ -185,7 +184,7 @@ def ga_damage_report_list(request):
         reports = reports.filter(report_status=status_filter).order_by('-reported_at')
     else:
         # Antrean aktif: yang paling berbahaya dan belum disentuh GA tampil duluan
-        reports = reports.filter(report_status__in=ACTIVE_REPORT_STATUS).annotate(
+        reports = reports.filter(report_status__in=DamageReport.ACTIVE_STATUS).annotate(
             sev_rank=Case(*[When(severity=s, then=i) for i, s in enumerate(SEVERITY_ORDER)], default=9),
             pending_first=Case(When(report_status='pending', then=0), default=1),
         ).order_by('sev_rank', 'pending_first', '-reported_at')
@@ -202,7 +201,7 @@ def ga_damage_report_list(request):
         rejected=Count('id', filter=Q(report_status='rejected')),
         critical=Count('id', filter=Q(
             severity='critical',
-            report_status__in=ACTIVE_REPORT_STATUS
+            report_status__in=DamageReport.ACTIVE_STATUS
         )),
     )
 
@@ -272,7 +271,7 @@ def ga_damage_report_resolve(request, pk):
         DamageReport.objects.select_related('asset'),
         pk=pk
     )
-    if report.report_status not in ACTIVE_REPORT_STATUS:
+    if report.report_status not in DamageReport.ACTIVE_STATUS:
         messages.warning(request, f"Laporan #{pk} sudah {report.get_report_status_display().lower()}.")
         return redirect('ga_damage_report_detail', pk=pk)
 
@@ -330,7 +329,7 @@ def ga_damage_report_reject(request, pk):
             MaintenanceSchedule.objects.filter(damage_report_id=pk).exclude(status='done').delete()
 
             other_active = DamageReport.objects.filter(
-                asset=report.asset, report_status__in=ACTIVE_REPORT_STATUS,
+                asset=report.asset, report_status__in=DamageReport.ACTIVE_STATUS,
             ).exclude(pk=pk).exists()
 
             if not other_active:

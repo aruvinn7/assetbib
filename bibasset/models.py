@@ -53,37 +53,13 @@ def compute_health(total_biaya, breakdown, nilai_awal):
     return 'normal', ratio
 
 
-# ================================================================
-# ABSTRACT BASE MODELS
-# ================================================================
-
-class TimestampedModel(models.Model):
-    """
-    Mixin: tambahkan created_at + updated_at ke semua model yang butuh.
-    Sebelumnya field ini copy-paste di tiap model.
-    """
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-
-    class Meta:
-        abstract = True
-
-
-class CreatedByModel(models.Model):
-    """
-    Mixin: tambahkan created_by + created_at.
-    Dipakai oleh Asset, AssetFinancial, AssetComponent, dll.
-    """
-    created_by = models.ForeignKey(
-        'Employee',
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-    )
-    created_at = models.DateTimeField(auto_now_add=True)
-
-    class Meta:
-        abstract = True
+def selisih_tahun_bulan(awal, akhir):
+    """Umur kalender penuh dari `awal` sampai `akhir` → (tahun, bulan). Satu-satunya rumus umur aset."""
+    bulan = (akhir.year - awal.year) * 12 + (akhir.month - awal.month)
+    if akhir.day < awal.day:
+        bulan -= 1
+    bulan = max(bulan, 0)
+    return bulan // 12, bulan % 12
 
 
 # ================================================================
@@ -105,12 +81,6 @@ class Employee(models.Model):
         Department, on_delete=models.SET_NULL, null=True, blank=True
     )
     jabatan = models.CharField(max_length=100)
-
-    class Meta:
-        # [INDEX 1] — sering di-filter by department di views assignment
-        indexes = [
-            models.Index(fields=['department']),
-        ]
 
     def __str__(self):
         return f"{self.employee_id} - {self.nama}"
@@ -186,7 +156,8 @@ class AssetCategory(models.Model):
         ('months', 'Bulan'),
     ]
 
-    group = models.ForeignKey(AssetGroup, on_delete=models.CASCADE, related_name='categories')
+    # Tanpa index sendiri: sudah tercakup unique (group, name)
+    group = models.ForeignKey(AssetGroup, on_delete=models.CASCADE, related_name='categories', db_index=False)
     name = models.CharField(max_length=100)
     default_interval_value = models.PositiveIntegerField(null=True, blank=True)
     default_interval_unit = models.CharField(max_length=10, choices=INTERVAL_UNIT, default='months')
@@ -214,54 +185,8 @@ class AssetCategory(models.Model):
 class AssetQuerySet(models.QuerySet):
     """
     Query logic yang tadinya berulang di views, dipindah ke sini.
-    Manfaat: bisa di-chain, di-test unit, dan reusable.
-
-    Contoh pemakaian di view:
-        Asset.objects.active().with_health_data()
-        Asset.objects.unvalued()
-        Asset.objects.with_stats()
+    Contoh: Asset.objects.with_health_annotations().critical_health()
     """
-
-    def active(self):
-        return self.filter(lifecycle_status='active')
-
-    def in_maintenance(self):
-        return self.filter(lifecycle_status='maintenance')
-
-    def unvalued(self):
-        """Aset yang belum punya data finansial"""
-        return self.filter(financial__isnull=True)
-
-    def with_health_data(self):
-        """
-        Prefetch semua data yang dibutuhkan health_status() & repair_cost_ratio().
-        Panggil ini sebelum loop yang akses health_status() agar tidak N+1.
-        """
-        return self.select_related(
-            'financial', 'asset_category', 'maintenance_config'
-        ).prefetch_related('maintenance_records', 'components')
-
-    def with_list_data(self):
-        """Optimized untuk halaman list — join semua relasi tampilan"""
-        return self.select_related(
-            'lokasi_asset', 'owned_by_department', 'asset_group',
-            'asset_category', 'financial', 'maintenance_config',
-        )
-
-    def with_detail_data(self):
-        """Optimized untuk halaman detail — semua relasi + prefetch"""
-        from django.db.models import Prefetch
-        return self.select_related(
-            'lokasi_asset', 'owned_by_department', 'asset_group',
-            'asset_category', 'financial', 'maintenance_config',
-        ).prefetch_related(
-            Prefetch('photos',    queryset=AssetPhoto.objects.order_by('-is_primary')),
-            Prefetch('schedules', queryset=MaintenanceSchedule.objects.order_by('scheduled_date')),
-            Prefetch('maintenance_records',
-                     queryset=MaintenanceRecord.objects.select_related('performed_by')
-                                                      .order_by('-tanggal_pelaksanaan')),
-            'components',
-        )
 
     def with_health_annotations(self):
         """
@@ -336,7 +261,8 @@ class Asset(models.Model):
     tanggal_pembelian = models.DateField()
     lokasi_asset      = models.ForeignKey(Location,    on_delete=models.SET_NULL, null=True, blank=True)
     owned_by_department = models.ForeignKey(Department, on_delete=models.SET_NULL, null=True, blank=True)
-    asset_group       = models.ForeignKey(AssetGroup,  on_delete=models.SET_NULL, null=True, blank=True)
+    # Tanpa index sendiri: sudah tercakup Index (asset_group, lifecycle_status)
+    asset_group       = models.ForeignKey(AssetGroup,  on_delete=models.SET_NULL, null=True, blank=True, db_index=False)
     asset_category    = models.ForeignKey(
         AssetCategory, on_delete=models.SET_NULL, null=True, blank=True, related_name='assets'
     )
@@ -347,9 +273,9 @@ class Asset(models.Model):
     objects = AssetManager()  # Custom manager
 
     class Meta:
-        # [INDEX 2, 3, 4] — kolom paling sering dipakai sebagai filter di views
+        # Kolom paling sering dipakai sebagai filter di views; filter lifecycle_status saja
+        # sudah terlayani index pertama (kolom terdepan)
         indexes = [
-            models.Index(fields=['lifecycle_status']),
             models.Index(fields=['lifecycle_status', 'asset_category']),
             models.Index(fields=['asset_group', 'lifecycle_status']),
         ]
@@ -357,17 +283,8 @@ class Asset(models.Model):
     # ── Properties ──────────────────────────────────────────────
 
     @property
-    def umur_asset(self):
-        return (date.today() - self.tanggal_pembelian).days // 365
-
-    @property
     def umur_asset_detail(self):
-        today  = date.today()
-        years  = today.year  - self.tanggal_pembelian.year
-        months = today.month - self.tanggal_pembelian.month
-        if months < 0:
-            years  -= 1
-            months += 12
+        years, months = selisih_tahun_bulan(self.tanggal_pembelian, date.today())
         return {"years": years, "months": months}
 
     def __str__(self):
@@ -377,11 +294,6 @@ class Asset(models.Model):
 
     def has_financial(self):
         return hasattr(self, 'financial')
-
-    def get_current_holder(self):
-        return AssetAssignment.objects.filter(
-            asset=self, status='active'
-        ).select_related('assigned_to').first()
 
     def get_effective_interval_days(self):
         if hasattr(self, 'maintenance_config'):
@@ -393,65 +305,36 @@ class Asset(models.Model):
     def get_next_schedule(self):
         return self.schedules.filter(status='upcoming').order_by('scheduled_date').first()
 
-    def get_last_maintenance(self):
-        return self.maintenance_records.order_by('-tanggal_pelaksanaan').first()
-
     def get_pending_damage_report(self):
-        return self.damage_reports.filter(
-            report_status__in=['pending', 'acknowledged', 'in_progress']
-        ).first()
+        return self.damage_reports.filter(report_status__in=DamageReport.ACTIVE_STATUS).first()
 
     def maintenance_status(self):
         # Sudah dihitung massal oleh attach_maintenance_status() → 0 query
         if hasattr(self, '_maintenance_status_cache'):
             return self._maintenance_status_cache
-
         if not self.get_effective_interval_days():
             return 'not_configured'
-
-        schedule = self.schedules.filter(
-            status__in=['upcoming', 'overdue']
-        ).order_by('scheduled_date').first()
-
-        if not schedule:
-            return 'not_configured'
-        if schedule.status == 'overdue':
-            return 'overdue'
-        if (schedule.scheduled_date - date.today()).days <= 7:
-            return 'upcoming_soon'
-        return 'on_track'
+        return schedule_status(self.schedules.active().order_by('scheduled_date').first())
 
     # ── Financial / Health Methods ───────────────────────────────
-
-    def total_biaya_perbaikan(self):
-        """Biaya perbaikan (corrective) saja — dasar rasio kesehatan."""
-        result = self.maintenance_records.filter(maintenance_type='corrective').aggregate(total=Sum('biaya'))
-        return result['total'] or Decimal('0')
-
-    def breakdown_count(self):
-        return self.maintenance_records.filter(maintenance_type='corrective').count()
-
-    def _nilai_awal(self):
-        return self.financial.nilai_awal_aset if hasattr(self, 'financial') else None
-
-    def get_repair_threshold(self):
-        if not hasattr(self, 'financial'):
-            return None
-        return get_repair_threshold(self.financial.nilai_awal_aset)
 
     def health_report(self, total_biaya=None, breakdown=None):
         """
         Semua angka health dalam 1 dict. Kirim total_biaya & breakdown kalau
         sudah dihitung (mis. dari aggregate di view) supaya tidak query ulang.
+        Hanya biaya PERBAIKAN (corrective) yang dihitung — sama dengan with_health_annotations().
         """
-        if total_biaya is None:
-            total_biaya = self.total_biaya_perbaikan()
-        if breakdown is None:
-            breakdown = self.breakdown_count()
+        if total_biaya is None or breakdown is None:
+            stats = self.maintenance_records.filter(maintenance_type='corrective').aggregate(
+                total=Sum('biaya'), count=Count('id'),
+            )
+            total_biaya = stats['total'] if total_biaya is None else total_biaya
+            breakdown   = stats['count'] if breakdown is None else breakdown
         total_biaya = total_biaya or Decimal('0')
 
-        status, ratio = compute_health(total_biaya, breakdown, self._nilai_awal())
-        threshold     = self.get_repair_threshold()
+        fin = self.financial if hasattr(self, 'financial') else None
+        status, ratio = compute_health(total_biaya, breakdown, fin.nilai_awal_aset if fin else None)
+        threshold     = get_repair_threshold(fin.nilai_awal_aset) if fin else None
 
         reasons = []
         if ratio is not None and threshold is not None:
@@ -459,7 +342,7 @@ class Asset(models.Model):
                 reasons.append(
                     f"Akumulasi biaya perbaikan ({ratio:.0f}%) sudah melewati batas wajar"
                 )
-            if total_biaya > self.financial.book_value() > 0:
+            if total_biaya > fin.book_value() > 0:
                 reasons.append("Total biaya perbaikan sudah melebihi nilai buku aset saat ini")
 
         if breakdown >= BREAKDOWN_WARNING:
@@ -472,14 +355,8 @@ class Asset(models.Model):
             'threshold': threshold, 'recommendations': reasons,
         }
 
-    def repair_cost_ratio(self):
-        return self.health_report()['ratio']
-
     def health_status(self):
         return self.health_report()['status']
-
-    def repair_recommendations(self):
-        return self.health_report()['recommendations']
 
 
 # ================================================================
@@ -494,7 +371,8 @@ class AssetPhoto(models.Model):
         ('other',    'Lainnya'),
     ]
 
-    asset       = models.ForeignKey(Asset, on_delete=models.CASCADE, related_name='photos')
+    # Tanpa index sendiri: sudah tercakup Index (asset, is_primary)
+    asset       = models.ForeignKey(Asset, on_delete=models.CASCADE, related_name='photos', db_index=False)
     photo       = models.ImageField(upload_to='asset_photos/%Y/%m/')
     photo_type  = models.CharField(max_length=20, choices=PHOTO_TYPE, default='unit')
     caption     = models.CharField(max_length=200, blank=True)
@@ -612,7 +490,8 @@ class AssetWriteOff(models.Model):
 # ================================================================
 
 class AssetComponent(models.Model):
-    asset           = models.ForeignKey(Asset, on_delete=models.CASCADE, related_name='components')
+    # Tanpa index sendiri: sudah tercakup unique (asset, part_number)
+    asset           = models.ForeignKey(Asset, on_delete=models.CASCADE, related_name='components', db_index=False)
     part_number     = models.CharField(max_length=100)
     component_name  = models.CharField(max_length=200)
     description     = models.TextField(blank=True)
@@ -686,7 +565,9 @@ class MaintenanceRecord(models.Model):
     # Hasil yang dianggap "selesai" — dipindah ke konstanta agar mudah diubah/di-test
     RESOLVED_RESULTS = {'ok', 'minor_issue', 'replaced_component'}
 
-    asset                = models.ForeignKey(Asset, on_delete=models.CASCADE, related_name='maintenance_records')
+    # Tanpa index sendiri: sudah tercakup Index (asset, …) di Meta
+    asset                = models.ForeignKey(Asset, on_delete=models.CASCADE, related_name='maintenance_records',
+                                             db_index=False)
     maintenance_type     = models.CharField(max_length=20, choices=TYPE)
     tanggal_pelaksanaan  = models.DateField()
     deskripsi_pekerjaan  = models.TextField()
@@ -728,22 +609,7 @@ class MaintenanceRecord(models.Model):
 
 class MaintenanceScheduleQuerySet(models.QuerySet):
     def active(self):
-        return self.filter(status__in=['upcoming', 'overdue'])
-
-    def overdue(self):
-        return self.filter(status='overdue')
-
-    def upcoming(self):
-        return self.filter(status='upcoming')
-
-    def for_asset(self, asset):
-        return self.filter(asset=asset)
-
-    def mark_overdue(self):
-        """Bulk update upcoming → overdue untuk yang sudah lewat tanggal"""
-        return self.filter(
-            status='upcoming', scheduled_date__lt=date.today()
-        ).update(status='overdue')
+        return self.filter(status__in=MaintenanceSchedule.ACTIVE_STATUS)
 
 
 class MaintenanceSchedule(models.Model):
@@ -753,8 +619,11 @@ class MaintenanceSchedule(models.Model):
         ('done',     'Selesai'),
         ('skipped',  'Dilewati / Tidak Relevan'),
     ]
+    # Jadwal yang masih berjalan — pakai .active() / konstanta ini, jangan tulis ulang daftarnya
+    ACTIVE_STATUS = ('upcoming', 'overdue')
 
-    asset              = models.ForeignKey(Asset, on_delete=models.CASCADE, related_name='schedules')
+    # Tanpa index sendiri: sudah tercakup Index (asset, status)
+    asset              = models.ForeignKey(Asset, on_delete=models.CASCADE, related_name='schedules', db_index=False)
     scheduled_date     = models.DateField()
     status             = models.CharField(max_length=10, choices=STATUS, default='upcoming')
     maintenance_record = models.OneToOneField(
@@ -781,9 +650,6 @@ class MaintenanceSchedule(models.Model):
     def days_remaining(self):
         return (self.scheduled_date - date.today()).days
 
-    def is_overdue(self):
-        return self.status == 'upcoming' and self.scheduled_date < date.today()
-
     def __str__(self):
         return f"{self.asset.asset_number} — {self.scheduled_date} [{self.get_status_display()}]"
 
@@ -799,8 +665,9 @@ class AssetAssignment(models.Model):
         ('transferred', 'Dipindahkan ke user lain'),
     ]
 
-    asset         = models.ForeignKey(Asset, on_delete=models.CASCADE, related_name='assignments')
-    assigned_to   = models.ForeignKey(Employee, on_delete=models.CASCADE, related_name='held_assets')
+    # Tanpa index sendiri: sudah tercakup Index (asset, status) & (assigned_to, status)
+    asset         = models.ForeignKey(Asset, on_delete=models.CASCADE, related_name='assignments', db_index=False)
+    assigned_to   = models.ForeignKey(Employee, on_delete=models.CASCADE, related_name='held_assets', db_index=False)
     assigned_by   = models.ForeignKey(
         Employee, on_delete=models.SET_NULL, null=True, blank=True, related_name='assigned_assets'
     )
@@ -840,17 +707,11 @@ class DamageReport(models.Model):
         ('resolved',     'Selesai Diperbaiki'),
         ('rejected',     'Ditolak / Tidak Valid'),
     ]
+    # Laporan yang masih berjalan — pakai konstanta ini, jangan tulis ulang daftarnya
+    ACTIVE_STATUS = ('pending', 'acknowledged', 'in_progress')
 
-    # Lookup color dipindah ke dict konstanta — DRY, tidak scatter di property
-    SEVERITY_COLOR = {
-        'low': 'success', 'medium': 'warning', 'high': 'danger', 'critical': 'dark',
-    }
-    STATUS_COLOR = {
-        'pending': 'warning', 'acknowledged': 'info', 'in_progress': 'primary',
-        'resolved': 'success', 'rejected': 'secondary',
-    }
-
-    asset       = models.ForeignKey(Asset, on_delete=models.CASCADE, related_name='damage_reports')
+    # Tanpa index sendiri: sudah tercakup Index (asset, report_status)
+    asset       = models.ForeignKey(Asset, on_delete=models.CASCADE, related_name='damage_reports', db_index=False)
     reported_by = models.ForeignKey(
         Employee, on_delete=models.SET_NULL, null=True, related_name='submitted_damage_reports'
     )
@@ -884,16 +745,8 @@ class DamageReport(models.Model):
     def __str__(self):
         return f"[{self.get_severity_display()}] {self.asset.asset_number} — {self.title}"
 
-    @property
-    def severity_color(self):
-        return self.SEVERITY_COLOR.get(self.severity, 'secondary')
-
-    @property
-    def status_color(self):
-        return self.STATUS_COLOR.get(self.report_status, 'secondary')
-
     def is_active(self):
-        return self.report_status in {'pending', 'acknowledged', 'in_progress'}
+        return self.report_status in self.ACTIVE_STATUS
 
     @transaction.atomic
     def save(self, *args, **kwargs):
@@ -957,30 +810,42 @@ def _generate_next_schedule(asset, base_date=None):
     )
 
 
+UPCOMING_SOON_DAYS = 7
+
+
+def schedule_status(sch, today=None):
+    """Status jadwal aktif terdekat → 'overdue' | 'upcoming_soon' | 'on_track' ('not_configured' bila tidak ada)."""
+    if sch is None:
+        return 'not_configured'
+    if sch.status == 'overdue':
+        return 'overdue'
+    if (sch.scheduled_date - (today or date.today())).days <= UPCOMING_SOON_DAYS:
+        return 'upcoming_soon'
+    return 'on_track'
+
+
+def nearest_active_schedules(assets):
+    """{asset_id: jadwal aktif terdekat} untuk banyak aset sekaligus (1 query)."""
+    nearest = {}
+    for sch in (MaintenanceSchedule.objects.active().filter(asset__in=assets)
+                .order_by('scheduled_date').only('asset_id', 'status', 'scheduled_date')):
+        nearest.setdefault(sch.asset_id, sch)
+    return nearest
+
+
 def attach_maintenance_status(assets):
     """
     Hitung maintenance_status() untuk banyak aset sekaligus (1 query jadwal).
     Aset sebaiknya sudah select_related('asset_category', 'maintenance_config').
     """
-    assets = list(assets)
-    nearest = {}
-    for sch in (MaintenanceSchedule.objects
-                .filter(asset__in=assets, status__in=['upcoming', 'overdue'])
-                .order_by('scheduled_date').only('asset_id', 'status', 'scheduled_date')):
-        nearest.setdefault(sch.asset_id, sch)
-
-    today = date.today()
+    assets  = list(assets)
+    nearest = nearest_active_schedules(assets)
+    today   = date.today()
     for asset in assets:
-        sch = nearest.get(asset.pk)
-        if not asset.get_effective_interval_days() or not sch:
-            status = 'not_configured'
-        elif sch.status == 'overdue':
-            status = 'overdue'
-        elif (sch.scheduled_date - today).days <= 7:
-            status = 'upcoming_soon'
-        else:
-            status = 'on_track'
-        asset._maintenance_status_cache = status
+        asset._maintenance_status_cache = (
+            schedule_status(nearest.get(asset.pk), today)
+            if asset.get_effective_interval_days() else 'not_configured'
+        )
     return assets
 
 
@@ -1020,8 +885,9 @@ class AssetMovement(models.Model):
     Record lama (is_current=True) di-close dulu dengan moved_out diisi.
     """
 
+    # Tanpa index sendiri: sudah tercakup Index (asset, …) di Meta
     asset       = models.ForeignKey(
-        'Asset', on_delete=models.CASCADE, related_name='movements'
+        'Asset', on_delete=models.CASCADE, related_name='movements', db_index=False
     )
     # Pemegang
     held_by     = models.ForeignKey(
@@ -1117,7 +983,7 @@ def write_off_asset(asset, tanggal, alasan, keterangan, by=None, nilai_jual=None
     Write off resmi: simpan catatan + nilai buku saat itu, lalu tutup semua yang
     masih berjalan (jadwal, pemegang, laporan kerusakan) dan catat di histori movement.
     """
-    fin = getattr(asset, 'financial', None) if hasattr(asset, 'financial') else None
+    fin = asset.financial if hasattr(asset, 'financial') else None
     wo = AssetWriteOff.objects.create(
         asset=asset, tanggal=tanggal, alasan=alasan, keterangan=keterangan, nilai_jual=nilai_jual,
         nilai_perolehan=fin.nilai_awal_aset if fin else None,
@@ -1127,11 +993,11 @@ def write_off_asset(asset, tanggal, alasan, keterangan, by=None, nilai_jual=None
     Asset.objects.filter(pk=asset.pk).update(lifecycle_status='writeoff')
     asset.lifecycle_status = 'writeoff'
 
-    active = asset.schedules.filter(status__in=['upcoming', 'overdue'])
+    active = asset.schedules.active()
     active.filter(notes='').update(notes=f'Dihentikan: aset di-write off {tanggal:%d %b %Y}')
     active.update(status='skipped')
     AssetAssignment.objects.filter(asset=asset, status='active').update(status='returned', returned_date=tanggal)
-    DamageReport.objects.filter(asset=asset, report_status__in=['pending', 'acknowledged', 'in_progress']).update(
+    DamageReport.objects.filter(asset=asset, report_status__in=DamageReport.ACTIVE_STATUS).update(
         report_status='resolved', resolved_at=timezone.now(), handled_by=by,
         ga_notes='Ditutup karena aset di-write off.',
     )
@@ -1274,7 +1140,7 @@ class BeritaAcara(models.Model):
             key = (a.nama_asset, po, it.kerusakan.strip(), it.rekomendasi)
             row = rows.setdefault(key, {
                 'nama': a.nama_asset, 'po': po, 'tahun': a.tanggal_pembelian.year,
-                'usia': max((acuan - a.tanggal_pembelian).days // 365, 0),
+                'usia': selisih_tahun_bulan(a.tanggal_pembelian, acuan)[0],
                 'jumlah': 0, 'kerusakan': it.kerusakan.strip(), 'rekomendasi': it.get_rekomendasi_display(),
                 'nilai_perolehan': Decimal(0), 'nilai_buku': Decimal(0), 'ada_nilai': False, 'nomor_aset': [],
             })
@@ -1312,7 +1178,8 @@ class BeritaAcaraItem(models.Model):
         ('hapus',    'Dihapuskan'),
     ]
 
-    ba     = models.ForeignKey(BeritaAcara, on_delete=models.CASCADE, related_name='items')
+    # Tanpa index sendiri: sudah tercakup unique (ba, asset)
+    ba     = models.ForeignKey(BeritaAcara, on_delete=models.CASCADE, related_name='items', db_index=False)
     asset  = models.ForeignKey(Asset, on_delete=models.CASCADE, related_name='ba_items')
     sumber = models.CharField(max_length=10, choices=SUMBER, default='manual')
     damage_report      = models.ForeignKey(DamageReport, on_delete=models.SET_NULL, null=True, blank=True, related_name='ba_items')
