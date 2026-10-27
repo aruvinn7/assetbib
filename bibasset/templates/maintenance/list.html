@@ -20,11 +20,11 @@
 
   <div class="toolbar">
     <nav class="filters" id="maintFilters" data-refresh aria-label="Saring status jadwal">
-      <a class="chip {% if not status_filter %}active{% endif %}" href="{% querystring status=None page=None %}">Perlu tindakan <span class="count">{{ overdue_count|add:upcoming_count }}</span></a>
-      <a class="chip {% if status_filter == 'overdue' %}active{% endif %}" href="{% querystring status='overdue' page=None %}"><svg class="sign" aria-hidden="true"><use href="#sign-warning"/></svg>Terlambat <span class="count">{{ overdue_count }}</span></a>
-      <a class="chip {% if status_filter == 'upcoming' %}active{% endif %}" href="{% querystring status='upcoming' page=None %}"><svg class="sign" aria-hidden="true"><use href="#sign-mandatory"/></svg>Akan datang <span class="count">{{ upcoming_count }}</span></a>
-      <a class="chip {% if status_filter == 'done' %}active{% endif %}" href="{% querystring status='done' page=None %}"><svg class="sign" aria-hidden="true"><use href="#sign-safe"/></svg>Selesai <span class="count">{{ done_count }}</span></a>
-      <a class="chip {% if status_filter == 'skipped' %}active{% endif %}" href="{% querystring status='skipped' page=None %}"><svg class="sign" aria-hidden="true"><use href="#sign-off"/></svg>Dilewati</a>
+      <a class="chip {% if not status_filter %}active{% endif %}" href="{{ request.path }}{% querystring status=None page=None %}">Perlu tindakan <span class="count">{{ overdue_count|add:upcoming_count }}</span></a>
+      <a class="chip {% if status_filter == 'overdue' %}active{% endif %}" href="{{ request.path }}{% querystring status='overdue' page=None %}"><svg class="sign" aria-hidden="true"><use href="#sign-warning"/></svg>Terlambat <span class="count">{{ overdue_count }}</span></a>
+      <a class="chip {% if status_filter == 'upcoming' %}active{% endif %}" href="{{ request.path }}{% querystring status='upcoming' page=None %}"><svg class="sign" aria-hidden="true"><use href="#sign-mandatory"/></svg>Akan datang <span class="count">{{ upcoming_count }}</span></a>
+      <a class="chip {% if status_filter == 'done' %}active{% endif %}" href="{{ request.path }}{% querystring status='done' page=None %}"><svg class="sign" aria-hidden="true"><use href="#sign-safe"/></svg>Selesai <span class="count">{{ done_count }}</span></a>
+      <a class="chip {% if status_filter == 'skipped' %}active{% endif %}" href="{{ request.path }}{% querystring status='skipped' page=None %}"><svg class="sign" aria-hidden="true"><use href="#sign-off"/></svg>Dilewati</a>
     </nav>
     <form method="get" class="search" role="search" id="searchForm">
       {% if status_filter %}<input type="hidden" name="status" value="{{ status_filter }}">{% endif %}
@@ -75,7 +75,7 @@
     {% include "components/_pagination.html" with label="jadwal" %}
     {% else %}
     <div class="empty">
-      {% if search_query %}<strong>Tidak ada jadwal untuk “{{ search_query }}”</strong><a href="{% querystring q=None page=None %}">Hapus pencarian</a>
+      {% if search_query %}<strong>Tidak ada jadwal untuk “{{ search_query }}”</strong><a href="{{ request.path }}{% querystring q=None page=None %}">Hapus pencarian</a>
       {% elif status_filter == 'overdue' %}<strong>Tidak ada jadwal terlambat</strong>Semua maintenance dikerjakan tepat waktu.
       {% elif not status_filter %}<strong>Tidak ada jadwal yang perlu ditindaklanjuti</strong>Semua aset sudah sesuai jadwal.
       {% else %}<strong>Belum ada jadwal dengan status ini</strong>{% endif %}

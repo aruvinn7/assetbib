@@ -8,7 +8,7 @@
   </div>
   <div class="pagination-nav">
     {% if page_obj.has_previous %}
-      <a href="{% querystring page=page_obj.previous_page_number %}" class="pg-btn" title="Sebelumnya">‹</a>
+      <a href="{{ request.path }}{% querystring page=page_obj.previous_page_number %}" class="pg-btn" title="Sebelumnya">‹</a>
     {% else %}
       <span class="pg-btn disabled">‹</span>
     {% endif %}
@@ -18,7 +18,7 @@
         {% if i == page_obj.number %}
           <span class="pg-btn active">{{ i }}</span>
         {% else %}
-          <a href="{% querystring page=i %}" class="pg-btn">{{ i }}</a>
+          <a href="{{ request.path }}{% querystring page=i %}" class="pg-btn">{{ i }}</a>
         {% endif %}
       {% elif i == page_obj.number|add:"-3" or i == page_obj.number|add:"3" %}
         <span class="pg-dots">…</span>
@@ -26,7 +26,7 @@
     {% endfor %}
 
     {% if page_obj.has_next %}
-      <a href="{% querystring page=page_obj.next_page_number %}" class="pg-btn" title="Berikutnya">›</a>
+      <a href="{{ request.path }}{% querystring page=page_obj.next_page_number %}" class="pg-btn" title="Berikutnya">›</a>
     {% else %}
       <span class="pg-btn disabled">›</span>
     {% endif %}

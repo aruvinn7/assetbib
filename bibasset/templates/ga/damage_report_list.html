@@ -19,20 +19,20 @@
   <div class="note danger crit-note" role="status">
     <svg class="sign" aria-hidden="true"><use href="#sign-danger"/></svg>
     <span><strong>{{ critical_count }} laporan kritis masih aktif.</strong> Aset ini bisa membahayakan orang, tangani lebih dulu.</span>
-    <a href="{% querystring status=None severity='critical' page=None %}">Lihat laporan kritis</a>
+    <a href="{{ request.path }}{% querystring status=None severity='critical' page=None %}">Lihat laporan kritis</a>
   </div>
   {% endif %}
 
   <div class="toolbar">
     <nav class="filters" aria-label="Saring status laporan">
-      <a class="chip {% if not status_filter %}active{% endif %}" href="{% querystring status=None page=None %}" {% if not status_filter %}aria-current="true"{% endif %}>Aktif <span class="count">{{ active_count }}</span></a>
-      <a class="chip {% if status_filter == 'pending' %}active{% endif %}" href="{% querystring status='pending' page=None %}" {% if status_filter == 'pending' %}aria-current="true"{% endif %}><svg class="sign" aria-hidden="true"><use href="#sign-warning"/></svg>Menunggu GA <span class="count">{{ pending_count }}</span></a>
-      <a class="chip {% if status_filter == 'acknowledged' %}active{% endif %}" href="{% querystring status='acknowledged' page=None %}" {% if status_filter == 'acknowledged' %}aria-current="true"{% endif %}><svg class="sign" aria-hidden="true"><use href="#sign-mandatory"/></svg>Diterima GA <span class="count">{{ acknowledged_count }}</span></a>
+      <a class="chip {% if not status_filter %}active{% endif %}" href="{{ request.path }}{% querystring status=None page=None %}" {% if not status_filter %}aria-current="true"{% endif %}>Aktif <span class="count">{{ active_count }}</span></a>
+      <a class="chip {% if status_filter == 'pending' %}active{% endif %}" href="{{ request.path }}{% querystring status='pending' page=None %}" {% if status_filter == 'pending' %}aria-current="true"{% endif %}><svg class="sign" aria-hidden="true"><use href="#sign-warning"/></svg>Menunggu GA <span class="count">{{ pending_count }}</span></a>
+      <a class="chip {% if status_filter == 'acknowledged' %}active{% endif %}" href="{{ request.path }}{% querystring status='acknowledged' page=None %}" {% if status_filter == 'acknowledged' %}aria-current="true"{% endif %}><svg class="sign" aria-hidden="true"><use href="#sign-mandatory"/></svg>Diterima GA <span class="count">{{ acknowledged_count }}</span></a>
       {% if in_progress_count or status_filter == 'in_progress' %}
-      <a class="chip {% if status_filter == 'in_progress' %}active{% endif %}" href="{% querystring status='in_progress' page=None %}" {% if status_filter == 'in_progress' %}aria-current="true"{% endif %}><svg class="sign" aria-hidden="true"><use href="#sign-mandatory"/></svg>Sedang diperbaiki <span class="count">{{ in_progress_count }}</span></a>
+      <a class="chip {% if status_filter == 'in_progress' %}active{% endif %}" href="{{ request.path }}{% querystring status='in_progress' page=None %}" {% if status_filter == 'in_progress' %}aria-current="true"{% endif %}><svg class="sign" aria-hidden="true"><use href="#sign-mandatory"/></svg>Sedang diperbaiki <span class="count">{{ in_progress_count }}</span></a>
       {% endif %}
-      <a class="chip {% if status_filter == 'resolved' %}active{% endif %}" href="{% querystring status='resolved' page=None %}" {% if status_filter == 'resolved' %}aria-current="true"{% endif %}><svg class="sign" aria-hidden="true"><use href="#sign-safe"/></svg>Selesai <span class="count">{{ resolved_count }}</span></a>
-      <a class="chip {% if status_filter == 'rejected' %}active{% endif %}" href="{% querystring status='rejected' page=None %}" {% if status_filter == 'rejected' %}aria-current="true"{% endif %}><svg class="sign" aria-hidden="true"><use href="#sign-off"/></svg>Ditolak <span class="count">{{ rejected_count }}</span></a>
+      <a class="chip {% if status_filter == 'resolved' %}active{% endif %}" href="{{ request.path }}{% querystring status='resolved' page=None %}" {% if status_filter == 'resolved' %}aria-current="true"{% endif %}><svg class="sign" aria-hidden="true"><use href="#sign-safe"/></svg>Selesai <span class="count">{{ resolved_count }}</span></a>
+      <a class="chip {% if status_filter == 'rejected' %}active{% endif %}" href="{{ request.path }}{% querystring status='rejected' page=None %}" {% if status_filter == 'rejected' %}aria-current="true"{% endif %}><svg class="sign" aria-hidden="true"><use href="#sign-off"/></svg>Ditolak <span class="count">{{ rejected_count }}</span></a>
     </nav>
     <form method="get" class="sev-filter" id="sevForm">
       {% if status_filter %}<input type="hidden" name="status" value="{{ status_filter }}">{% endif %}
@@ -81,7 +81,7 @@
     {% include "components/_pagination.html" with label="laporan" %}
     {% else %}
     <div class="empty">
-      {% if severity_filter %}<strong>Tidak ada laporan dengan tingkat ini</strong><a href="{% querystring severity=None page=None %}">Tampilkan semua tingkat</a>
+      {% if severity_filter %}<strong>Tidak ada laporan dengan tingkat ini</strong><a href="{{ request.path }}{% querystring severity=None page=None %}">Tampilkan semua tingkat</a>
       {% elif not status_filter %}<strong>Tidak ada laporan kerusakan aktif</strong>Semua laporan dari karyawan sudah ditangani.
       {% else %}<strong>Belum ada laporan dengan status ini</strong>{% endif %}
     </div>
