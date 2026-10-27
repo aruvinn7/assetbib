@@ -14,7 +14,7 @@ from ..decorators import role_required
 from ..forms import DamageReportForm, ResolveDamageForm, flash_form_errors
 from ..models import (
     Asset, AssetAssignment, BeritaAcaraItem, DamageReport, MaintenanceSchedule,
-    initialize_schedule_for_asset,
+    initialize_schedule_for_asset, pulihkan_status_aktif,
 )
 from ..roles import is_ga, is_user_role
 
@@ -300,6 +300,9 @@ def ga_damage_report_resolve(request, pk):
             report.corrective_schedules.filter(status='overdue').update(
                 status='done', maintenance_record=record,
             )
+            # record.save() di atas belum bisa mengaktifkan aset karena laporan ini masih berjalan;
+            # sekarang sudah resolved → aktif bila tidak ada laporan lain
+            pulihkan_status_aktif(report.asset_id)
         messages.success(request, f"Laporan #{pk} diselesaikan dan tercatat sebagai maintenance corrective.")
         return redirect('ga_damage_report_detail', pk=pk)
 
@@ -328,12 +331,8 @@ def ga_damage_report_reject(request, pk):
             BeritaAcaraItem.objects.filter(damage_report_id=pk, sumber='laporan', ba__status='draft').delete()
             MaintenanceSchedule.objects.filter(damage_report_id=pk).exclude(status='done').delete()
 
-            other_active = DamageReport.objects.filter(
-                asset=report.asset, report_status__in=DamageReport.ACTIVE_STATUS,
-            ).exclude(pk=pk).exists()
-
-            if not other_active:
-                Asset.objects.filter(pk=report.asset_id).update(lifecycle_status='active')
+            # Tidak ada laporan lain yang berjalan → aset aktif lagi & jadwal preventive dibuat ulang
+            if pulihkan_status_aktif(report.asset_id):
                 initialize_schedule_for_asset(report.asset)
 
         messages.warning(request, f"Laporan #{pk} ditolak.")

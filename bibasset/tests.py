@@ -238,3 +238,46 @@ class AccessAndFlowTest(TestCase):
         self.client.post('/asset/import/', {'excel_file': buf})
         asset = Asset.objects.get(asset_number='AC-9')
         self.assertEqual(asset.asset_category, AssetCategory.objects.get(group=self.cat.group, name='Lainnya'))
+
+    def test_asset_stays_in_maintenance_while_other_reports_open(self):
+        """Corrective selesai hanya mengaktifkan aset bila tidak ada laporan kerusakan lain yang berjalan."""
+        def status():
+            self.asset.refresh_from_db()
+            return self.asset.lifecycle_status
+
+        r1 = DamageReport.objects.create(asset=self.asset, reported_by=self.usr, title='Bocor', description='-')
+        r2 = DamageReport.objects.create(asset=self.asset, reported_by=self.usr, title='Berisik', description='-')
+        self.assertEqual(status(), 'maintenance')
+
+        # Perbaikan corrective di luar alur laporan → laporan masih terbuka, aset tetap maintenance
+        MaintenanceRecord.objects.create(asset=self.asset, maintenance_type='corrective',
+                                         tanggal_pelaksanaan=date.today(), deskripsi_pekerjaan='Ganti seal')
+        self.assertEqual(status(), 'maintenance')
+
+        self.client.force_login(self.ga_user)
+        resolve = {'tanggal_pelaksanaan': date.today().isoformat(), 'deskripsi_pekerjaan': 'fix', 'hasil': 'ok'}
+        self.client.post(f'/ga/laporan-kerusakan/{r1.pk}/resolve/', resolve)
+        r1.refresh_from_db()
+        self.assertEqual(r1.report_status, 'resolved')
+        self.assertEqual(status(), 'maintenance')          # r2 masih berjalan
+
+        self.client.post(f'/ga/laporan-kerusakan/{r2.pk}/resolve/', resolve)
+        self.assertEqual(status(), 'active')               # laporan terakhir selesai
+
+    def test_reject_last_report_reactivates_but_writeoff_stays(self):
+        r1 = DamageReport.objects.create(asset=self.asset, reported_by=self.usr, title='A', description='-')
+        r2 = DamageReport.objects.create(asset=self.asset, reported_by=self.usr, title='B', description='-')
+        self.client.force_login(self.ga_user)
+        self.client.post(f'/ga/laporan-kerusakan/{r1.pk}/reject/')
+        self.asset.refresh_from_db()
+        self.assertEqual(self.asset.lifecycle_status, 'maintenance')
+        self.client.post(f'/ga/laporan-kerusakan/{r2.pk}/reject/')
+        self.asset.refresh_from_db()
+        self.assertEqual(self.asset.lifecycle_status, 'active')
+
+        # Aset write off tidak boleh "hidup lagi" karena ada catatan corrective
+        Asset.objects.filter(pk=self.asset.pk).update(lifecycle_status='writeoff')
+        MaintenanceRecord.objects.create(asset=self.asset, maintenance_type='corrective',
+                                         tanggal_pelaksanaan=date.today(), deskripsi_pekerjaan='-')
+        self.asset.refresh_from_db()
+        self.assertEqual(self.asset.lifecycle_status, 'writeoff')

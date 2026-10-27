@@ -600,7 +600,7 @@ class MaintenanceRecord(models.Model):
         is_new = self.pk is None
         super().save(*args, **kwargs)
         if self.maintenance_type == 'corrective' and self.hasil in self.RESOLVED_RESULTS:
-            Asset.objects.filter(pk=self.asset_id).update(lifecycle_status='active')
+            pulihkan_status_aktif(self.asset_id)
         _generate_next_schedule(self.asset, base_date=self.tanggal_pelaksanaan)
         # Inspeksi/preventive yang menemukan masalah = temuan kerusakan → draf Berita Acara
         if is_new and self.maintenance_type != 'corrective' and self.hasil in ('minor_issue', 'major_issue'):
@@ -799,6 +799,17 @@ class DamageReport(models.Model):
 # ================================================================
 # MAINTENANCE ENGINE — HELPERS
 # ================================================================
+
+def pulihkan_status_aktif(asset_id):
+    """
+    Aset 'maintenance' kembali 'active' hanya bila tidak ada lagi laporan kerusakan yang berjalan;
+    aset write off tidak disentuh. Return True bila tidak ada laporan aktif tersisa.
+    """
+    if DamageReport.objects.filter(asset_id=asset_id, report_status__in=DamageReport.ACTIVE_STATUS).exists():
+        return False
+    Asset.objects.filter(pk=asset_id, lifecycle_status='maintenance').update(lifecycle_status='active')
+    return True
+
 
 def _generate_next_schedule(asset, base_date=None):
     interval_days = asset.get_effective_interval_days()
