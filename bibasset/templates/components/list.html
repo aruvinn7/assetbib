@@ -20,21 +20,22 @@
   <section class="panel" aria-label="Daftar komponen">
     {% if components %}
     <div class="table-wrap">
-      <table class="table">
-        <thead><tr><th>Komponen</th><th class="num">Jumlah</th><th class="num">Harga satuan</th><th>Pemasok</th><th>Terakhir diganti</th><th><span class="visually-hidden">Aksi</span></th></tr></thead>
+      <table class="table stack cards">
+        <thead><tr><th class="no">No</th><th>Komponen</th><th class="num">Jumlah</th><th class="num">Harga satuan</th><th>Pemasok</th><th>Terakhir diganti</th><th><span class="visually-hidden">Aksi</span></th></tr></thead>
         <tbody>
         {% for c in components %}
           <tr>
-            <td>
+            <td class="no"><span class="visually-hidden">Nomor </span>{{ forloop.counter }}</td>
+            <td class="lead">
               <a class="row-link" href="{% url 'component_detail' c.pk %}">{{ c.component_name }}</a>
               {% if c.is_critical %}{% include "components/_status.html" with kind="warning" label="Kritis" %}{% endif %}
               <div class="cell-sub">{{ c.part_number }}{% if c.description %} · {{ c.description|truncatechars:60 }}{% endif %}</div>
             </td>
-            <td class="num">{{ c.quantity }}</td>
-            <td class="num">{% if c.estimated_price %}{{ c.estimated_price|rupiah }}{% else %}<span class="cell-sub">—</span>{% endif %}</td>
-            <td>{{ c.supplier_name|default:"—" }}</td>
-            <td>{% if c.last_replaced %}{{ c.last_replaced|date:"d M Y" }}{% else %}<span class="cell-sub">Belum pernah</span>{% endif %}</td>
-            <td class="row-actions">
+            <td data-label="Jumlah" class="num">{{ c.quantity }}</td>
+            <td data-label="Harga satuan" class="num">{% if c.estimated_price %}{{ c.estimated_price|rupiah }}{% else %}<span class="cell-sub">—</span>{% endif %}</td>
+            <td data-label="Pemasok">{{ c.supplier_name|default:"—" }}</td>
+            <td data-label="Terakhir diganti">{% if c.last_replaced %}{{ c.last_replaced|date:"d M Y" }}{% else %}<span class="cell-sub">Belum pernah</span>{% endif %}</td>
+            <td class="row-actions act">
               <a href="{% url 'replacement_create' c.pk %}">Catat ganti</a>
               <a href="{% url 'component_update' c.pk %}">Edit</a>
               <form method="post" action="{% url 'component_delete' c.pk %}" onsubmit="return confirm('Hapus komponen {{ c.component_name|escapejs }} beserta riwayat penggantiannya?')">{% csrf_token %}<button type="submit" class="del">Hapus</button></form>

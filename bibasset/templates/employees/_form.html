@@ -1,0 +1,56 @@
+{# Isian karyawan — dipakai employees/create.html & employees/update.html. `emp_obj` = karyawan yang diedit (None saat tambah). #}
+<section class="fsec">
+  <div class="fsec-head"><h2>Data karyawan</h2></div>
+  <div class="fsec-body">
+    <div class="fgrid">
+      <div class="field span-all">
+        <label for="nama">Nama lengkap <span class="req" aria-hidden="true">*</span></label>
+        <input class="input" type="text" id="nama" name="nama" value="{% firstof posted.nama emp_obj.nama %}" maxlength="150" required {% if not emp_obj %}autofocus{% endif %}>
+      </div>
+      <div class="field">
+        <label for="employee_id">ID karyawan <span class="req" aria-hidden="true">*</span></label>
+        <input class="input" type="text" id="employee_id" name="employee_id" value="{% firstof posted.employee_id emp_obj.employee_id %}" maxlength="20" required placeholder="mis. EMP-042">
+      </div>
+      <div class="field">
+        <label for="department">Departemen</label>
+        <select class="input select" id="department" name="department">
+          <option value="">Tanpa departemen</option>
+          {% for d in departments %}<option value="{{ d.pk }}" {% if posted %}{% if posted.department == d.pk|stringformat:"s" %}selected{% endif %}{% elif emp_obj.department_id == d.pk %}selected{% endif %}>{{ d.name }}</option>{% endfor %}
+        </select>
+      </div>
+      <div class="field span-all">
+        <label for="jabatan">Jabatan <span class="req" aria-hidden="true">*</span></label>
+        <input class="input" type="text" id="jabatan" name="jabatan" value="{% firstof posted.jabatan emp_obj.jabatan %}" maxlength="100" required placeholder="mis. Staff IT">
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="fsec">
+  <div class="fsec-head"><h2>Akun & akses</h2><p>Username dan password dipakai karyawan untuk masuk.</p></div>
+  <div class="fsec-body">
+    <div class="field">
+      <label for="username">Username <span class="req" aria-hidden="true">*</span></label>
+      <input class="input" type="text" id="username" name="username" value="{% firstof posted.username emp_obj.user.username %}" maxlength="150" required autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="mis. budi.santoso">
+    </div>
+    {% if not emp_obj %}
+    <div class="field">
+      <label for="password">Password awal</label>
+      {% include "components/_password_field.html" with id="password" name="password" placeholder="Kosongkan agar dibuat otomatis" %}
+      <p class="field-hint">Minimal 8 karakter, tidak boleh hanya angka. Password ditampilkan sekali setelah disimpan untuk diberikan ke karyawan.</p>
+    </div>
+    {% endif %}
+    <fieldset class="field access-field">
+      <legend class="field-label">Akses <span class="req" aria-hidden="true">*</span></legend>
+      {% for value, label in access_choices %}
+      <label class="check-row">
+        <input type="checkbox" name="access" value="{{ value }}" {% if value in checked_access %}checked{% endif %}>
+        <span><strong>{{ label }}</strong><br>
+          {% if value == 'ga' %}Kelola aset, maintenance, laporan kerusakan, master data, dan data karyawan.
+          {% elif value == 'finance' %}Isi dan lihat nilai finansial aset; melihat master data tanpa mengubahnya.
+          {% else %}Bisa memegang aset dan melaporkan kerusakan aset yang dipegang.{% endif %}</span>
+      </label>
+      {% endfor %}
+    </fieldset>
+  </div>
+</section>

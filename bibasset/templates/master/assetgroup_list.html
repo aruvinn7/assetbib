@@ -13,24 +13,25 @@
   <div class="master-grid">
     <section class="panel" aria-label="Daftar grup aset">
       <div class="table-wrap">
-        <table class="table">
-          <thead><tr><th>Grup</th><th>Kategori</th><th class="num">Aset</th><th><span class="visually-hidden">Aksi</span></th></tr></thead>
+        <table class="table stack cards">
+          <thead><tr><th class="no">No</th><th>Grup</th><th>Kategori</th><th class="num">Aset</th><th><span class="visually-hidden">Aksi</span></th></tr></thead>
           <tbody>
           {% for g in groups %}
             <tr>
-              <td><strong class="row-name">{{ g.name }}</strong></td>
-              <td>
+              <td class="no"><span class="visually-hidden">Nomor </span>{{ forloop.counter }}</td>
+              <td class="lead"><strong class="row-name">{{ g.name }}</strong></td>
+              <td data-label="Kategori" class="wide">
                 <div class="chip-list">
-                  {% for c in g.categories.all|slice:":6" %}<a class="mini-chip" href="{% url 'assetcategory_update' c.pk %}">{{ c.name }}</a>{% endfor %}
+                  {% for c in g.categories.all|slice:":6" %}<a class="mini-chip" href="{% if is_ga %}{% url 'assetcategory_update' c.pk %}{% else %}{% url 'asset_list' %}?category={{ c.pk }}{% endif %}">{{ c.name }}</a>{% endfor %}
                   {% if g.categories.all|length > 6 %}<a class="mini-chip more" href="{% url 'assetcategory_list' %}?group={{ g.pk }}">+{{ g.categories.all|length|add:"-6" }} lagi</a>{% endif %}
                   {% if not g.categories.all %}<span class="cell-sub">Belum ada kategori</span>{% endif %}
                 </div>
               </td>
-              <td class="num">{% if g.asset_count %}<a href="{% url 'asset_list' %}?group={{ g.pk }}">{{ g.asset_count }}</a>{% else %}—{% endif %}</td>
-              <td class="row-actions">
+              <td data-label="Aset" class="num">{% if g.asset_count %}<a href="{% url 'asset_list' %}?group={{ g.pk }}">{{ g.asset_count }}</a>{% else %}—{% endif %}</td>
+              <td class="row-actions act">
                 <a href="{% url 'assetcategory_list' %}?group={{ g.pk }}">Kategori</a>
-                <a href="{% url 'assetgroup_update' g.pk %}">Edit</a>
                 {% if is_ga %}
+                <a href="{% url 'assetgroup_update' g.pk %}">Edit</a>
                 <form method="post" action="{% url 'assetgroup_delete' g.pk %}"
                       onsubmit="return confirm('Hapus grup {{ g.name|escapejs }}?{% if g.categories.all %} {{ g.categories.all|length }} kategori di dalamnya ikut terhapus{% if g.asset_count %} dan {{ g.asset_count }} aset kehilangan grup & kategorinya{% endif %}.{% endif %}')">
                   {% csrf_token %}<button type="submit" class="del">Hapus</button>
@@ -39,13 +40,14 @@
               </td>
             </tr>
           {% empty %}
-            <tr><td colspan="4"><div class="empty"><strong>Belum ada grup</strong></div></td></tr>
+            <tr><td colspan="5"><div class="empty"><strong>Belum ada grup</strong></div></td></tr>
           {% endfor %}
           </tbody>
         </table>
       </div>
     </section>
 
+    {% if is_ga %}
     <aside>
       <form method="post" action="{% url 'assetgroup_create' %}" class="panel">
         {% csrf_token %}
@@ -59,6 +61,7 @@
         </div>
       </form>
     </aside>
+    {% endif %}
   </div>
 </div>
 {% endwith %}

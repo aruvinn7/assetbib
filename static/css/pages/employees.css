@@ -1,0 +1,36 @@
+/* Karyawan & akun (khusus GA) */
+.emp-table td { font-size: 14px; }
+.access-tags { display: flex; flex-wrap: wrap; gap: 4px; }
+.list-note { display: flex; gap: 8px; align-items: baseline; margin-top: 12px; font-size: 13px; color: var(--ink-3); }
+.list-note strong { color: var(--ink-2); font-weight: 500; }
+
+.access-field { border: 0; margin: 0; padding: 0; display: grid; gap: 8px; }
+.access-field legend { padding: 0; margin-bottom: 6px; }
+.access-field .check-row span { line-height: 1.45; color: var(--ink-3); font-size: 13px; }
+.access-field .check-row strong { font-size: 14px; }
+
+.side-form { display: grid; gap: 12px; }
+.side-form p { margin: 0; font-size: 13px; line-height: 1.5; color: var(--ink-2); }
+
+/* Password baru: tampil sekali setelah dibuat / diatur ulang */
+.cred-card {
+  display: flex; gap: 14px; align-items: flex-start; margin-bottom: 20px; padding: 16px 20px;
+  background: var(--mandatory-tint); border: 1px solid var(--mandatory-line); border-radius: var(--r-lg);
+}
+.cred-card > .sign { width: 22px; height: 22px; flex: none; margin-top: 2px; }
+.cred-body { display: grid; gap: 10px; min-width: 0; }
+.cred-body h2 { font-size: 16px; font-weight: 600; color: var(--ink); }
+.cred-body p { margin: 0; font-size: 14px; color: var(--ink-2); }
+.cred-row { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 6px 14px; align-items: center; }
+.cred-label { font-size: 13px; color: var(--ink-3); }
+.cred-row code {
+  justify-self: start; padding: 4px 10px; border-radius: 8px; background: var(--panel); border: 1px solid var(--rule);
+  font: 600 15px/1.4 ui-monospace, SFMono-Regular, Consolas, monospace; color: var(--ink); letter-spacing: .02em; overflow-wrap: anywhere;
+}
+.cred-row .pw-field { max-width: 280px; }
+.cred-body .btn { justify-self: start; }
+
+/* Section Password di panel samping */
+.pw-current { display: flex; gap: 12px; align-items: center; padding: 10px 12px; border-radius: var(--r); background: var(--ground); border: 1px dashed var(--field); font-size: 13px; color: var(--ink-3); line-height: 1.45; }
+.pw-current strong { color: var(--ink-2); font-weight: 500; }
+.pw-dots { flex: none; font-size: 18px; letter-spacing: 2px; color: var(--ink-3); }

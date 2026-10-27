@@ -9,7 +9,7 @@
   {% include "components/_master_tabs.html" with current="category" %}
   <div class="page-head">
     <div><h1>Kategori aset</h1><div class="sub">Kategori menentukan interval maintenance otomatis dan checklist pekerjaannya.</div></div>
-    <div class="page-actions"><a href="{% url 'assetcategory_create' %}{% if selected_group %}?group={{ selected_group.pk }}{% endif %}" class="btn"><i class="fa-solid fa-plus" aria-hidden="true"></i>Tambah kategori</a></div>
+    {% if is_ga %}<div class="page-actions"><a href="{% url 'assetcategory_create' %}{% if selected_group %}?group={{ selected_group.pk }}{% endif %}" class="btn"><i class="fa-solid fa-plus" aria-hidden="true"></i>Tambah kategori</a></div>{% endif %}
   </div>
 
   <div class="toolbar">
@@ -29,29 +29,28 @@
       <span class="meta" data-filter-count>{{ categories|length }} kategori</span>
     </div>
     <div class="table-wrap">
-      <table class="table" id="catTable">
-        <thead><tr><th>Kategori</th><th>Grup</th><th>Interval maintenance</th><th class="num">Checklist</th><th class="num">Aset</th><th><span class="visually-hidden">Aksi</span></th></tr></thead>
+      <table class="table stack cards" id="catTable">
+        <thead><tr><th class="no">No</th><th>Kategori</th><th>Grup</th><th>Interval maintenance</th><th class="num">Checklist</th><th class="num">Aset</th><th><span class="visually-hidden">Aksi</span></th></tr></thead>
         <tbody>
         {% for c in categories %}
           <tr data-name="{{ c.name|lower }} {{ c.group.name|lower }}">
-            <td><a class="row-link" href="{% url 'assetcategory_update' c.pk %}">{{ c.name }}</a></td>
-            <td>{{ c.group.name }}</td>
-            <td>{% if c.default_interval_value %}Setiap {{ c.default_interval_value }} {{ c.get_default_interval_unit_display|lower }}{% else %}<span class="cell-sub">Tidak terjadwal</span>{% endif %}</td>
-            <td class="num">{% with n=c.maintenance_description.splitlines|length %}{% if c.maintenance_description %}{{ n }} langkah{% else %}<span class="cell-sub">—</span>{% endif %}{% endwith %}</td>
-            <td class="num">{% if c.asset_count %}<a href="{% url 'asset_list' %}?category={{ c.pk }}">{{ c.asset_count }}</a>{% else %}—{% endif %}</td>
-            <td class="row-actions">
+            <td class="no"><span class="visually-hidden">Nomor </span>{{ forloop.counter }}</td>
+            <td class="lead">{% if is_ga %}<a class="row-link" href="{% url 'assetcategory_update' c.pk %}">{{ c.name }}</a>{% else %}<span class="row-name">{{ c.name }}</span>{% endif %}</td>
+            <td data-label="Grup">{{ c.group.name }}</td>
+            <td data-label="Interval maintenance">{% if c.default_interval_value %}Setiap {{ c.default_interval_value }} {{ c.get_default_interval_unit_display|lower }}{% else %}<span class="cell-sub">Tidak terjadwal</span>{% endif %}</td>
+            <td data-label="Checklist" class="num">{% with n=c.maintenance_description.splitlines|length %}{% if c.maintenance_description %}{{ n }} langkah{% else %}<span class="cell-sub">—</span>{% endif %}{% endwith %}</td>
+            <td data-label="Aset" class="num">{% if c.asset_count %}<a href="{% url 'asset_list' %}?category={{ c.pk }}">{{ c.asset_count }}</a>{% else %}—{% endif %}</td>
+            <td class="row-actions act">{% if is_ga %}
               <a href="{% url 'assetcategory_update' c.pk %}">Edit</a>
-              {% if is_ga %}
                 {% if c.asset_count %}
                 <button type="button" class="del" disabled title="Masih dipakai {{ c.asset_count }} aset" style="opacity:.45;cursor:not-allowed">Hapus</button>
                 {% else %}
                 <form method="post" action="{% url 'assetcategory_delete' c.pk %}" onsubmit="return confirm('Hapus kategori {{ c.name|escapejs }}?')">{% csrf_token %}<button type="submit" class="del">Hapus</button></form>
                 {% endif %}
-              {% endif %}
-            </td>
+              {% endif %}</td>
           </tr>
         {% empty %}
-          <tr><td colspan="6"><div class="empty"><strong>Belum ada kategori{% if selected_group %} di grup {{ selected_group.name }}{% endif %}</strong></div></td></tr>
+          <tr><td colspan="7"><div class="empty"><strong>Belum ada kategori{% if selected_group %} di grup {{ selected_group.name }}{% endif %}</strong></div></td></tr>
         {% endfor %}
         </tbody>
       </table>
@@ -61,4 +60,4 @@
 {% endwith %}
 {% endblock %}
 
-{% block extra_scripts %}<script src="{% static 'js/master.js' %}?v=1"></script>{% endblock %}
+{% block extra_scripts %}<script src="{% static 'js/master.js' %}?v=2"></script>{% endblock %}

@@ -6,12 +6,15 @@ from decimal import Decimal
 
 from django import forms
 from django.contrib import messages
+from django.contrib.auth.models import User
+from django.db import transaction
 from django.utils import timezone
+from django.utils.crypto import get_random_string
 
 from .models import (
     Asset, AssetCategory, AssetComponent, AssetFinancial, AssetGroup,
     AssetMaintenanceConfig, AssetWriteOff, ComponentReplacement, DamageReport, Department,
-    Employee, Location, MaintenanceRecord,
+    Employee, FinanceProfile, GAProfile, Location, MaintenanceRecord, UserProfile,
 )
 
 MAX_UPLOAD_SIZE = 5 * 1024 * 1024
@@ -292,3 +295,106 @@ class DamageReportForm(forms.ModelForm):
         if photo and getattr(photo, 'size', 0) > MAX_UPLOAD_SIZE:
             raise forms.ValidationError('Ukuran foto maksimal 5 MB.')
         return photo
+
+
+# ── Karyawan & akun login (khusus GA) ─────────────────────────────
+# Akses tidak eksklusif: GA/Finance bisa sekaligus "Karyawan" agar bisa memegang aset & melapor kerusakan.
+ACCESS_PROFILES = {'ga': GAProfile, 'finance': FinanceProfile, 'user': UserProfile}
+ACCESS_CHOICES = [('ga', 'GA'), ('finance', 'Finance'), ('user', 'Karyawan')]
+# Tanpa karakter yang mudah tertukar (l/1, O/0)
+PASSWORD_CHARS = 'abcdefghjkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789'
+
+
+def employee_access(emp):
+    return [key for key in ACCESS_PROFILES if hasattr(emp, f'{key}_profile')]
+
+
+def generate_password():
+    return get_random_string(10, PASSWORD_CHARS)
+
+
+def check_password_rules(password, username=''):
+    """Aturan password sederhana dengan pesan berbahasa Indonesia. Return pesan error atau None."""
+    if len(password) < 8:
+        return 'Password minimal 8 karakter.'
+    if password.isdigit():
+        return 'Password tidak boleh hanya angka.'
+    if username and password.lower() == username.lower():
+        return 'Password tidak boleh sama dengan username.'
+    return None
+
+
+class EmployeeForm(forms.ModelForm):
+    username = forms.CharField(label='Username', max_length=150)
+    access   = forms.MultipleChoiceField(label='Akses', choices=ACCESS_CHOICES)
+    password = forms.CharField(label='Password', required=False, strip=False)
+
+    class Meta:
+        model = Employee
+        fields = ['nama', 'employee_id', 'department', 'jabatan']
+        labels = {'nama': 'Nama lengkap', 'employee_id': 'ID karyawan', 'department': 'Departemen', 'jabatan': 'Jabatan'}
+
+    def __init__(self, *args, editor=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.editor = editor  # Employee GA yang sedang mengisi form
+        self.generated_password = None
+        if self.instance.pk:
+            del self.fields['password']  # password diatur lewat form tersendiri
+
+    def clean_username(self):
+        username = self.cleaned_data['username'].strip()
+        for validator in User._meta.get_field('username').validators:
+            try:
+                validator(username)
+            except forms.ValidationError:
+                raise forms.ValidationError('Username hanya boleh huruf, angka, dan @ . + - _ tanpa spasi.')
+        taken = User.objects.filter(username__iexact=username)
+        if self.instance.pk:
+            taken = taken.exclude(pk=self.instance.user_id)
+        if taken.exists():
+            raise forms.ValidationError('Username sudah dipakai akun lain.')
+        return username
+
+    def clean_access(self):
+        access = self.cleaned_data['access']
+        # GA tidak boleh mencabut akses GA miliknya sendiri (bisa terkunci dari halaman ini)
+        if self.editor and self.instance.pk == self.editor.pk and 'ga' not in access:
+            raise forms.ValidationError('Anda tidak bisa mencabut akses GA akun Anda sendiri.')
+        # Hanya akses Karyawan yang bisa memegang aset
+        if self.instance.pk and 'user' not in access and hasattr(self.instance, 'user_profile'):
+            held = self.instance.held_assets.filter(status='active').count()
+            if held:
+                raise forms.ValidationError(f'Masih memegang {held} aset. Kembalikan asetnya dulu sebelum mencabut akses Karyawan.')
+        return access
+
+    def clean(self):
+        cleaned = super().clean()
+        password = cleaned.get('password')
+        if 'password' in self.fields and password:
+            error = check_password_rules(password, cleaned.get('username', ''))
+            if error:
+                self.add_error('password', error)
+        return cleaned
+
+    @transaction.atomic
+    def save(self):
+        emp = super().save(commit=False)
+        username = self.cleaned_data['username']
+        if emp.pk:
+            user = emp.user
+            if user.username != username:
+                user.username = username
+                user.save(update_fields=['username'])
+        else:
+            password = self.cleaned_data.get('password')
+            if not password:
+                password = self.generated_password = generate_password()
+            emp.user = User.objects.create_user(username=username, password=password)
+        emp.save()
+        access = self.cleaned_data['access']
+        for key, model in ACCESS_PROFILES.items():
+            if key in access:
+                model.objects.get_or_create(employee=emp)
+            else:
+                model.objects.filter(employee=emp).delete()
+        return emp

@@ -78,11 +78,12 @@
         </div>
         {% if selected_assets %}
         <div class="table-wrap">
-          <table class="table stack" id="locAssetTable">
-            <thead><tr><th>Aset</th><th>Lokasi</th><th>Departemen</th><th>Status</th><th><span class="visually-hidden">Aksi</span></th></tr></thead>
+          <table class="table stack cards" id="locAssetTable">
+            <thead><tr><th class="no">No</th><th>Aset</th><th>Lokasi</th><th>Departemen</th><th>Status</th><th><span class="visually-hidden">Aksi</span></th></tr></thead>
             <tbody>
             {% for asset in selected_assets %}
               <tr data-status="{{ asset.lifecycle_status }}">
+                <td class="no"><span class="visually-hidden">Nomor </span>{{ forloop.counter }}</td>
                 <td class="lead"><a class="row-link" href="{% url 'asset_detail' asset.pk %}">{{ asset.nama_asset }}</a><div class="cell-sub">{{ asset.asset_number }}{% if asset.asset_category %} · {{ asset.asset_category.name }}{% endif %}</div></td>
                 <td data-label="Lokasi">{{ asset.lokasi_asset.name|default:"—" }}</td>
                 <td data-label="Departemen">{{ asset.owned_by_department.name|default:"—" }}</td>
@@ -103,11 +104,12 @@
       <section class="panel" aria-labelledby="areaTitle">
         <div class="panel-head"><h2 id="areaTitle">Area utama</h2><span class="meta">Pilih area untuk melihat asetnya</span></div>
         <div class="table-wrap">
-          <table class="table stack">
-            <thead><tr><th>Area</th><th class="num">Aset</th><th class="num">Aktif</th><th class="num">Maintenance</th><th class="num">Write off</th><th class="num">Sub-lokasi</th></tr></thead>
+          <table class="table stack cards">
+            <thead><tr><th class="no">No</th><th>Area</th><th class="num">Aset</th><th class="num">Aktif</th><th class="num">Maintenance</th><th class="num">Write off</th><th class="num">Sub-lokasi</th></tr></thead>
             <tbody>
             {% for root in roots %}
               <tr>
+                <td class="no"><span class="visually-hidden">Nomor </span>{{ forloop.counter }}</td>
                 <td class="lead"><a class="row-link" href="{% url 'location_dashboard' %}?location={{ root.pk }}">{{ root.name }}</a></td>
                 <td data-label="Aset" class="num">{{ root.total_assets }}</td>
                 <td data-label="Aktif" class="num">{{ root.total_active }}</td>
@@ -116,7 +118,7 @@
                 <td data-label="Sub-lokasi" class="num">{{ root.children_list|length }}</td>
               </tr>
             {% empty %}
-              <tr><td colspan="6"><div class="empty"><strong>Belum ada lokasi</strong><a href="{% url 'location_list' %}">Tambah lokasi di master data</a></div></td></tr>
+              <tr><td colspan="7"><div class="empty"><strong>Belum ada lokasi</strong><a href="{% url 'location_list' %}">Tambah lokasi di master data</a></div></td></tr>
             {% endfor %}
             </tbody>
           </table>
@@ -167,7 +169,7 @@
     document.querySelectorAll('[data-loc-filter]').forEach(btn => btn.addEventListener('click', () => {
       document.querySelectorAll('[data-loc-filter]').forEach(b => { const on = b === btn; b.classList.toggle('active', on); b.setAttribute('aria-pressed', on); });
       let n = 0;
-      rows.forEach(r => { const show = btn.dataset.locFilter === 'all' || r.dataset.status === btn.dataset.locFilter; r.hidden = !show; if (show) n++; });
+      rows.forEach(r => { const show = btn.dataset.locFilter === 'all' || r.dataset.status === btn.dataset.locFilter; r.hidden = !show; if (show) { n++; r.querySelector('td.no').lastChild.nodeValue = n; } });
       document.getElementById('locNone').hidden = n > 0;
     }));
   })();

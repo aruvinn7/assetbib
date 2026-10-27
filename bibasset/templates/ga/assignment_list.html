@@ -31,11 +31,12 @@
 
       {% if assignments %}
       <div class="table-wrap">
-        <table class="table stack">
-          <thead><tr><th>Aset</th><th>Pemegang</th><th>Departemen</th><th class="num">Sejak</th><th><span class="visually-hidden">Aksi</span></th></tr></thead>
+        <table class="table stack cards">
+          <thead><tr><th class="no">No</th><th>Aset</th><th>Pemegang</th><th>Departemen</th><th class="num">Sejak</th><th><span class="visually-hidden">Aksi</span></th></tr></thead>
           <tbody>
           {% for a in assignments %}
             <tr>
+              <td class="no"><span class="visually-hidden">Nomor </span>{{ forloop.counter }}</td>
               <td class="lead">
                 <a class="row-link" href="{% url 'asset_detail' a.asset_id %}">{{ a.asset.nama_asset }}</a>
                 <div class="cell-sub">{{ a.asset.asset_number }}{% if a.asset.lokasi_asset %} · {{ a.asset.lokasi_asset.name }}{% endif %}</div>

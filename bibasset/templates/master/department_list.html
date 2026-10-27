@@ -22,31 +22,31 @@
         <span class="meta" data-filter-count></span>
       </div>
       <div class="table-wrap">
-        <table class="table" id="deptTable">
-          <thead><tr><th>Nama</th><th class="num">Karyawan</th><th class="num">Aset</th><th><span class="visually-hidden">Aksi</span></th></tr></thead>
+        <table class="table stack cards" id="deptTable">
+          <thead><tr><th class="no">No</th><th>Nama</th><th class="num">Karyawan</th><th class="num">Aset</th><th><span class="visually-hidden">Aksi</span></th></tr></thead>
           <tbody>
           {% for d in departments %}
             <tr data-name="{{ d.name|lower }}">
-              <td>{{ d.name }}{% if not d.emp_count and not d.asset_count %}<div class="cell-sub">Belum dipakai</div>{% endif %}</td>
-              <td class="num">{{ d.emp_count|default:"—" }}</td>
-              <td class="num">{% if d.asset_count %}<a href="{% url 'asset_list' %}?q={{ d.name|urlencode }}">{{ d.asset_count }}</a>{% else %}—{% endif %}</td>
-              <td class="row-actions">
-                {% if is_ga %}
+              <td class="no"><span class="visually-hidden">Nomor </span>{{ forloop.counter }}</td>
+              <td class="lead">{{ d.name }}{% if not d.emp_count and not d.asset_count %}<div class="cell-sub">Belum dipakai</div>{% endif %}</td>
+              <td data-label="Karyawan" class="num">{{ d.emp_count|default:"—" }}</td>
+              <td data-label="Aset" class="num">{% if d.asset_count %}<a href="{% url 'asset_list' %}?q={{ d.name|urlencode }}">{{ d.asset_count }}</a>{% else %}—{% endif %}</td>
+              <td class="row-actions act">{% if is_ga %}
                 <form method="post" action="{% url 'department_delete' d.pk %}"
                       onsubmit="return confirm('Hapus departemen {{ d.name|escapejs }}?{% if d.asset_count or d.emp_count %} {{ d.asset_count }} aset dan {{ d.emp_count }} karyawan akan kehilangan departemennya.{% endif %}')">
                   {% csrf_token %}<button type="submit" class="del">Hapus</button>
                 </form>
-                {% endif %}
-              </td>
+                {% endif %}</td>
             </tr>
           {% empty %}
-            <tr><td colspan="4"><div class="empty"><strong>Belum ada departemen</strong></div></td></tr>
+            <tr><td colspan="5"><div class="empty"><strong>Belum ada departemen</strong></div></td></tr>
           {% endfor %}
           </tbody>
         </table>
       </div>
     </section>
 
+    {% if is_ga %}
     <aside>
       <form method="post" action="{% url 'department_create' %}" class="panel">
         {% csrf_token %}
@@ -61,9 +61,10 @@
         </div>
       </form>
     </aside>
+    {% endif %}
   </div>
 </div>
 {% endwith %}
 {% endblock %}
 
-{% block extra_scripts %}<script src="{% static 'js/master.js' %}?v=1"></script>{% endblock %}
+{% block extra_scripts %}<script src="{% static 'js/master.js' %}?v=2"></script>{% endblock %}

@@ -9,6 +9,9 @@ document.querySelectorAll('[data-filter]').forEach(input => {
       const hit = !q || (r.dataset.name || r.textContent.toLowerCase()).includes(q);
       r.hidden = !hit;
       if (hit) shown++;
+      // Nomor urut mengikuti baris yang tampil
+      const no = r.querySelector('td.no');
+      if (no && hit) no.lastChild.nodeValue = shown;
     });
     if (count) count.textContent = q ? `${shown} dari ${rows.length} cocok` : '';
   };

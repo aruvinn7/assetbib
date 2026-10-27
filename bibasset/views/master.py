@@ -40,7 +40,7 @@ def department_list(request):
     })
 
 
-@role_required(is_ga_or_finance)
+@role_required(is_ga)
 def department_create(request):
     if request.method == "POST" and _save_form(request, DepartmentForm(request.POST)):
         return redirect("department_list")
@@ -100,7 +100,7 @@ def location_list(request):
         "tree":      tree,        # untuk render tree accordion
     })
 
-@role_required(is_ga_or_finance)
+@role_required(is_ga)
 def location_create(request):
     parents = Location.objects.order_by('full_path')
     preset_parent = request.GET.get('parent', '')
@@ -112,7 +112,7 @@ def location_create(request):
     })
 
 
-@role_required(is_ga_or_finance)
+@role_required(is_ga)
 def location_update(request, pk):
     loc     = get_object_or_404(Location, pk=pk)
     parents = Location.objects.exclude(pk=pk).order_by('full_path')
@@ -155,14 +155,14 @@ def assetgroup_list(request):
     })
 
 
-@role_required(is_ga_or_finance)
+@role_required(is_ga)
 def assetgroup_create(request):
     if request.method == "POST" and _save_form(request, AssetGroupForm(request.POST)):
         return redirect("assetgroup_list")
     return render(request, "master/assetgroup_create.html", {"posted": _posted(request)})
 
 
-@role_required(is_ga_or_finance)
+@role_required(is_ga)
 def assetgroup_update(request, pk):
     group = get_object_or_404(
         AssetGroup.objects.annotate(asset_count=Count('categories__assets', distinct=True)), pk=pk,
@@ -204,7 +204,7 @@ def assetcategory_list(request):
     })
 
 
-@role_required(is_ga_or_finance)
+@role_required(is_ga)
 def assetcategory_create(request):
     if request.method == "POST" and _save_form(request, AssetCategoryForm(request.POST)):
         return redirect("assetcategory_list")
@@ -214,7 +214,7 @@ def assetcategory_create(request):
     })
 
 
-@role_required(is_ga_or_finance)
+@role_required(is_ga)
 def assetcategory_update(request, pk):
     category = get_object_or_404(AssetCategory, pk=pk)
     if request.method == "POST":

@@ -308,6 +308,8 @@ html { scrollbar-color: #D0D5DD transparent; }
 .table .num { text-align: right; white-space: nowrap; }
 .table a.row-link { color: var(--ink); font-weight: 500; text-decoration: none; }
 .table a.row-link:hover { color: var(--brand-500); }
+.table tr[hidden] { display: none !important; }
+.table .no { width: 1%; padding-right: 0; text-align: right; white-space: nowrap; color: var(--ink-3); font-size: 13px; font-variant-numeric: tabular-nums; }
 .code { font-size: 13px; color: var(--ink-3); }
 .cell-sub { font-size: 12px; color: var(--ink-3); margin-top: 2px; }
 
@@ -499,6 +501,16 @@ dialog[open]::backdrop { animation: fade-in .2s ease-out; }
 .input-affix .input { padding-left: 40px; font-variant-numeric: tabular-nums; }
 /* Satuan di kanan (mis. "hari"): <div class="input-affix interval-input"><input><span>hari</span></div> */
 .input-affix .input + span { left: auto; right: 14px; }
+/* Isian password dengan tombol mata: <div class="pw-field"><input type="password"><button data-pw-toggle></button></div> */
+.pw-field { position: relative; }
+.pw-field .input { padding-right: 48px; }
+.pw-field .input[readonly] { background: var(--ground); font: 600 15px/1.4 ui-monospace, SFMono-Regular, Consolas, monospace; color: var(--ink); letter-spacing: .02em; }
+.pw-toggle {
+  position: absolute; right: 4px; top: 50%; transform: translateY(-50%); width: 38px; height: 38px; display: grid; place-items: center;
+  border: 0; border-radius: 8px; background: none; color: var(--ink-3); cursor: pointer;
+}
+.pw-toggle:hover { color: var(--ink); background: var(--off-tint); }
+.pw-toggle:focus-visible { outline: 2px solid var(--brand-300); outline-offset: 0; }
 .input-affix .input:has(+ span) { padding-left: 14px; padding-right: 52px; }
 .interval-input { max-width: 220px; }
 .qm-field { border: 0; padding: 0; margin: 0; display: grid; gap: 8px; min-width: 0; }
@@ -714,6 +726,7 @@ a.stat:hover { border-color: var(--brand-200); box-shadow: var(--shadow-sm); }
 
 /* Halaman master data: daftar + panel tambah cepat */
 .master-grid { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 20px; align-items: start; }
+.master-grid:not(:has(> aside)) { grid-template-columns: minmax(0, 1fr); }
 .master-grid > aside { display: grid; gap: 20px; position: sticky; top: calc(var(--header-h) + 20px); }
 @media (max-width: 1023px) { .master-grid { grid-template-columns: minmax(0, 1fr); } .master-grid > aside { position: static; order: -1; } }
 
@@ -755,16 +768,43 @@ a.stat:hover { border-color: var(--brand-200); box-shadow: var(--shadow-sm); }
 /* ── Pola bersama halaman yang dibangun ulang (Pelacakan, karyawan, import) ── */
 /* Tabel yang berubah jadi kartu bertumpuk di layar sempit: tiap <td data-label> jadi pasangan label–nilai.
    <td class="lead"> = judul kartu (lebar penuh), <td class="act"> = aksi di kanan bawah. */
-@media (max-width: 760px) {
+@media (max-width: 860px) {
   .table.stack thead { display: none; }
   .table.stack, .table.stack tbody, .table.stack tr, .table.stack td { display: block; width: 100%; }
   .table.stack tr { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 10px 16px; padding: 14px 16px; border-bottom: 1px solid var(--rule-soft); }
-  .table.stack tbody tr:last-child { border-bottom: 0; }
+  .table.stack:not(.cards) tbody tr:last-child { border-bottom: 0; }
   .table.stack td { padding: 0; border: 0; text-align: left; min-width: 0; }
   .table.stack td.lead { grid-column: 1 / -1; }
   .table.stack td.act { grid-column: 1 / -1; display: flex; justify-content: flex-end; gap: 8px; }
   .table.stack td[data-label]:not(.lead)::before { content: attr(data-label); display: block; font-size: 12px; color: var(--ink-3); margin-bottom: 2px; }
   .table.stack td.hide-sm { display: none; }
+  .table.stack td.wide, .table.stack td[colspan] { grid-column: 1 / -1; }
+}
+
+/* Daftar kartu: <table class="table cards"> — di layar sempit tiap baris jadi kartu terpisah di atas latar abu.
+   Baris harus sudah ditumpuk (.stack atau aturan halaman). <td class="no"> (sel pertama) = badge nomor urut
+   di pojok kanan atas; <td class="lead"> diberi garis bawah, <td class="act">/<td class="actions"> garis atas. */
+@media (max-width: 860px) {
+  .table-wrap:has(> .table.cards) { padding: 12px; background: var(--ground); }
+  .table-wrap:has(> .table.cards):last-child { border-radius: 0 0 var(--r-lg) var(--r-lg); }
+  .table.cards tbody { display: flex; flex-direction: column; gap: 12px; }
+  .table.cards tbody tr {
+    position: relative; padding: 14px 16px; background: var(--panel);
+    border: 1px solid var(--rule); border-radius: var(--r-lg); box-shadow: var(--shadow-xs);
+  }
+  .table.cards tbody tr:hover { background: var(--panel); }
+  .table.cards td.no {
+    position: absolute; top: 12px; right: 12px; width: auto; min-width: 28px; padding: 2px 8px; text-align: center;
+    border-radius: 999px; background: var(--off-tint); color: var(--ink-2); font-size: 12px; font-weight: 600;
+  }
+  .table.cards td.no::before { content: "#"; color: var(--ink-4); }
+  .table.cards td.no ~ td.lead { padding-right: 44px; }
+  .table.cards td.lead { padding-bottom: 12px; border-bottom: 1px solid var(--rule-soft) !important; color: var(--ink); font-weight: 500; }
+  .table.cards td.lead .cell-sub { font-weight: 400; }
+  .table.cards td.act, .table.cards td.actions { padding-top: 10px; border-top: 1px solid var(--rule-soft) !important; }
+  .table.cards td.act:empty, .table.cards td.actions:empty { display: none; }
+  .table.cards .empty { padding: 24px 8px; }
+  .table.cards a.row-link { overflow-wrap: anywhere; }
 }
 
 /* Daftar ringkas berisi baris + satu aksi (aset tanpa pemegang, aset per lokasi) */

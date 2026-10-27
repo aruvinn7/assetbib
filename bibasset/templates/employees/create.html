@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}Tambah karyawan{% endblock %}
+{% block nav_employees %}active{% endblock %}
+{% block extra_head %}<link rel="stylesheet" href="{% static 'css/pages/employees.css' %}?v=2">{% endblock %}
+
+{% block content %}
+<div class="page">
+  <div class="page-head"><div><h1>Tambah karyawan</h1><div class="sub">Sekaligus membuat akun login untuk karyawan ini.</div></div></div>
+  <form method="post" class="form-layout single">
+    {% csrf_token %}
+    <div class="form-main">
+      {% include "employees/_form.html" %}
+      <div class="form-bar">
+        <span class="bar-hint"><span class="req">*</span> wajib diisi</span>
+        <a href="{% url 'employee_list' %}" class="btn outline">Batal</a>
+        <button type="submit" class="btn">Simpan karyawan</button>
+      </div>
+    </div>
+  </form>
+</div>
+{% endblock %}

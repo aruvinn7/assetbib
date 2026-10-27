@@ -11,7 +11,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300..700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
 
-  <link rel="stylesheet" href="{% static 'css/base.css' %}?v=17">
+  <link rel="stylesheet" href="{% static 'css/base.css' %}?v=20">
 
   {# Pulihkan sidebar ringkas sebelum render supaya tidak berkedip #}
   <script>try { if (localStorage.getItem('sbMini') === '1') document.documentElement.classList.add('sb-mini-pending'); } catch (e) {}</script>
@@ -89,6 +89,7 @@
         </ul>
       </li>
       {% if emp.ga_profile %}
+      <li><a href="{% url 'employee_list' %}" class="menu-item {% block nav_employees %}{% endblock %}"><i class="mi-icon fa-solid fa-users" aria-hidden="true"></i><span class="mi-text">Karyawan</span></a></li>
       <li><a href="{% url 'import_asset' %}" class="menu-item {% block nav_import_asset %}{% endblock %}"><i class="mi-icon fa-solid fa-file-import" aria-hidden="true"></i><span class="mi-text">Import aset</span></a></li>
       <li><a href="{% url 'import_finansial' %}" class="menu-item {% block nav_import_fin %}{% endblock %}"><i class="mi-icon fa-solid fa-file-invoice-dollar" aria-hidden="true"></i><span class="mi-text">Import finansial</span></a></li>
       {% endif %}
@@ -386,6 +387,8 @@
     {"label": "Laporan kerusakan menunggu", "icon": "fa-solid fa-triangle-exclamation", "url": "{% url 'ga_damage_report_list' %}?status=pending"},
     {"label": "Aset critical", "icon": "fa-solid fa-heart-pulse", "url": "{% url 'asset_list' %}?health=critical"},
     {"label": "Import aset dari Excel", "icon": "fa-solid fa-file-import", "url": "{% url 'import_asset' %}"},
+    {"label": "Data karyawan & akun", "hint": "Tambah karyawan, atur ulang password", "icon": "fa-solid fa-users", "url": "{% url 'employee_list' %}"},
+    {"label": "Tambah karyawan", "icon": "fa-solid fa-user-plus", "url": "{% url 'employee_create' %}"},
     {% endif %}
     {% if emp.finance_profile %}
     {"label": "Aset belum dinilai", "icon": "fa-solid fa-coins", "url": "{% url 'asset_list' %}?financial=no"},
@@ -405,7 +408,7 @@
 </dialog>
 {% endif %}
 <div class="toasts" id="toasts" aria-live="polite" aria-atomic="false"></div>
-<script src="{% static 'js/app.js' %}?v=3"></script>
+<script src="{% static 'js/app.js' %}?v=4"></script>
 {% endif %}
 {% endwith %}
 

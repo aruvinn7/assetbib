@@ -2,7 +2,7 @@
 {% load static math_filter %}
 {% block title %}Maintenance{% endblock %}
 {% block nav_maintenance %}active{% endblock %}
-{% block extra_head %}<link rel="stylesheet" href="{% static 'css/pages/maintenance_list.css' %}?v=5">{% endblock %}
+{% block extra_head %}<link rel="stylesheet" href="{% static 'css/pages/maintenance_list.css' %}?v=6">{% endblock %}
 
 {% block content %}
 <div class="page">
@@ -36,12 +36,13 @@
   <section id="maintTable" data-refresh class="panel {% if status_filter != 'done' and status_filter != 'skipped' and overdue_count %}hazard{% endif %}" aria-label="Daftar jadwal">
     {% if schedules %}
     <div class="table-wrap">
-      <table class="table sched-table">
-        <thead><tr><th>Status</th><th>Aset</th><th>Lokasi</th><th class="num">Jadwal</th><th class="num">Interval</th><th><span class="visually-hidden">Aksi</span></th></tr></thead>
+      <table class="table cards sched-table">
+        <thead><tr><th class="no">No</th><th>Status</th><th>Aset</th><th>Lokasi</th><th class="num">Jadwal</th><th class="num">Interval</th><th><span class="visually-hidden">Aksi</span></th></tr></thead>
         <tbody>
         {% for sch in schedules %}
           {% with d=sch.days_remaining %}
           <tr>
+            <td class="no"><span class="visually-hidden">Nomor </span>{{ page_obj.start_index|add:forloop.counter0 }}</td>
             <td data-label="Status">
               {% if sch.status == 'overdue' %}{% include "components/_status.html" with kind="warning" label="Terlambat" %}
               {% elif sch.status == 'upcoming' and d <= 7 %}{% include "components/_status.html" with kind="mandatory" label="Segera" %}
@@ -50,21 +51,19 @@
               {% else %}{% include "components/_status.html" with kind="off" label="Dilewati" %}{% endif %}
               {% if sch.notes %}<div class="cell-sub" title="{{ sch.notes }}">{% if sch.notes|slice:":11" == "[CORRECTIVE" %}dari laporan kerusakan{% else %}{{ sch.notes|truncatechars:40 }}{% endif %}</div>{% endif %}
             </td>
-            <td data-label="Aset" class="asset-cell"><a class="row-link" href="{% url 'asset_detail' sch.asset.id %}">{{ sch.asset.nama_asset }}</a><div class="cell-sub">{{ sch.asset.asset_number }}{% if sch.asset.asset_category %} · {{ sch.asset.asset_category.name }}{% endif %}</div></td>
+            <td data-label="Aset" class="asset-cell lead"><a class="row-link" href="{% url 'asset_detail' sch.asset.id %}">{{ sch.asset.nama_asset }}</a><div class="cell-sub">{{ sch.asset.asset_number }}{% if sch.asset.asset_category %} · {{ sch.asset.asset_category.name }}{% endif %}</div></td>
             <td data-label="Lokasi" class="loc">{% include "components/_location.html" with loc=sch.asset.lokasi_asset %}</td>
             <td data-label="Jadwal" class="num">{{ sch.scheduled_date|date:"d M Y" }}
               {% if sch.status == 'overdue' or sch.status == 'upcoming' %}<div class="cell-sub {% if d < 0 %}late{% endif %}">{% if d < 0 %}{{ d|abs_value }} hari terlambat{% elif d == 0 %}hari ini{% else %}{{ d }} hari lagi{% endif %}</div>{% endif %}
             </td>
             <td data-label="Interval" class="num">{% if sch.interval_days %}{{ sch.interval_days }} hari<div class="cell-sub">{% if sch.is_custom_interval %}custom{% else %}kategori{% endif %}</div>{% else %}<span class="cell-sub">—</span>{% endif %}</td>
-            <td class="actions">
-              {% if sch.status == 'upcoming' or sch.status == 'overdue' %}
+            <td class="actions">{% if sch.status == 'upcoming' or sch.status == 'overdue' %}
                 <a class="btn sm" href="{% url 'maintenance_create' sch.asset.id %}" data-quick-maint>Catat</a>
                 <form method="post" action="{% url 'maintenance_schedule_skip' sch.pk %}" class="skip-form" onsubmit="return confirm('Lewati jadwal {{ sch.asset.nama_asset|escapejs }} ({{ sch.scheduled_date|date:'d M Y' }})? Jadwal ini tidak dihitung terlambat lagi dan tidak bisa dicatat.')">
                   {% csrf_token %}<input type="hidden" name="next" value="{{ request.get_full_path }}">
                   <button type="submit" class="skip">Lewati</button>
                 </form>
-              {% endif %}
-            </td>
+              {% endif %}</td>
           </tr>
           {% endwith %}
         {% endfor %}

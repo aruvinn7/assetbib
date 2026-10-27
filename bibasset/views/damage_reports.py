@@ -4,6 +4,7 @@ from django.contrib import messages
 from django.core.paginator import Paginator
 from django.db import transaction
 from django.db.models import Case, Count, Q, When
+from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.views.decorators.http import require_POST
@@ -61,49 +62,55 @@ def user_dashboard(request):
 # USER: DAMAGE REPORT
 # ================================================
 
+def _report_block_reason(asset):
+    """Alasan aset tidak bisa dilaporkan, atau None bila bisa."""
+    if asset.lifecycle_status == 'writeoff':
+        return "Aset ini sudah di-write off."
+    active = DamageReport.objects.filter(asset=asset, report_status__in=DamageReport.ACTIVE_STATUS).only('id').first()
+    if active:
+        return f"Sudah dilaporkan (#{active.pk}) dan sedang ditangani GA."
+    if asset.lifecycle_status == 'maintenance':
+        return "Aset ini sedang dalam maintenance oleh GA."
+    return None
+
+
 @role_required(is_user_role)
 def damage_report_create(request, asset_id=None):
+    # Karyawan boleh melapor aset mana pun yang ia temukan rusak — tidak harus aset yang ia pegang —
+    # supaya kerusakan cepat sampai ke GA tanpa menunggu serah terima.
     employee = request.user.employee
     held_assets = Asset.objects.filter(
         assignments__assigned_to=employee,
         assignments__status='active',
         lifecycle_status='active',
+    ).exclude(
+        damage_reports__report_status__in=DamageReport.ACTIVE_STATUS,
     ).select_related('lokasi_asset').only(
-        'id', 'nama_asset', 'asset_number', 'lokasi_asset__name',
-    ).distinct()
+        'id', 'nama_asset', 'asset_number', 'lokasi_asset__name', 'lokasi_asset__full_path',
+    ).distinct().order_by('nama_asset')
 
+    asset_qs = Asset.objects.select_related('asset_category', 'lokasi_asset')
     selected_asset = None
     form = None
     if asset_id:
-        selected_asset = get_object_or_404(
-            Asset.objects.select_related('asset_category', 'lokasi_asset').only(
-                'id', 'nama_asset', 'asset_number', 'asset_category__name', 'lokasi_asset__name',
-            ),
-            id=asset_id,
-        )
-        if not held_assets.filter(id=asset_id).exists():
-            messages.error(request, "Aset ini tidak bisa dilaporkan: bukan aset yang Anda pegang, atau sudah berstatus Maintenance.")
-            return redirect('user_dashboard')
+        selected_asset = get_object_or_404(asset_qs, id=asset_id)
+        reason = _report_block_reason(selected_asset)
+        if reason:
+            messages.warning(request, f"{selected_asset.nama_asset} tidak perlu dilaporkan lagi: {reason}")
+            return redirect('damage_report_create')
 
     if request.method == 'POST':
         asset_id_post = request.POST.get('asset_id') or asset_id
-        asset         = get_object_or_404(Asset.objects.only('id', 'nama_asset'), id=asset_id_post)
-
-        # User hanya boleh melapor aset yang sedang ia pegang
-        if not held_assets.filter(id=asset.id).exists():
-            messages.error(request, "Aset ini tidak bisa dilaporkan: bukan aset yang Anda pegang, atau sudah berstatus Maintenance.")
-            return redirect('user_dashboard')
-
-        active_report = DamageReport.objects.filter(
-            asset=asset, report_status__in=DamageReport.ACTIVE_STATUS,
-        ).only('id').first()
-
-        if active_report:
-            messages.warning(
-                request,
-                f"Aset '{asset.nama_asset}' sudah memiliki laporan aktif (#{active_report.pk})."
-            )
-            return redirect('user_dashboard')
+        if not str(asset_id_post or '').isdigit():
+            messages.error(request, "Pilih aset yang rusak dulu.")
+            return render(request, 'user/damage_report_form.html', {
+                'held_assets': held_assets, 'posted': request.POST.dict(), 'severities': DamageReport.SEVERITY,
+            })
+        asset = get_object_or_404(asset_qs, id=asset_id_post)
+        reason = _report_block_reason(asset)
+        if reason:
+            messages.warning(request, f"{asset.nama_asset} tidak perlu dilaporkan lagi: {reason}")
+            return redirect('damage_report_create')
 
         form = DamageReportForm(request.POST, request.FILES)
         if form.is_valid():
@@ -113,6 +120,7 @@ def damage_report_create(request, asset_id=None):
             report.save()   # atomic: ubah status aset + jadwal corrective sekaligus
             messages.success(request, f"Laporan kerusakan '{asset.nama_asset}' terkirim ke GA.")
             return redirect('user_damage_report_detail', pk=report.pk)
+        selected_asset = asset  # tetap terpilih saat isian lain perlu diperbaiki
         messages.error(request, "Laporan belum terkirim. Periksa isian yang ditandai.")
 
     return render(request, 'user/damage_report_form.html', {
@@ -122,6 +130,44 @@ def damage_report_create(request, asset_id=None):
         'posted':         request.POST.dict() if request.method == 'POST' else None,
         'severities':     DamageReport.SEVERITY,
     })
+
+
+@role_required(is_user_role)
+def damage_report_asset_search(request):
+    """Cari aset untuk dilaporkan (aset siapa pun). Maksimal 10 hasil, beserta bisa/tidaknya dilaporkan."""
+    q = request.GET.get('q', '').strip()
+    if len(q) < 2:
+        return JsonResponse({'results': []})
+    qs = Asset.objects.exclude(lifecycle_status='writeoff')
+    # Setiap kata harus cocok di salah satu kolom: "ac mess 3" → AC di Mess 3
+    for term in q.split()[:5]:
+        qs = qs.filter(Q(nama_asset__icontains=term) | Q(asset_number__icontains=term) |
+                       Q(lokasi_asset__full_path__icontains=term) | Q(asset_category__name__icontains=term))
+    qs = qs.select_related('lokasi_asset', 'asset_category').order_by('nama_asset', 'id')[:10]
+    assets = list(qs)
+    reported = dict(DamageReport.objects.filter(
+        asset__in=assets, report_status__in=DamageReport.ACTIVE_STATUS,
+    ).values_list('asset_id', 'id'))
+    mine = set(AssetAssignment.objects.filter(
+        asset__in=assets, assigned_to=request.user.employee, status='active',
+    ).values_list('asset_id', flat=True))
+
+    def reason(a):
+        if a.pk in reported:
+            return f"Sudah dilaporkan (#{reported[a.pk]}), sedang ditangani GA"
+        if a.lifecycle_status == 'maintenance':
+            return "Sedang maintenance"
+        return ''
+
+    return JsonResponse({'results': [{
+        'id':       a.pk,
+        'name':     a.nama_asset,
+        'number':   a.asset_number,
+        'category': a.asset_category.name if a.asset_category else '',
+        'location': a.lokasi_asset.full_path if a.lokasi_asset else 'Belum ditempatkan',
+        'mine':     a.pk in mine,
+        'blocked':  reason(a),
+    } for a in assets]})
 
 
 @role_required(is_user_role)
@@ -232,10 +278,15 @@ def _render_ga_detail(request, pk, resolve_posted=None, status=200):
     corrective_schedule = report.corrective_schedules.only(
         'id', 'status', 'scheduled_date'
     ).first()
+    # Pelapor tidak harus pemegang aset; GA perlu tahu siapa pemegangnya
+    holder = AssetAssignment.objects.filter(
+        asset=report.asset, status='active',
+    ).select_related('assigned_to').only('assigned_to__nama', 'assigned_to_id').first()
 
     return render(request, 'ga/damage_report_detail.html', {
         'report':              report,
         'corrective_schedule': corrective_schedule,
+        'holder':              holder,
         'asset':               report.asset,
         'today':               timezone.localdate(),
         'ba_item':             report.ba_items.select_related('ba').order_by('-ba__created_at').first(),

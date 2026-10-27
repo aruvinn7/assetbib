@@ -2,7 +2,7 @@
 {% load static waktu %}
 {% block title %}Laporan saya{% endblock %}
 {% block nav_my_reports %}active{% endblock %}
-{% block extra_head %}<link rel="stylesheet" href="{% static 'css/pages/damage_report.css' %}?v=2">{% endblock %}
+{% block extra_head %}<link rel="stylesheet" href="{% static 'css/pages/damage_report.css' %}?v=4">{% endblock %}
 
 {% block content %}
 <div class="page">
@@ -19,11 +19,12 @@
   <section class="panel" aria-label="Daftar laporan">
     {% if reports %}
     <div class="table-wrap">
-      <table class="table report-table mine">
-        <thead><tr><th>Tingkat</th><th>Laporan</th><th>Aset</th><th>Status</th><th class="num">Dilaporkan</th></tr></thead>
+      <table class="table cards report-table mine">
+        <thead><tr><th class="no">No</th><th>Tingkat</th><th>Laporan</th><th>Aset</th><th>Status</th><th class="num">Dilaporkan</th></tr></thead>
         <tbody>
         {% for r in reports %}
           <tr>
+            <td class="no"><span class="visually-hidden">Nomor </span>{{ forloop.counter }}</td>
             <td data-label="Tingkat" class="sev-cell">{% include "components/_severity.html" with severity=r.severity %}</td>
             <td data-label="Laporan" class="report-cell"><a class="row-link" href="{% url 'user_damage_report_detail' r.pk %}">{{ r.title }}</a></td>
             <td data-label="Aset" class="asset-col">{{ r.asset.nama_asset }}</td>
@@ -35,7 +36,7 @@
       </table>
     </div>
     {% else %}
-    <div class="empty"><strong>Belum ada laporan</strong>Kalau aset yang Anda pegang rusak, <a href="{% url 'damage_report_create' %}">laporkan di sini</a>.</div>
+    <div class="empty"><strong>Belum ada laporan</strong>Kalau menemukan aset yang rusak — milik Anda atau bukan — <a href="{% url 'damage_report_create' %}">laporkan di sini</a>.</div>
     {% endif %}
   </section>
 </div>

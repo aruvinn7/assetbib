@@ -31,16 +31,17 @@
   <section class="panel" aria-label="Draf berita acara kerusakan">
     {% if drafts %}
     <div class="table-wrap">
-      <table class="table">
-        <thead><tr><th>Departemen</th><th class="num">Temuan</th><th class="num">Rekomendasi dihapus</th><th>Temuan terakhir</th><th><span class="visually-hidden">Aksi</span></th></tr></thead>
+      <table class="table stack cards">
+        <thead><tr><th class="no">No</th><th>Departemen</th><th class="num">Temuan</th><th class="num">Rekomendasi dihapus</th><th>Temuan terakhir</th><th><span class="visually-hidden">Aksi</span></th></tr></thead>
         <tbody>
         {% for d in drafts %}
           <tr>
-            <td><a class="row-link" href="{% url 'ba_detail' d.pk %}">{{ d.department.name|default:"Tanpa departemen" }}</a></td>
-            <td class="num">{{ d.n }} aset</td>
-            <td class="num">{% if d.n_hapus %}{{ d.n_hapus }}{% else %}<span class="cell-sub">—</span>{% endif %}</td>
-            <td>{{ d.terakhir|sejak }}<div class="cell-sub">{{ d.terakhir|date:"d M Y" }}</div></td>
-            <td class="num"><a class="btn sm" href="{% url 'ba_detail' d.pk %}">Tinjau draf</a></td>
+            <td class="no"><span class="visually-hidden">Nomor </span>{{ forloop.counter }}</td>
+            <td class="lead"><a class="row-link" href="{% url 'ba_detail' d.pk %}">{{ d.department.name|default:"Tanpa departemen" }}</a></td>
+            <td data-label="Temuan" class="num">{{ d.n }} aset</td>
+            <td data-label="Rekomendasi dihapus" class="num">{% if d.n_hapus %}{{ d.n_hapus }}{% else %}<span class="cell-sub">—</span>{% endif %}</td>
+            <td data-label="Temuan terakhir">{{ d.terakhir|sejak }}<div class="cell-sub">{{ d.terakhir|date:"d M Y" }}</div></td>
+            <td class="num act"><a class="btn sm" href="{% url 'ba_detail' d.pk %}">Tinjau draf</a></td>
           </tr>
         {% endfor %}
         </tbody>
@@ -55,17 +56,18 @@
   <section class="panel" aria-label="Berita acara terbit">
     {% if issued %}
     <div class="table-wrap">
-      <table class="table">
-        <thead><tr><th>Nomor</th><th>Departemen</th><th>Tanggal</th><th class="num">Aset</th><th>Status</th>{% if tab == 'penghapusan' %}<th>Dasar</th>{% endif %}</tr></thead>
+      <table class="table stack cards">
+        <thead><tr><th class="no">No</th><th>Nomor</th><th>Departemen</th><th>Tanggal</th><th class="num">Aset</th><th>Status</th>{% if tab == 'penghapusan' %}<th>Dasar</th>{% endif %}</tr></thead>
         <tbody>
         {% for b in issued %}
           <tr>
-            <td><a class="row-link" href="{% url 'ba_detail' b.pk %}">{{ b.nomor }}</a><div class="cell-sub">{{ b.get_jenis_display }}</div></td>
-            <td>{{ b.department.name|default:"Lintas departemen" }}</td>
-            <td>{{ b.tanggal|date:"d M Y" }}</td>
-            <td class="num">{{ b.n }}</td>
-            <td>{% if b.status == 'ditandatangani' %}{% include "components/_status.html" with kind="safe" label="Ditandatangani" %}{% else %}{% include "components/_status.html" with kind="mandatory" label="Menunggu tanda tangan" %}{% endif %}</td>
-            {% if tab == 'penghapusan' %}<td>{% if b.rujukan %}<a href="{% url 'ba_detail' b.rujukan.pk %}">{{ b.rujukan.nomor }}</a>{% else %}<span class="cell-sub">Write off langsung</span>{% endif %}</td>{% endif %}
+            <td class="no"><span class="visually-hidden">Nomor </span>{{ forloop.counter }}</td>
+            <td class="lead"><a class="row-link" href="{% url 'ba_detail' b.pk %}">{{ b.nomor }}</a><div class="cell-sub">{{ b.get_jenis_display }}</div></td>
+            <td data-label="Departemen">{{ b.department.name|default:"Lintas departemen" }}</td>
+            <td data-label="Tanggal">{{ b.tanggal|date:"d M Y" }}</td>
+            <td data-label="Aset" class="num">{{ b.n }}</td>
+            <td data-label="Status">{% if b.status == 'ditandatangani' %}{% include "components/_status.html" with kind="safe" label="Ditandatangani" %}{% else %}{% include "components/_status.html" with kind="mandatory" label="Menunggu tanda tangan" %}{% endif %}</td>
+            {% if tab == 'penghapusan' %}<td data-label="Dasar">{% if b.rujukan %}<a href="{% url 'ba_detail' b.rujukan.pk %}">{{ b.rujukan.nomor }}</a>{% else %}<span class="cell-sub">Write off langsung</span>{% endif %}</td>{% endif %}
           </tr>
         {% endfor %}
         </tbody>

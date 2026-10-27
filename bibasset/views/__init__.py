@@ -25,10 +25,13 @@ from .damage_reports import (
     ga_damage_report_list, ga_damage_report_detail,
     ga_damage_report_acknowledge, ga_damage_report_resolve,
     ga_damage_report_reject,
-    user_dashboard, damage_report_create,
+    user_dashboard, damage_report_create, damage_report_asset_search,
     user_damage_report_detail, user_damage_report_list,
 )
 from .assignment import (assignment_list, assignment_create, assignment_return)
+from .employees import (
+    employee_list, employee_create, employee_update, employee_password, employee_toggle_active, employee_delete,
+)
 from .import_views import (import_asset, import_finansial, download_template_asset, download_template_finansial)
 
 from .movement import (movement_dashboard, movement_create, movement_update, movement_delete)

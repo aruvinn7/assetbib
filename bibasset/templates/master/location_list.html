@@ -9,7 +9,7 @@
   {% include "components/_master_tabs.html" with current="location" %}
   <div class="page-head">
     <div><h1>Lokasi</h1><div class="sub">{{ locations|length }} lokasi dalam susunan site → area → ruang</div></div>
-    <div class="page-actions"><a href="{% url 'location_create' %}" class="btn"><i class="fa-solid fa-plus" aria-hidden="true"></i>Tambah lokasi</a></div>
+    {% if is_ga %}<div class="page-actions"><a href="{% url 'location_create' %}" class="btn"><i class="fa-solid fa-plus" aria-hidden="true"></i>Tambah lokasi</a></div>{% endif %}
   </div>
 
   <section class="panel" aria-label="Pohon lokasi">

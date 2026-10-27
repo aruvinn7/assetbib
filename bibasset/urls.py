@@ -103,6 +103,7 @@ urlpatterns = [
     path('user/laporan-kerusakan/',     views.user_damage_report_list,     name='user_damage_report_list'),
     path('user/laporan-kerusakan/buat/',         views.damage_report_create,    name='damage_report_create'),
     path('user/laporan-kerusakan/buat/<int:asset_id>/', views.damage_report_create, name='damage_report_create_for_asset'),
+    path('user/laporan-kerusakan/cari-aset/',    views.damage_report_asset_search, name='damage_report_asset_search'),
     path('user/laporan-kerusakan/<int:pk>/',     views.user_damage_report_detail, name='user_damage_report_detail'),
 
     # =============================================
@@ -134,6 +135,14 @@ urlpatterns = [
     path('ga/assignment/buat/',                     views.assignment_create,            name='assignment_create'),
     path('ga/assignment/buat/<int:asset_id>/',      views.assignment_create,            name='assignment_create_for_asset'),
     path('ga/assignment/<int:pk>/kembalikan/',      views.assignment_return,            name='assignment_return'),
+
+    # Karyawan & akun login (khusus GA)
+    path('ga/karyawan/',                            views.employee_list,                name='employee_list'),
+    path('ga/karyawan/tambah/',                     views.employee_create,              name='employee_create'),
+    path('ga/karyawan/<int:pk>/',                   views.employee_update,              name='employee_update'),
+    path('ga/karyawan/<int:pk>/password/',          views.employee_password,            name='employee_password'),
+    path('ga/karyawan/<int:pk>/status/',            views.employee_toggle_active,       name='employee_toggle_active'),
+    path('ga/karyawan/<int:pk>/hapus/',             views.employee_delete,              name='employee_delete'),
 
     # =============================================
     # IMPORT EXCEL

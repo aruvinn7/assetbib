@@ -314,3 +314,58 @@ class AccessAndFlowTest(TestCase):
         r = self.client.post('/asset/import/finansial/', {'excel_file': buf})
         self.assertContains(r, "Aset &#x27;TIDAK-ADA&#x27; tidak ditemukan di sistem")
         self.assertTrue(AssetFinancial.objects.filter(asset=self.asset).exists())
+
+    def test_damage_report_any_asset_without_assignment(self):
+        """Karyawan boleh melapor aset yang tidak ia pegang; duplikat & aset write off ditolak."""
+        self.client.force_login(self.usr_user)
+        r = self.client.get('/user/laporan-kerusakan/cari-aset/?q=AC-1')
+        self.assertEqual(r.json()['results'][0]['id'], self.asset.pk)
+        self.assertEqual(r.json()['results'][0]['blocked'], '')
+        self.assertEqual(self.client.get(f'/user/laporan-kerusakan/buat/{self.asset.pk}/').status_code, 200)
+        self.client.post('/user/laporan-kerusakan/buat/', {
+            'asset_id': self.asset.pk, 'title': 'Bocor', 'description': '-', 'severity': 'medium'})
+        report = DamageReport.objects.get()
+        self.assertEqual(report.reported_by, self.usr)
+        # Laporan kedua untuk aset yang sama ditolak, dan pencarian menandainya
+        self.client.post('/user/laporan-kerusakan/buat/', {
+            'asset_id': self.asset.pk, 'title': 'Lagi', 'description': '-', 'severity': 'low'})
+        self.assertEqual(DamageReport.objects.count(), 1)
+        self.assertIn(f'#{report.pk}', self.client.get('/user/laporan-kerusakan/cari-aset/?q=AC-1').json()['results'][0]['blocked'])
+        # Aset write off tidak muncul dan tidak bisa dilaporkan
+        Asset.objects.filter(pk=self.asset.pk).update(lifecycle_status='writeoff')
+        DamageReport.objects.update(report_status='resolved')
+        self.assertEqual(self.client.get('/user/laporan-kerusakan/cari-aset/?q=AC-1').json()['results'], [])
+        self.client.post('/user/laporan-kerusakan/buat/', {
+            'asset_id': self.asset.pk, 'title': 'X', 'description': '-', 'severity': 'low'})
+        self.assertEqual(DamageReport.objects.count(), 1)
+        # Pencarian hanya untuk peran Karyawan
+        self.client.force_login(self.fin_user)
+        self.assertEqual(self.client.get('/user/laporan-kerusakan/cari-aset/?q=AC').status_code, 302)
+
+    def test_employee_admin_is_ga_only(self):
+        self.client.force_login(self.fin_user)
+        self.assertEqual(self.client.get('/ga/karyawan/').status_code, 302)
+        self.client.post('/ga/karyawan/tambah/', {'nama': 'B', 'employee_id': 'B1', 'jabatan': '-',
+                                                  'username': 'b', 'access': ['user']})
+        self.assertFalse(Employee.objects.filter(employee_id='B1').exists())
+
+        self.client.force_login(self.ga_user)
+        r = self.client.post('/ga/karyawan/tambah/', {'nama': 'Budi', 'employee_id': 'B1', 'jabatan': 'Staff',
+                                                      'username': 'budi', 'access': ['user']})
+        budi = Employee.objects.get(employee_id='B1')
+        self.assertRedirects(r, f'/ga/karyawan/{budi.pk}/', fetch_redirect_response=False)
+        # Password otomatis tampil sekali (tersembunyi, dengan tombol mata), lalu hilang
+        page = self.client.get(f'/ga/karyawan/{budi.pk}/').content.decode()
+        self.assertIn('type="password" id="credPassword"', page)
+        self.assertNotIn('id="credPassword"', self.client.get(f'/ga/karyawan/{budi.pk}/').content.decode())
+        self.client.post(f'/ga/karyawan/{budi.pk}/password/', {'password': 'BaruSekali9'})
+        self.assertTrue(User.objects.get(username='budi').check_password('BaruSekali9'))
+        # GA tidak bisa mencabut akses GA, menonaktifkan, atau menghapus akunnya sendiri
+        self.client.post(f'/ga/karyawan/{self.ga.pk}/', {'nama': 'ga', 'employee_id': 'ga', 'jabatan': '-',
+                                                       'username': 'ga', 'access': ['user']})
+        self.assertTrue(GAProfile.objects.filter(employee=self.ga).exists())
+        self.client.post(f'/ga/karyawan/{self.ga.pk}/status/')
+        self.client.post(f'/ga/karyawan/{self.ga.pk}/hapus/')
+        self.assertTrue(User.objects.get(pk=self.ga_user.pk).is_active)
+        self.client.post(f'/ga/karyawan/{budi.pk}/hapus/')
+        self.assertFalse(Employee.objects.filter(pk=budi.pk).exists())

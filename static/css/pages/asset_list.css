@@ -14,22 +14,26 @@
 .actions a.del { color: var(--danger-ink); }
 .actions a.del:hover { background: var(--danger-tint); color: var(--danger-ink); }
 
-/* Layar sempit: baris tabel jadi kartu (satu markup untuk semua ukuran) */
+/* Layar sempit: baris tabel jadi kartu terpisah (pola .table.cards di base.css). Hasil tanpa judul panel,
+   jadi kartu langsung di atas latar halaman. */
 @media (max-width: 860px) {
+  .panel.results { background: none; border: 0; border-radius: 0; }
+  .panel.results .table-wrap { padding: 0; background: none; }
   .asset-table thead { display: none; }
   .asset-table, .asset-table tbody, .asset-table tr, .asset-table td { display: block; width: 100%; }
-  .asset-table tr { padding: 14px 16px; border-bottom: 1px solid var(--rule-soft); display: grid; grid-template-columns: 1fr 1fr; gap: 8px 16px; }
-  .asset-table tbody tr:last-child { border-bottom: 0; }
-  .asset-table td { padding: 0; border: 0; text-align: left; }
-  .asset-table td[data-label="Aset"] { grid-column: 1 / -1; }
-  .asset-table td[data-label]:not([data-label="Aset"])::before {
+  .asset-table tr { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 10px 16px; }
+  .asset-table td { padding: 0; border: 0; text-align: left; min-width: 0; }
+  .asset-table td.lead { grid-column: 1 / -1; }
+  .asset-table td[data-label]:not(.lead)::before {
     content: attr(data-label); display: block; font-size: 12px; color: var(--ink-3); margin-bottom: 2px;
   }
   .asset-table .num { text-align: left; }
   .asset-table .loc { max-width: none; }
   .asset-table td[data-label="Departemen"], .asset-table td[data-label="BOM"] { display: none; }
-  .actions { grid-column: 1 / -1; text-align: left; padding-top: 4px !important; }
+  .actions { grid-column: 1 / -1; text-align: left; }
   .actions a { display: inline-block; padding: 6px 0; margin: 0 16px 0 0; }
+  .results .pagination-wrap { margin-top: 12px; padding: 12px 16px; background: var(--panel); border: 1px solid var(--rule); border-radius: var(--r-lg); }
+  .results .empty { background: var(--panel); border: 1px solid var(--rule); border-radius: var(--r-lg); }
   .search { max-width: none; }
 }
 

@@ -1,0 +1,116 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}{{ emp_obj.nama }} · Karyawan{% endblock %}
+{% block nav_employees %}active{% endblock %}
+{% block extra_head %}<link rel="stylesheet" href="{% static 'css/pages/employees.css' %}?v=2">{% endblock %}
+
+{% block content %}
+<div class="page">
+  <div class="page-head">
+    <div>
+      <h1>{{ emp_obj.nama }}</h1>
+      <div class="sub">{{ emp_obj.employee_id }} · {{ emp_obj.jabatan }}{% if emp_obj.department %} · {{ emp_obj.department.name }}{% endif %}{% if is_self %} · akun Anda{% endif %}</div>
+    </div>
+    <div class="page-actions"><a href="{% url 'employee_list' %}" class="btn outline"><i class="fa-solid fa-arrow-left" aria-hidden="true"></i>Daftar karyawan</a></div>
+  </div>
+
+  {% if new_password %}
+  <section class="cred-card" aria-labelledby="credTitle">
+    <svg class="sign" aria-hidden="true"><use href="#sign-mandatory"/></svg>
+    <div class="cred-body">
+      <h2 id="credTitle">Password untuk {{ emp_obj.nama }}</h2>
+      <p>Catat atau salin sekarang lalu berikan ke karyawan. Password ini <strong>tidak akan ditampilkan lagi</strong> setelah halaman dimuat ulang. Tekan ikon mata untuk melihatnya.</p>
+      <div class="cred-row">
+        <span class="cred-label">Username</span><code>{{ emp_obj.user.username }}</code>
+        <span class="cred-label">Password</span>{% include "components/_password_field.html" with id="credPassword" value=new_password readonly=True %}
+      </div>
+      <button type="button" class="btn sm outline" id="credCopy"><i class="fa-regular fa-copy" aria-hidden="true"></i>Salin username & password</button>
+    </div>
+  </section>
+  {% endif %}
+
+  <div class="form-layout">
+    <form method="post" class="form-main">
+      {% csrf_token %}
+      {% include "employees/_form.html" %}
+      <div class="form-bar">
+        <span class="bar-hint"><span class="req">*</span> wajib diisi</span>
+        <a href="{% url 'employee_list' %}" class="btn outline">Batal</a>
+        <button type="submit" class="btn">Simpan perubahan</button>
+      </div>
+    </form>
+
+    <aside class="form-side">
+      <section class="panel">
+        <div class="panel-head"><h2>Akun</h2></div>
+        <dl class="kv">
+          <div><dt>Status</dt><dd>{% if emp_obj.user.is_active %}{% include "components/_status.html" with kind="safe" label="Aktif" %}{% else %}{% include "components/_status.html" with kind="off" label="Nonaktif" %}{% endif %}</dd></div>
+          <div><dt>Terakhir masuk</dt><dd>{% if emp_obj.user.last_login %}{{ emp_obj.user.last_login|date:"d M Y, H:i" }}{% else %}<span class="dim">Belum pernah</span>{% endif %}</dd></div>
+          <div><dt>Pegang aset</dt><dd>{% if held_count %}<a href="{% url 'assignment_list' %}?q={{ emp_obj.nama|urlencode }}">{{ held_count }} aset</a>{% else %}<span class="dim">Tidak ada</span>{% endif %}</dd></div>
+        </dl>
+      </section>
+
+      <form method="post" action="{% url 'employee_password' emp_obj.pk %}" class="panel" aria-labelledby="pwTitle" onsubmit="return confirm('Ganti password {{ emp_obj.nama|escapejs }}? Password lama langsung tidak berlaku.')">
+        {% csrf_token %}
+        <div class="panel-head"><h2 id="pwTitle">Password</h2></div>
+        <div class="panel-body side-form">
+          <div class="pw-current">
+            <span class="pw-dots" aria-hidden="true">••••••••</span>
+            <span><strong>Terenkripsi</strong> — password saat ini tidak bisa dilihat siapa pun, termasuk GA.</span>
+          </div>
+          <p>Kalau karyawan lupa, atur password baru di bawah. Password baru tampil sekali setelah disimpan.</p>
+          <div class="field">
+            <label for="password">Password baru</label>
+            {% include "components/_password_field.html" with id="password" name="password" placeholder="Kosongkan agar dibuat otomatis" %}
+            <p class="field-hint">Minimal 8 karakter, tidak boleh hanya angka.</p>
+          </div>
+          <button type="submit" class="btn outline full"><i class="fa-solid fa-key" aria-hidden="true"></i>Ganti password</button>
+        </div>
+      </form>
+
+      {% if not is_self %}
+      <form method="post" action="{% url 'employee_toggle_active' emp_obj.pk %}" class="panel"
+            {% if emp_obj.user.is_active %}onsubmit="return confirm('Nonaktifkan akun {{ emp_obj.nama|escapejs }}? Ia tidak bisa masuk sampai diaktifkan lagi.')"{% endif %}>
+        {% csrf_token %}
+        <div class="panel-head"><h2>{% if emp_obj.user.is_active %}Nonaktifkan akun{% else %}Aktifkan akun{% endif %}</h2></div>
+        <div class="panel-body side-form">
+          {% if emp_obj.user.is_active %}
+          <p>Untuk karyawan yang keluar atau pindah. Datanya dan riwayat asetnya tetap tersimpan, hanya tidak bisa masuk.</p>
+          <button type="submit" class="btn outline full"><i class="fa-solid fa-user-slash" aria-hidden="true"></i>Nonaktifkan akun</button>
+          {% else %}
+          <p>Akun ini sedang nonaktif dan tidak bisa masuk.</p>
+          <button type="submit" class="btn full"><i class="fa-solid fa-user-check" aria-hidden="true"></i>Aktifkan lagi</button>
+          {% endif %}
+        </div>
+      </form>
+
+      <section class="panel danger-zone" aria-labelledby="delTitle">
+        <div class="panel-head"><h2 id="delTitle">Hapus permanen</h2></div>
+        <div class="panel-body">
+          {% if has_history %}
+          <p>Tidak bisa dihapus karena {{ emp_obj.nama }} punya riwayat pemegang aset. Nonaktifkan akunnya saja agar riwayat tetap utuh.</p>
+          {% else %}
+          <p>Hanya untuk data yang salah input. Akun login ikut terhapus dan tidak bisa dikembalikan.</p>
+          <form method="post" action="{% url 'employee_delete' emp_obj.pk %}" onsubmit="return confirm('Hapus permanen {{ emp_obj.nama|escapejs }} beserta akun login-nya?')">
+            {% csrf_token %}<button type="submit" class="btn danger full"><i class="fa-regular fa-trash-can" aria-hidden="true"></i>Hapus karyawan ini</button>
+          </form>
+          {% endif %}
+        </div>
+      </section>
+      {% endif %}
+    </aside>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+{% if new_password %}
+<script>
+  document.getElementById('credCopy')?.addEventListener('click', async (e) => {
+    const text = 'Username: {{ emp_obj.user.username|escapejs }}\nPassword: ' + document.getElementById('credPassword').value;
+    try { await navigator.clipboard.writeText(text); window.App?.toast('Username & password disalin'); }
+    catch { window.App?.toast('Gagal menyalin. Catat manual.', 'error'); }
+  });
+</script>
+{% endif %}
+{% endblock %}

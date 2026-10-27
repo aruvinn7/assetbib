@@ -2,7 +2,7 @@
 {% load static waktu rupiah %}
 {% block title %}Laporan #{{ report.pk }} · {{ report.title }}{% endblock %}
 {% block nav_damage %}active{% endblock %}
-{% block extra_head %}<link rel="stylesheet" href="{% static 'css/pages/damage_report.css' %}?v=2">{% endblock %}
+{% block extra_head %}<link rel="stylesheet" href="{% static 'css/pages/damage_report.css' %}?v=4">{% endblock %}
 
 {% block content %}
 <div class="page">
@@ -13,7 +13,8 @@
   <div class="page-head">
     <div>
       <h1>{{ report.title }}</h1>
-      <div class="sub">#{{ report.pk }} · dari {{ report.reported_by.nama|default:"—" }}{% if report.reported_by.jabatan %} ({{ report.reported_by.jabatan }}){% endif %} · {{ report.reported_at|sejak }}</div>
+      <div class="sub">#{{ report.pk }} · dari {{ report.reported_by.nama|default:"—" }}{% if report.reported_by.jabatan %} ({{ report.reported_by.jabatan }}){% endif %} · {{ report.reported_at|sejak }}
+        · {% if not holder %}aset belum punya pemegang{% elif holder.assigned_to_id == report.reported_by_id %}pelapor adalah pemegang aset{% else %}pemegang aset: {{ holder.assigned_to.nama }}{% endif %}</div>
       <div class="head-tags">
         {% include "components/_severity.html" with severity=report.severity %}
         {% include "components/_report_status.html" with status=report.report_status %}

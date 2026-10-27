@@ -55,6 +55,19 @@
 
   window.App = { toast, refresh, rememberAsset };
 
+  // ── Tombol mata di isian password: <button data-pw-toggle> di dalam .pw-field ──
+  document.addEventListener('click', e => {
+    const btn = e.target.closest('[data-pw-toggle]');
+    if (!btn) return;
+    const input = btn.closest('.pw-field')?.querySelector('input');
+    if (!input) return;
+    const show = input.type === 'password';
+    input.type = show ? 'text' : 'password';
+    btn.setAttribute('aria-pressed', show);
+    btn.setAttribute('aria-label', show ? 'Sembunyikan password' : 'Tampilkan password');
+    btn.querySelector('i').className = show ? 'fa-regular fa-eye-slash' : 'fa-regular fa-eye';
+  });
+
   // ── Kolom cari untuk <select> panjang: <input data-filter-for="idSelect"> ──
   // Menyembunyikan opsi yang tidak cocok; bila tinggal satu, opsi itu langsung terpilih.
   const fold = s => s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');

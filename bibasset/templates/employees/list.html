@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}Karyawan{% endblock %}
+{% block nav_employees %}active{% endblock %}
+{% block extra_head %}<link rel="stylesheet" href="{% static 'css/pages/employees.css' %}?v=2">{% endblock %}
+
+{% block content %}
+<div class="page">
+  <div class="page-head">
+    <div>
+      <h1>Karyawan</h1>
+      <div class="sub">{{ counts.total }} karyawan · {{ counts.inactive }} akun nonaktif · hanya GA yang bisa membuka halaman ini</div>
+    </div>
+    <div class="page-actions">
+      <a href="{% url 'employee_create' %}" class="btn"><i class="fa-solid fa-user-plus" aria-hidden="true"></i>Tambah karyawan</a>
+    </div>
+  </div>
+
+  <div class="toolbar">
+    <nav class="filters" aria-label="Saring akses">
+      <a class="chip {% if not access_filter %}active{% endif %}" href="{{ request.path }}{% querystring akses=None page=None %}" {% if not access_filter %}aria-current="true"{% endif %}>Semua <span class="count">{{ counts.total }}</span></a>
+      <a class="chip {% if access_filter == 'ga' %}active{% endif %}" href="{{ request.path }}{% querystring akses='ga' page=None %}" {% if access_filter == 'ga' %}aria-current="true"{% endif %}>GA <span class="count">{{ counts.ga }}</span></a>
+      <a class="chip {% if access_filter == 'finance' %}active{% endif %}" href="{{ request.path }}{% querystring akses='finance' page=None %}" {% if access_filter == 'finance' %}aria-current="true"{% endif %}>Finance <span class="count">{{ counts.finance }}</span></a>
+      <a class="chip {% if access_filter == 'user' %}active{% endif %}" href="{{ request.path }}{% querystring akses='user' page=None %}" {% if access_filter == 'user' %}aria-current="true"{% endif %}>Karyawan <span class="count">{{ counts.user }}</span></a>
+      <a class="chip {% if access_filter == 'inactive' %}active{% endif %}" href="{{ request.path }}{% querystring akses='inactive' page=None %}" {% if access_filter == 'inactive' %}aria-current="true"{% endif %}><svg class="sign" aria-hidden="true"><use href="#sign-off"/></svg>Nonaktif <span class="count">{{ counts.inactive }}</span></a>
+    </nav>
+    <form method="get" class="search" role="search">
+      {% if access_filter %}<input type="hidden" name="akses" value="{{ access_filter }}">{% endif %}
+      <i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i>
+      <label class="visually-hidden" for="empSearch">Cari karyawan</label>
+      <input class="input" type="search" id="empSearch" name="q" value="{{ search }}" placeholder="Nama, ID, username, jabatan, departemen…" autocomplete="off">
+    </form>
+  </div>
+
+  <section class="panel" aria-label="Daftar karyawan">
+    {% if employees %}
+    <div class="table-wrap">
+      <table class="table stack cards emp-table">
+        <thead><tr><th class="no">No</th><th>Karyawan</th><th>Departemen</th><th>Jabatan</th><th>Akses</th><th class="num">Pegang aset</th><th>Akun</th><th><span class="visually-hidden">Aksi</span></th></tr></thead>
+        <tbody>
+        {% for e in employees %}
+          <tr>
+            <td class="no"><span class="visually-hidden">Nomor </span>{{ page_obj.start_index|add:forloop.counter0 }}</td>
+            <td class="lead">
+              <a class="row-link" href="{% url 'employee_update' e.pk %}">{{ e.nama }}</a>
+              <div class="cell-sub">{{ e.employee_id }} · {{ e.user.username }}</div>
+            </td>
+            <td data-label="Departemen">{{ e.department.name|default:"—" }}</td>
+            <td data-label="Jabatan">{{ e.jabatan|default:"—" }}</td>
+            <td data-label="Akses">
+              <div class="access-tags">
+                {% for a in e.access %}<span class="tag {% if a == 'ga' %}mandatory{% elif a == 'finance' %}safe{% else %}off{% endif %}">{% if a == 'ga' %}GA{% elif a == 'finance' %}Finance{% else %}Karyawan{% endif %}</span>{% empty %}<span class="cell-sub">Belum ada akses</span>{% endfor %}
+              </div>
+            </td>
+            <td data-label="Pegang aset" class="num">{% if e.held %}{{ e.held }}{% else %}<span class="cell-sub">—</span>{% endif %}</td>
+            <td data-label="Akun">
+              {% if e.user.is_active %}{% include "components/_status.html" with kind="safe" label="Aktif" %}{% else %}{% include "components/_status.html" with kind="off" label="Nonaktif" %}{% endif %}
+              <div class="cell-sub">{% if e.user.last_login %}Masuk {{ e.user.last_login|date:"d M Y" }}{% else %}Belum pernah masuk{% endif %}</div>
+            </td>
+            <td class="row-actions act"><a href="{% url 'employee_update' e.pk %}">Kelola</a></td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% include "components/_pagination.html" with label="karyawan" %}
+    {% else %}
+    <div class="empty">
+      {% if search %}<strong>Tidak ada karyawan yang cocok dengan “{{ search }}”</strong><a href="{{ request.path }}{% querystring q=None page=None %}">Hapus pencarian</a>
+      {% elif access_filter %}<strong>Tidak ada karyawan untuk filter ini</strong><a href="{% url 'employee_list' %}">Tampilkan semua</a>
+      {% else %}<strong>Belum ada karyawan</strong><a href="{% url 'employee_create' %}">Tambah karyawan pertama</a>{% endif %}
+    </div>
+    {% endif %}
+  </section>
+
+  <p class="list-note"><i class="fa-solid fa-lock" aria-hidden="true"></i>Password tersimpan terenkripsi, jadi tidak bisa dilihat siapa pun. Kalau karyawan lupa password, buka <strong>Kelola</strong> lalu atur ulang password-nya.</p>
+</div>
+{% endblock %}
