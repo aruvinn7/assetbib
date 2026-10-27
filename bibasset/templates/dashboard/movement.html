@@ -22,15 +22,15 @@
 
   <!-- STATS (filter jalan di server, berlaku ke semua halaman) -->
   <div class="mv-stats anim">
-    <a href="{% querystring mv=None page=None %}" class="mv-stat {% if movement_filter == 'all' %}active-filter{% endif %}">
+    <a href="{{ request.path }}{% querystring mv=None page=None %}" class="mv-stat {% if movement_filter == 'all' %}active-filter{% endif %}">
       <div class="mv-stat-num" style="color:var(--accent);">{{ stats.total }}</div>
       <div class="mv-stat-label">Total Aset</div>
     </a>
-    <a href="{% querystring mv='has' page=None %}" class="mv-stat {% if movement_filter == 'has' %}active-filter{% endif %}">
+    <a href="{{ request.path }}{% querystring mv='has' page=None %}" class="mv-stat {% if movement_filter == 'has' %}active-filter{% endif %}">
       <div class="mv-stat-num" style="color:var(--success);">{{ stats.has_movement }}</div>
       <div class="mv-stat-label">Ada Histori</div>
     </a>
-    <a href="{% querystring mv='no' page=None %}" class="mv-stat {% if movement_filter == 'no' %}active-filter{% endif %}">
+    <a href="{{ request.path }}{% querystring mv='no' page=None %}" class="mv-stat {% if movement_filter == 'no' %}active-filter{% endif %}">
       <div class="mv-stat-num" style="color:var(--warning);">{{ stats.no_movement }}</div>
       <div class="mv-stat-label">Belum Dicatat</div>
     </a>
@@ -44,10 +44,10 @@
       <input type="search" name="q" class="mv-search" id="mvSearch"
         placeholder="Cari nama aset, nomor, lokasi..." value="{{ search }}">
     </form>
-    <a href="{% querystring status=None page=None %}"          class="mv-filter-btn {% if not status_filter %}active{% endif %}">Semua</a>
-    <a href="{% querystring status='active' page=None %}"      class="mv-filter-btn {% if status_filter == 'active' %}active{% endif %}">Aktif</a>
-    <a href="{% querystring status='maintenance' page=None %}" class="mv-filter-btn {% if status_filter == 'maintenance' %}active{% endif %}">Maintenance</a>
-    <a href="{% querystring status='writeoff' page=None %}"    class="mv-filter-btn {% if status_filter == 'writeoff' %}active{% endif %}">Write off</a>
+    <a href="{{ request.path }}{% querystring status=None page=None %}"          class="mv-filter-btn {% if not status_filter %}active{% endif %}">Semua</a>
+    <a href="{{ request.path }}{% querystring status='active' page=None %}"      class="mv-filter-btn {% if status_filter == 'active' %}active{% endif %}">Aktif</a>
+    <a href="{{ request.path }}{% querystring status='maintenance' page=None %}" class="mv-filter-btn {% if status_filter == 'maintenance' %}active{% endif %}">Maintenance</a>
+    <a href="{{ request.path }}{% querystring status='writeoff' page=None %}"    class="mv-filter-btn {% if status_filter == 'writeoff' %}active{% endif %}">Write off</a>
     <button type="button" onclick="expandAll()"   class="mv-filter-btn">⊞ Buka Semua</button>
     <button type="button" onclick="collapseAll()" class="mv-filter-btn">⊟ Tutup Semua</button>
   </div>
@@ -74,7 +74,7 @@
 
           <span class="mv-asset-num">{{ asset.asset_number }}</span>
           <span class="mv-asset-name" title="{{ asset.nama_asset }}">{{ asset.nama_asset }}</span>
-          <span class="mv-asset-group">{{ asset.asset_group.name|default:"—" }}</span>
+          <span class="mv-asset-group">{{ asset.asset_category.group.name|default:"—" }}</span>
 
           {% if asset.current_movement %}
             <span class="mv-holder-name">{{ asset.current_movement.held_by.nama|default:"—" }}</span>

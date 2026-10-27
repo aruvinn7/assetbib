@@ -48,7 +48,7 @@ def value_dashboard(request):
     jan1, dec31 = date(today.year, 1, 1), date(today.year, 12, 31)
 
     fins = (AssetFinancial.objects
-            .select_related('asset', 'asset__asset_group', 'asset__asset_category', 'asset__owned_by_department')
+            .select_related('asset', 'asset__asset_category__group', 'asset__owned_by_department')
             .exclude(asset__lifecycle_status='writeoff'))
 
     tot = defaultdict(Decimal)
@@ -67,7 +67,7 @@ def value_dashboard(request):
         tot['dep_full_year'] += start - _book_value_at(f, dec31)
         tot['count'] += 1
 
-        g = by_group[a.asset_group.name if a.asset_group else 'Tanpa grup']
+        g = by_group[a.asset_category.group.name if a.asset_category else 'Tanpa grup']
         g['cost'] += f.nilai_awal_aset; g['book'] += book; g['count'] += 1
         d = by_dept[a.owned_by_department.name if a.owned_by_department else 'Tanpa departemen']
         d['cost'] += f.nilai_awal_aset; d['book'] += book; d['count'] += 1

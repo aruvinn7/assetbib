@@ -2,7 +2,6 @@
 from datetime import date
 
 from django.contrib import messages
-from django.db import transaction
 from django.shortcuts import get_object_or_404, redirect, render
 
 from ..decorators import role_required
@@ -16,7 +15,7 @@ def assignment_list(request):
     assignments = AssetAssignment.objects.filter(
         status='active'
     ).select_related(
-        'asset', 'asset__lokasi_asset', 'assigned_to', 'assigned_by'
+        'asset', 'asset__lokasi_asset', 'assigned_to__department', 'assigned_by'
     ).order_by('-assigned_date')
 
     unassigned_assets = Asset.objects.filter(
@@ -43,25 +42,15 @@ def assignment_create(request, asset_id=None):
         if form.is_valid():
             asset    = form.cleaned_data['asset_id']
             assignee = form.cleaned_data['assigned_to']
-            with transaction.atomic():
-                # Pemegang lama otomatis ditutup (transferred)
-                AssetAssignment.objects.filter(asset=asset, status='active').update(
-                    status='transferred', returned_date=date.today(),
-                )
-                AssetAssignment.objects.create(
-                    asset=asset,
-                    assigned_to=assignee,
-                    assigned_by=request.user.employee,
-                    assigned_date=form.cleaned_data['assigned_date'] or date.today(),
-                    notes=form.cleaned_data['notes'],
-                )
-                # Pemegang berubah → otomatis tercatat di histori movement
-                record_movement(
-                    asset, held_by=assignee,
-                    department=assignee.department or asset.owned_by_department,
-                    location=asset.lokasi_asset, recorded_by=request.user.employee,
-                    notes=f"Serah terima ke {assignee.nama}",
-                )
+            # Movement baru + assignment (pemegang lama otomatis 'transferred') dalam 1 jalur
+            record_movement(
+                asset, held_by=assignee,
+                department=assignee.department or asset.owned_by_department,
+                location=asset.lokasi_asset, recorded_by=request.user.employee,
+                notes=f"Serah terima ke {assignee.nama}",
+                tanggal=form.cleaned_data['assigned_date'] or date.today(),
+                holder_notes=form.cleaned_data['notes'],
+            )
             messages.success(request, f"✅ Aset '{asset.nama_asset}' berhasil diserahkan ke {assignee.nama}.")
             return redirect('assignment_list')
         flash_form_errors(request, form)
@@ -70,7 +59,7 @@ def assignment_create(request, asset_id=None):
         # lokasi & grup di-join — dulu 950+ query karena lazy load per aset
         'assets': Asset.objects.filter(lifecycle_status='active').select_related(
             # asset_category__group: AssetCategory.__str__ memakai nama grup
-            'asset_category__group', 'asset_group', 'lokasi_asset',
+            'asset_category__group', 'lokasi_asset',
         ),
         'employees':      employees,
         'selected_asset': selected_asset,
@@ -84,17 +73,14 @@ def assignment_return(request, pk):
         AssetAssignment.objects.select_related('asset', 'assigned_to'), pk=pk, status='active'
     )
     if request.method == 'POST':
-        assignment.status        = 'returned'
-        assignment.returned_date = date.today()
-        assignment.notes        += f"\n[Dikembalikan: {request.POST.get('return_notes', '')}]"
-        with transaction.atomic():
-            assignment.save(update_fields=['status', 'returned_date', 'notes'])
-            asset = assignment.asset
-            record_movement(
-                asset, held_by=None, department=asset.owned_by_department,
-                location=asset.lokasi_asset, recorded_by=request.user.employee,
-                notes=f"Dikembalikan oleh {assignment.assigned_to.nama}",
-            )
+        # Assignment ditutup ('returned') oleh record_movement → sync_holder
+        asset = assignment.asset
+        record_movement(
+            asset, held_by=None, department=asset.owned_by_department,
+            location=asset.lokasi_asset, recorded_by=request.user.employee,
+            notes=f"Dikembalikan oleh {assignment.assigned_to.nama}",
+            holder_notes=request.POST.get('return_notes', '').strip(),
+        )
         messages.success(
             request,
             f"Aset '{assignment.asset.nama_asset}' berhasil dikembalikan oleh {assignment.assigned_to.nama}."

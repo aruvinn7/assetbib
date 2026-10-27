@@ -27,13 +27,13 @@
   <div class="toolbar">
     <nav class="filters" id="assetFilters" data-refresh aria-label="Saring status">
       {% with none_active=status_filter|default:health_filter|default:financial_filter %}
-      <a class="chip {% if not none_active %}active{% endif %}" href="{% querystring status=None health=None financial=None page=None %}" {% if not none_active %}aria-current="true"{% endif %}>Semua <span class="count">{{ total_asset }}</span></a>
+      <a class="chip {% if not none_active %}active{% endif %}" href="{{ request.path }}{% querystring status=None health=None financial=None page=None %}" {% if not none_active %}aria-current="true"{% endif %}>Semua <span class="count">{{ total_asset }}</span></a>
       {% endwith %}
-      <a class="chip {% if status_filter == 'active' %}active{% endif %}" href="{% querystring status='active' health=None financial=None page=None %}" {% if status_filter == 'active' %}aria-current="true"{% endif %}><svg class="sign" aria-hidden="true"><use href="#sign-safe"/></svg>Aktif <span class="count">{{ active_count }}</span></a>
-      <a class="chip {% if status_filter == 'maintenance' %}active{% endif %}" href="{% querystring status='maintenance' health=None financial=None page=None %}" {% if status_filter == 'maintenance' %}aria-current="true"{% endif %}><svg class="sign" aria-hidden="true"><use href="#sign-mandatory"/></svg>Maintenance <span class="count">{{ maintenance_count }}</span></a>
-      <a class="chip {% if status_filter == 'writeoff' %}active{% endif %}" href="{% querystring status='writeoff' health=None financial=None page=None %}" {% if status_filter == 'writeoff' %}aria-current="true"{% endif %}><svg class="sign" aria-hidden="true"><use href="#sign-off"/></svg>Write off <span class="count">{{ writeoff_count }}</span></a>
-      <a class="chip {% if health_filter == 'critical' %}active{% endif %}" href="{% querystring health='critical' status=None financial=None page=None %}" {% if health_filter == 'critical' %}aria-current="true"{% endif %}><svg class="sign" aria-hidden="true"><use href="#sign-danger"/></svg>Critical <span class="count">{{ critical_health_count }}</span></a>
-      <a class="chip {% if financial_filter == 'no' %}active{% endif %}" href="{% querystring financial='no' status=None health=None page=None %}" {% if financial_filter == 'no' %}aria-current="true"{% endif %}><svg class="sign" aria-hidden="true"><use href="#sign-none"/></svg>Belum dinilai <span class="count">{{ unvalued_count }}</span></a>
+      <a class="chip {% if status_filter == 'active' %}active{% endif %}" href="{{ request.path }}{% querystring status='active' health=None financial=None page=None %}" {% if status_filter == 'active' %}aria-current="true"{% endif %}><svg class="sign" aria-hidden="true"><use href="#sign-safe"/></svg>Aktif <span class="count">{{ active_count }}</span></a>
+      <a class="chip {% if status_filter == 'maintenance' %}active{% endif %}" href="{{ request.path }}{% querystring status='maintenance' health=None financial=None page=None %}" {% if status_filter == 'maintenance' %}aria-current="true"{% endif %}><svg class="sign" aria-hidden="true"><use href="#sign-mandatory"/></svg>Maintenance <span class="count">{{ maintenance_count }}</span></a>
+      <a class="chip {% if status_filter == 'writeoff' %}active{% endif %}" href="{{ request.path }}{% querystring status='writeoff' health=None financial=None page=None %}" {% if status_filter == 'writeoff' %}aria-current="true"{% endif %}><svg class="sign" aria-hidden="true"><use href="#sign-off"/></svg>Write off <span class="count">{{ writeoff_count }}</span></a>
+      <a class="chip {% if health_filter == 'critical' %}active{% endif %}" href="{{ request.path }}{% querystring health='critical' status=None financial=None page=None %}" {% if health_filter == 'critical' %}aria-current="true"{% endif %}><svg class="sign" aria-hidden="true"><use href="#sign-danger"/></svg>Critical <span class="count">{{ critical_health_count }}</span></a>
+      <a class="chip {% if financial_filter == 'no' %}active{% endif %}" href="{{ request.path }}{% querystring financial='no' status=None health=None page=None %}" {% if financial_filter == 'no' %}aria-current="true"{% endif %}><svg class="sign" aria-hidden="true"><use href="#sign-none"/></svg>Belum dinilai <span class="count">{{ unvalued_count }}</span></a>
     </nav>
 
     <form method="get" class="search" role="search" id="searchForm">
@@ -50,7 +50,7 @@
   <div class="scope-note">
     {% include "components/_status.html" with kind="mandatory" label="Disaring" %}
     Hanya {% if category_filter %}satu kategori{% elif group_filter %}satu grup aset{% else %}satu lokasi{% endif %} yang ditampilkan.
-    <a href="{% querystring category=None group=None location=None page=None %}">Hapus filter ini</a>
+    <a href="{{ request.path }}{% querystring category=None group=None location=None page=None %}">Hapus filter ini</a>
   </div>
   {% endif %}
 
@@ -83,7 +83,7 @@
                 </div>
               </div>
             </td>
-            <td data-label="Kategori">{{ asset.asset_category.name|default:"—" }}<div class="cell-sub">{{ asset.asset_group.name|default:"" }}</div></td>
+            <td data-label="Kategori">{{ asset.asset_category.name|default:"—" }}<div class="cell-sub">{{ asset.asset_category.group.name|default:"" }}</div></td>
             <td data-label="Lokasi" class="loc">{% include "components/_location.html" with loc=asset.lokasi_asset %}</td>
             <td data-label="Departemen">{{ asset.owned_by_department|default:"—" }}</td>
             <td data-label="Umur" class="num">{{ asset.umur_asset_detail|umur_singkat }}<div class="cell-sub">{{ asset.tanggal_pembelian|date:"M Y" }}</div></td>
@@ -117,7 +117,7 @@
     <div class="empty">
       {% if search_query %}
         <strong>Tidak ada aset yang cocok dengan “{{ search_query }}”</strong>
-        Coba kata kunci lain, atau <a href="{% querystring q=None page=None %}">hapus pencarian</a>.
+        Coba kata kunci lain, atau <a href="{{ request.path }}{% querystring q=None page=None %}">hapus pencarian</a>.
       {% elif health_filter == 'critical' %}
         <strong>Tidak ada aset critical</strong>Biaya perbaikan semua aset masih di bawah ambang.
       {% elif status_filter or financial_filter or category_filter or group_filter or location_filter %}

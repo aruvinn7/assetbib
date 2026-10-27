@@ -9,7 +9,7 @@ from django.views.decorators.http import require_POST
 from ..decorators import role_required
 from ..forms import MovementForm, flash_form_errors
 from ..models import Asset, AssetMovement, Department, Employee, Location
-from ..models import record_movement
+from ..models import record_movement, sync_holder
 from .utils import is_ga_or_finance
 from ..roles import is_ga
 
@@ -29,7 +29,7 @@ def movement_dashboard(request):
 
     has_movement = Exists(AssetMovement.objects.filter(asset=OuterRef('pk')))
     assets_qs = Asset.objects.select_related(
-        'lokasi_asset', 'asset_group',
+        'lokasi_asset', 'asset_category__group',
     ).annotate(has_movement=has_movement).order_by('nama_asset')
 
     if search:
@@ -132,9 +132,11 @@ def movement_update(request, pk):
         mv.location   = form.cleaned_data['location']
         mv.notes      = form.cleaned_data['notes']
         mv.save()
-        # Record aktif = posisi aset sekarang → sinkronkan lokasi aset
-        if mv.is_current and mv.location_id:
-            Asset.objects.filter(pk=mv.asset_id).update(lokasi_asset_id=mv.location_id)
+        # Record aktif = posisi aset sekarang → sinkronkan lokasi & pemegang aset
+        if mv.is_current:
+            if mv.location_id:
+                Asset.objects.filter(pk=mv.asset_id).update(lokasi_asset_id=mv.location_id)
+            sync_holder(mv.asset, mv.held_by, by=request.user.employee, notes=mv.notes)
     messages.success(request, "Movement berhasil diperbarui.")
     return redirect('movement_dashboard')
 
@@ -152,12 +154,13 @@ def movement_delete(request, pk):
         was_current = mv.is_current
         asset       = mv.asset
         mv.delete()
-        # Kalau yang dihapus record aktif, record sebelumnya jadi aktif lagi
+        # Kalau yang dihapus record aktif, record sebelumnya jadi aktif lagi (beserta pemegangnya)
         if was_current:
-            prev = asset.movements.order_by('-moved_in').first()
+            prev = asset.movements.select_related('held_by').order_by('-moved_in').first()
             if prev:
                 prev.is_current = True
                 prev.moved_out  = None
                 prev.save(update_fields=['is_current', 'moved_out'])
+            sync_holder(asset, prev.held_by if prev else None, by=request.user.employee)
     messages.success(request, f"Movement aset '{asset.nama_asset}' berhasil dihapus.")
     return redirect('movement_dashboard')

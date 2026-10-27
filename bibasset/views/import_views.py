@@ -321,7 +321,15 @@ def import_asset(request):
             categories_by_group.get(group.pk, {}) if group else categories_any,
             'asset_category',
         )
-        if group is None and category is not None:
+        # Grup aset tidak disimpan di aset (ikut kategori). Grup tanpa kategori → kategori 'Lainnya'
+        # grup itu, supaya informasi grupnya tidak hilang.
+        if category is None and group is not None:
+            category = categories_by_group.setdefault(group.pk, {}).get(AssetCategory.LAINNYA.lower())
+            if category is None:
+                category = AssetCategory.lainnya(group)
+                categories_by_group[group.pk][category.name.lower()] = category
+            row_warnings.append(f"Kategori tidak ditemukan → dimasukkan ke '{group.name} → {category.name}'")
+        if category is not None:
             group = category.group
 
         # Update nama yang sudah di-resolve ke row_data (untuk tampilkan hasil fuzzy fix)
@@ -339,7 +347,6 @@ def import_asset(request):
             tanggal_pembelian=tanggal_pembelian,
             lokasi_asset=lokasi,
             owned_by_department=dept,
-            asset_group=group,
             asset_category=category,
             lifecycle_status=lifecycle,
             created_by=created_by,
@@ -668,7 +675,8 @@ def download_template_asset(request):
         ("tanggal_pembelian","Tanggal aset dibeli / diterima",                             "WAJIB",   "YYYY-MM-DD saja\nContoh: 2024-02-20",         "2024-02-20"),
         ("lokasi_asset",     "Nama lokasi. Harus persis sama dengan data di sistem",       "Opsional","Teks. Kosongkan jika tidak ada",               "Office Angsana > Lantai 2"),
         ("department",       "Nama departemen pemilik aset",                               "Opsional","Teks. Harus persis sama di sistem",            "HRGA"),
-        ("asset_group",      "Grup aset (Elektronik, Furnitur, dll)",                      "Opsional","Teks. Harus persis sama di sistem",            "Elektronik"),
+        ("asset_group",      "Grup aset (Elektronik, Furnitur, dll). Membantu mencari kategori;\nbila kategori kosong, aset masuk kategori 'Lainnya' grup ini",
+                             "Opsional","Teks. Harus persis sama di sistem",            "Elektronik"),
         ("asset_category",   "Kategori spesifik dalam grup",                               "Opsional","Teks. Harus persis sama di sistem",            "AC & Pendingin"),
         ("lifecycle_status", "Status awal aset saat diimport",                             "Opsional","active / maintenance / writeoff\nDefault: active","active"),
     ]

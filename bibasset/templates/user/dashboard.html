@@ -97,7 +97,7 @@
                 <td class="hide-mobile" style="font-size:12px;color:var(--text-soft);">
                   {% if assignment.asset.asset_category %}
                     <div style="font-weight:600;">{{ assignment.asset.asset_category.name }}</div>
-                    <div style="font-size:12px;color:var(--muted);font-family:var(--mono);">{{ assignment.asset.asset_group.name|default:"" }}</div>
+                    <div style="font-size:12px;color:var(--muted);font-family:var(--mono);">{{ assignment.asset.asset_category.group.name|default:"" }}</div>
                   {% else %}—{% endif %}
                 </td>
                 <td class="hide-mobile" style="font-size:12px;color:var(--text-soft);">

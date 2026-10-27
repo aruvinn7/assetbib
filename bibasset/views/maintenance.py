@@ -107,7 +107,6 @@ def maintenance_list(request):
         .select_related(
             'asset',
             'asset__asset_category',
-            'asset__asset_group',
             'asset__lokasi_asset',
             'asset__maintenance_config',   # ← WAJIB agar tidak N+1 di get_effective_interval_days
         )
@@ -119,7 +118,6 @@ def maintenance_list(request):
             'asset__asset_category__name',
             'asset__asset_category__default_interval_value',
             'asset__asset_category__default_interval_unit',
-            'asset__asset_group__name',
             'asset__maintenance_config__custom_interval_days',
         )
         .order_by('scheduled_date')
@@ -157,9 +155,8 @@ def maintenance_list(request):
     all_active_assets = list(
         Asset.objects
         .filter(lifecycle_status='active')
-        .select_related('asset_group', 'asset_category')
-        .only('id', 'nama_asset', 'asset_number',
-              'asset_group__name', 'asset_category__name')
+        .select_related('asset_category')
+        .only('id', 'nama_asset', 'asset_number', 'asset_category__name')
         .order_by('nama_asset')
     )
     nearest = nearest_active_schedules(all_active_assets)

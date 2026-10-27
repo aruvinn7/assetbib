@@ -42,10 +42,9 @@ class HealthRulesTest(TestCase):
         self.assertEqual(compute_health(100_000, 5, 1_000_000)[0], 'warning')
 
     def test_sql_critical_filter_matches_python(self):
-        group = AssetGroup.objects.create(name='IT')
         for i, biaya in enumerate([700_000, 100_000]):
             a = Asset.objects.create(no_po='PO', asset_number=f'A{i}', nama_asset='x',
-                                     tanggal_pembelian=date(2024, 1, 1), asset_group=group)
+                                     tanggal_pembelian=date(2024, 1, 1))
             AssetFinancial.objects.create(asset=a, nilai_awal_aset=1_000_000, nilai_residual=0)
             MaintenanceRecord.objects.create(asset=a, maintenance_type='corrective',
                                              tanggal_pelaksanaan=date(2024, 6, 1),
@@ -92,7 +91,7 @@ class AccessAndFlowTest(TestCase):
         self.cat = AssetCategory.objects.create(group=group, name='Split', default_interval_value=3)
         self.asset = Asset.objects.create(no_po='PO', asset_number='AC-1', nama_asset='AC',
                                           tanggal_pembelian=date(2025, 1, 1),
-                                          asset_group=group, asset_category=self.cat)
+                                          asset_category=self.cat)
 
     def test_role_restrictions(self):
         self.client.force_login(self.usr_user)
@@ -180,3 +179,62 @@ class AccessAndFlowTest(TestCase):
                                                 'asset_number': 'AC-1', 'tanggal_pembelian': '2025-01-01'})
         tags = [m.extra_tags for m in r.context['messages']]
         self.assertIn('field:asset_number|', ' '.join(tags))   # ditempel di bawah isian nomor aset
+
+    def test_holder_single_source(self):
+        """Semua jalur (serah terima, movement, edit/hapus movement, kembali) menjaga assignment = movement."""
+        from django.db import IntegrityError, transaction
+        from .models import AssetAssignment, AssetMovement
+
+        def holder():
+            mv = AssetMovement.objects.filter(asset=self.asset, is_current=True).first()
+            aktif = list(AssetAssignment.objects.filter(asset=self.asset, status='active'))
+            self.assertLessEqual(len(aktif), 1)
+            self.assertEqual(aktif[0].assigned_to_id if aktif else None, mv.held_by_id if mv else None)
+            return mv.held_by_id if mv else None
+
+        _, lain = make_employee('lain', UserProfile)
+        self.client.force_login(self.ga_user)
+        self.client.post('/ga/assignment/buat/', {'asset_id': self.asset.pk, 'assigned_to': self.usr.pk})
+        self.assertEqual(holder(), self.usr.pk)
+
+        # Pindah pemegang lewat Pelacakan → assignment lama 'transferred', yang baru aktif
+        self.client.post(f'/movement/{self.asset.pk}/create/', {'held_by': lain.pk})
+        self.assertEqual(holder(), lain.pk)
+        self.assertTrue(AssetAssignment.objects.filter(assigned_to=self.usr, status='transferred').exists())
+
+        # Edit movement aktif mengganti pemegang
+        mv = AssetMovement.objects.get(asset=self.asset, is_current=True)
+        self.client.post(f'/movement/{mv.pk}/update/', {'held_by': self.usr.pk})
+        self.assertEqual(holder(), self.usr.pk)
+
+        # Hapus movement aktif → movement sebelumnya (dan pemegangnya) aktif lagi
+        self.client.post(f'/movement/{mv.pk}/delete/')
+        self.assertEqual(holder(), self.usr.pk)
+
+        # Kembalikan → tidak ada pemegang
+        a = AssetAssignment.objects.get(asset=self.asset, status='active')
+        self.client.post(f'/ga/assignment/{a.pk}/kembalikan/', {'return_notes': 'selesai'})
+        self.assertIsNone(holder())
+        a.refresh_from_db()
+        self.assertEqual(a.status, 'returned')
+        self.assertIn('[Dikembalikan: selesai]', a.notes)
+
+        # Constraint DB: tidak mungkin ada 2 assignment aktif / 2 movement aktif
+        AssetAssignment.objects.create(asset=self.asset, assigned_to=self.usr)
+        with self.assertRaises(IntegrityError), transaction.atomic():
+            AssetAssignment.objects.create(asset=self.asset, assigned_to=lain)
+        with self.assertRaises(IntegrityError), transaction.atomic():
+            AssetMovement.objects.create(asset=self.asset, is_current=True)
+
+    def test_import_group_without_category_goes_to_lainnya(self):
+        import io
+        from openpyxl import Workbook
+        from .models import AssetCategory
+        wb = Workbook(); ws = wb.active
+        ws.append(['no_po', 'asset_number', 'nama_asset', 'tanggal_pembelian', 'asset_group', 'asset_category'])
+        ws.append(['PO-9', 'AC-9', 'Kipas', '2025-01-01', 'AC', ''])
+        buf = io.BytesIO(); wb.save(buf); buf.seek(0); buf.name = 'aset.xlsx'
+        self.client.force_login(self.ga_user)
+        self.client.post('/asset/import/', {'excel_file': buf})
+        asset = Asset.objects.get(asset_number='AC-9')
+        self.assertEqual(asset.asset_category, AssetCategory.objects.get(group=self.cat.group, name='Lainnya'))

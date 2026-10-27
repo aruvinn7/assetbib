@@ -47,7 +47,7 @@ def asset_list(request):
     )
     assets_qs = (
         Asset.objects
-        .select_related("lokasi_asset", "owned_by_department", "asset_group", "asset_category", "financial")
+        .select_related("lokasi_asset", "owned_by_department", "asset_category__group", "financial")
         .with_health_annotations()
         .annotate(
             component_count=Coalesce(component_count, 0),
@@ -65,7 +65,7 @@ def asset_list(request):
             Q(asset_number__icontains=search_query) |
             Q(no_po__icontains=search_query)        |
             Q(asset_category__name__icontains=search_query) |
-            Q(asset_group__name__icontains=search_query)    |
+            Q(asset_category__group__name__icontains=search_query) |
             Q(lokasi_asset__name__icontains=search_query)   |
             Q(owned_by_department__name__icontains=search_query)
         )
@@ -73,7 +73,7 @@ def asset_list(request):
     if category_filter.isdigit():
         assets_qs = assets_qs.filter(asset_category_id=category_filter)
     if group_filter.isdigit():
-        assets_qs = assets_qs.filter(asset_group_id=group_filter)
+        assets_qs = assets_qs.filter(asset_category__group_id=group_filter)
     if location_filter.isdigit():
         assets_qs = assets_qs.filter(lokasi_asset_id=location_filter)
     elif location_filter == 'none':
@@ -223,7 +223,7 @@ def asset_quickview(request, pk):
     """Ringkasan satu aset untuk panel samping di daftar aset (HTML parsial)."""
     asset = get_object_or_404(
         Asset.objects.select_related(
-            'lokasi_asset', 'owned_by_department', 'asset_group', 'asset_category', 'financial', 'maintenance_config',
+            'lokasi_asset', 'owned_by_department', 'asset_category__group', 'financial', 'maintenance_config',
         ).with_health_annotations(),
         pk=pk,
     )
@@ -347,8 +347,8 @@ def asset_update(request, pk):
 def asset_detail(request, pk):
     asset = get_object_or_404(
         Asset.objects.select_related(
-            "lokasi_asset", "owned_by_department", "asset_group",
-            "asset_category", "financial", "maintenance_config",
+            "lokasi_asset", "owned_by_department",
+            "asset_category__group", "financial", "maintenance_config",
         ).prefetch_related(
             Prefetch("photos", queryset=AssetPhoto.objects.order_by('-is_primary', '-uploaded_at')),
             Prefetch(

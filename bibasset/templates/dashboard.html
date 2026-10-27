@@ -215,7 +215,7 @@
         {% for asset in recent_assets %}
           <tr>
             <td><a class="row-link" href="{% url 'asset_detail' asset.pk %}">{{ asset.nama_asset }}</a><div class="cell-sub">{{ asset.asset_number }} · PO {{ asset.no_po|default:"—" }}</div></td>
-            <td>{{ asset.asset_category.name|default:"—" }}<div class="cell-sub">{{ asset.asset_group.name|default:"" }}</div></td>
+            <td>{{ asset.asset_category.name|default:"—" }}<div class="cell-sub">{{ asset.asset_category.group.name|default:"" }}</div></td>
             <td class="loc">{% include "components/_location.html" with loc=asset.lokasi_asset %}</td>
             <td>{% include "components/_lifecycle.html" with status=asset.lifecycle_status %}</td>
             <td>{% with ms=asset.maintenance_status %}{% if ms == 'overdue' %}{% include "components/_status.html" with kind="warning" label="Terlambat" %}{% elif ms == 'upcoming_soon' %}{% include "components/_status.html" with kind="mandatory" label="Segera" %}{% elif ms == 'on_track' %}{% include "components/_status.html" with kind="safe" label="Sesuai jadwal" %}{% else %}{% include "components/_status.html" with kind="none" label="Belum diatur" %}{% endif %}{% endwith %}</td>

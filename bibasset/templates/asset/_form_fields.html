@@ -35,9 +35,10 @@
     <div class="fgrid">
       <div class="field">
         <label for="fGroup">Grup aset</label>
+        {# Hanya penyaring daftar kategori — grup aset ikut kategori, tidak disimpan terpisah #}
         <select class="input select" id="fGroup" name="asset_group">
           <option value="">Pilih grup</option>
-          {% for g in asset_groups %}<option value="{{ g.pk }}" {% if a.asset_group_id == g.pk %}selected{% endif %}>{{ g.name }}</option>{% endfor %}
+          {% for g in asset_groups %}<option value="{{ g.pk }}" {% if a.asset_category.group_id == g.pk %}selected{% endif %}>{{ g.name }}</option>{% endfor %}
         </select>
       </div>
       <div class="field">

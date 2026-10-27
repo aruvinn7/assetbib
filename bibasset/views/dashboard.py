@@ -277,7 +277,7 @@ def dashboard(request):
         # maintenance_status dihitung massal (1 query), bukan 2 query per aset
         'recent_assets': attach_maintenance_status(
             Asset.objects
-            .select_related('asset_category', 'asset_group', 'lokasi_asset', 'maintenance_config')
+            .select_related('asset_category__group', 'lokasi_asset', 'maintenance_config')
             .order_by('-id')[:10]
         ),
 
@@ -331,7 +331,7 @@ def location_dashboard(request):
             Asset.objects
             .filter(lokasi_asset_id__in=all_pks)
             .select_related(
-                'asset_group', 'asset_category',
+                'asset_category__group',
                 'owned_by_department', 'lokasi_asset',
             )
             .order_by('lifecycle_status', 'nama_asset')

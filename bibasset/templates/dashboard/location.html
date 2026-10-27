@@ -184,7 +184,7 @@
                   <td>
                     <div style="font-weight:700;font-size:12px;">{{ asset.nama_asset }}</div>
                     <div style="font-size:12px;color:var(--muted);font-family:var(--mono);margin-top:1px;">
-                      {{ asset.asset_number }}{% if asset.asset_group %} · {{ asset.asset_group.name }}{% endif %}
+                      {{ asset.asset_number }}{% if asset.asset_category %} · {{ asset.asset_category.group.name }}{% endif %}
                     </div>
                   </td>
                   <td class="hm" style="font-size:12px;color:var(--text-soft);">

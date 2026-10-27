@@ -16,7 +16,7 @@
     <div class="title-block">
       <div>
         <h1>{{ asset.nama_asset }}</h1>
-        <div class="sub">{{ asset.asset_number }}{% if asset.asset_category %} · {{ asset.asset_category.name }}{% endif %}{% if asset.asset_group %} · {{ asset.asset_group.name }}{% endif %}</div>
+        <div class="sub">{{ asset.asset_number }}{% if asset.asset_category %} · {{ asset.asset_category.name }}{% endif %}{% if asset.asset_category %} · {{ asset.asset_category.group.name }}{% endif %}</div>
         <div class="head-tags">
           {% include "components/_lifecycle.html" with status=asset.lifecycle_status %}
           {% include "components/_health.html" with health=health_status %}

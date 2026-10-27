@@ -54,25 +54,18 @@ class AssetForm(AliasModelForm):
         model = Asset
         fields = [
             'no_po', 'asset_number', 'nama_asset', 'tanggal_pembelian',
-            'lokasi_asset', 'owned_by_department', 'asset_group', 'asset_category',
+            'lokasi_asset', 'owned_by_department', 'asset_category',
         ]
         labels = {
             'no_po': 'No. PO', 'asset_number': 'Nomor aset', 'nama_asset': 'Nama aset',
             'tanggal_pembelian': 'Tanggal pembelian', 'lokasi_asset': 'Lokasi',
-            'owned_by_department': 'Departemen', 'asset_group': 'Grup aset',
+            'owned_by_department': 'Departemen',
             'asset_category': 'Kategori aset',
         }
         # LANGUAGE_CODE masih en-us, jadi pesan bawaan Django ditulis ulang di sini
         error_messages = {
             'asset_number': {'unique': 'Nomor aset ini sudah dipakai aset lain.'},
         }
-
-    def clean(self):
-        cleaned = super().clean()
-        group, category = cleaned.get('asset_group'), cleaned.get('asset_category')
-        if group and category and category.group_id != group.pk:
-            self.add_error('asset_category', f"Kategori '{category.name}' bukan bagian dari grup '{group.name}'.")
-        return cleaned
 
 
 class AssetUpdateForm(AssetForm):

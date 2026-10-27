@@ -155,6 +155,8 @@ class AssetCategory(models.Model):
         ('days',   'Hari'),
         ('months', 'Bulan'),
     ]
+    # Kategori penampung untuk aset yang grupnya diketahui tapi jenisnya belum ada kategorinya
+    LAINNYA = 'Lainnya'
 
     # Tanpa index sendiri: sudah tercakup unique (group, name)
     group = models.ForeignKey(AssetGroup, on_delete=models.CASCADE, related_name='categories', db_index=False)
@@ -176,6 +178,11 @@ class AssetCategory(models.Model):
 
     def __str__(self):
         return f"{self.group.name} → {self.name}"
+
+    @classmethod
+    def lainnya(cls, group):
+        """Kategori 'Lainnya' milik grup ini (dibuat bila belum ada)."""
+        return cls.objects.get_or_create(group=group, name=cls.LAINNYA)[0]
 
 
 # ================================================================
@@ -261,8 +268,7 @@ class Asset(models.Model):
     tanggal_pembelian = models.DateField()
     lokasi_asset      = models.ForeignKey(Location,    on_delete=models.SET_NULL, null=True, blank=True)
     owned_by_department = models.ForeignKey(Department, on_delete=models.SET_NULL, null=True, blank=True)
-    # Tanpa index sendiri: sudah tercakup Index (asset_group, lifecycle_status)
-    asset_group       = models.ForeignKey(AssetGroup,  on_delete=models.SET_NULL, null=True, blank=True, db_index=False)
+    # Grup aset = asset_category.group (tidak disimpan terpisah supaya tidak bisa berbeda)
     asset_category    = models.ForeignKey(
         AssetCategory, on_delete=models.SET_NULL, null=True, blank=True, related_name='assets'
     )
@@ -277,7 +283,6 @@ class Asset(models.Model):
         # sudah terlayani index pertama (kolom terdepan)
         indexes = [
             models.Index(fields=['lifecycle_status', 'asset_category']),
-            models.Index(fields=['asset_group', 'lifecycle_status']),
         ]
 
     # ── Properties ──────────────────────────────────────────────
@@ -659,6 +664,10 @@ class MaintenanceSchedule(models.Model):
 # ================================================================
 
 class AssetAssignment(models.Model):
+    """
+    Pemegang aset (serah terima). Jangan dibuat/diubah langsung: pakai record_movement(),
+    satu-satunya jalur yang menyamakan assignment aktif dengan AssetMovement.held_by terkini.
+    """
     STATUS = [
         ('active',      'Aktif — Sedang digunakan'),
         ('returned',    'Dikembalikan'),
@@ -683,6 +692,10 @@ class AssetAssignment(models.Model):
         indexes = [
             models.Index(fields=['asset', 'status']),
             models.Index(fields=['assigned_to', 'status']),
+        ]
+        constraints = [
+            models.UniqueConstraint(fields=['asset'], condition=Q(status='active'),
+                                    name='uniq_active_assignment_per_asset'),
         ]
 
     def __str__(self):
@@ -927,6 +940,10 @@ class AssetMovement(models.Model):
             models.Index(fields=['asset', 'is_current']),
             models.Index(fields=['asset', 'moved_in']),
         ]
+        constraints = [
+            models.UniqueConstraint(fields=['asset'], condition=Q(is_current=True),
+                                    name='uniq_current_movement_per_asset'),
+        ]
 
     def __str__(self):
         holder = self.held_by.nama if self.held_by else '—'
@@ -946,11 +963,37 @@ class AssetMovement(models.Model):
 
 
 # ── Helper: buat movement baru & tutup yang lama ─────────────────
-@transaction.atomic
-def record_movement(asset, held_by, department, location, recorded_by=None, notes=''):
+def sync_holder(asset, held_by, by=None, tanggal=None, notes=''):
     """
-    Panggil ini setiap kali aset berpindah.
-    Otomatis menutup record lama dan membuat yang baru.
+    Satu-satunya tempat AssetAssignment berubah: samakan assignment aktif aset dengan
+    pemegang movement terkini (held_by). Pemegang sama → dibiarkan; berbeda → yang lama
+    ditutup ('transferred' bila ada penerima baru, 'returned' bila tidak) dan yang baru dibuka.
+    """
+    tanggal = tanggal or date.today()
+    current = AssetAssignment.objects.filter(asset=asset, status='active').first()
+    if current and current.assigned_to_id == getattr(held_by, 'pk', None):
+        return current
+    if current:
+        current.status        = 'transferred' if held_by else 'returned'
+        current.returned_date = tanggal
+        if notes and not held_by:
+            current.notes = f'{current.notes}\n[Dikembalikan: {notes}]'.strip()
+        current.save(update_fields=['status', 'returned_date', 'notes'])
+    if held_by is None:
+        return None
+    return AssetAssignment.objects.create(
+        asset=asset, assigned_to=held_by, assigned_by=by, assigned_date=tanggal, notes=notes,
+    )
+
+
+@transaction.atomic
+def record_movement(asset, held_by, department, location, recorded_by=None, notes='',
+                    tanggal=None, holder_notes=None):
+    """
+    Panggil ini setiap kali aset berpindah tangan / lokasi.
+    Otomatis menutup record lama, membuat yang baru, dan menyamakan assignment (sync_holder).
+    `tanggal` = tanggal serah terima/pengembalian; `holder_notes` = catatan assignment
+    (default sama dengan `notes`).
     """
     now = timezone.now()
 
@@ -965,7 +1008,7 @@ def record_movement(asset, held_by, department, location, recorded_by=None, note
         Asset.objects.filter(pk=asset.pk).update(lokasi_asset=location)
 
     # Buat record baru
-    return AssetMovement.objects.create(
+    movement = AssetMovement.objects.create(
         asset=asset,
         held_by=held_by,
         department=department,
@@ -975,6 +1018,9 @@ def record_movement(asset, held_by, department, location, recorded_by=None, note
         notes=notes,
         recorded_by=recorded_by,
     )
+    sync_holder(asset, held_by, by=recorded_by, tanggal=tanggal,
+                notes=notes if holder_notes is None else holder_notes)
+    return movement
 
 
 @transaction.atomic
@@ -996,13 +1042,13 @@ def write_off_asset(asset, tanggal, alasan, keterangan, by=None, nilai_jual=None
     active = asset.schedules.active()
     active.filter(notes='').update(notes=f'Dihentikan: aset di-write off {tanggal:%d %b %Y}')
     active.update(status='skipped')
-    AssetAssignment.objects.filter(asset=asset, status='active').update(status='returned', returned_date=tanggal)
     DamageReport.objects.filter(asset=asset, report_status__in=DamageReport.ACTIVE_STATUS).update(
         report_status='resolved', resolved_at=timezone.now(), handled_by=by,
         ga_notes='Ditutup karena aset di-write off.',
     )
+    # Pemegang aktif ikut ditutup (returned per tanggal write off) lewat record_movement
     record_movement(asset, held_by=None, department=asset.owned_by_department, location=asset.lokasi_asset,
-                    recorded_by=by, notes=f'Write off: {wo.get_alasan_display()}')
+                    recorded_by=by, notes=f'Write off: {wo.get_alasan_display()}', tanggal=tanggal, holder_notes='')
     return wo
 
 

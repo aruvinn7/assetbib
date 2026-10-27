@@ -11,7 +11,7 @@ from ..roles import is_finance
 
 def _get_asset(asset_id):
     return get_object_or_404(
-        Asset.objects.select_related('financial', 'lokasi_asset', 'asset_group', 'asset_category', 'write_off'),
+        Asset.objects.select_related('financial', 'lokasi_asset', 'asset_category__group', 'write_off'),
         id=asset_id,
     )
 
