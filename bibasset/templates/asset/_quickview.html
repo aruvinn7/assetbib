@@ -36,7 +36,7 @@
 
   <dl class="qv-facts">
     <div><dt>Lokasi</dt><dd>{% if asset.lokasi_asset %}{{ asset.lokasi_asset }}{% else %}<span class="dim">Belum ditempatkan</span>{% endif %}</dd></div>
-    <div><dt>Pemegang</dt><dd>{% if holder %}{{ holder.nama }}{% else %}<span class="dim">Tidak ada (aset bersama)</span>{% endif %}</dd></div>
+    <div><dt>Pemegang</dt><dd>{% include "components/_custody.html" %}</dd></div>
     <div><dt>Departemen</dt><dd>{{ asset.owned_by_department|default:"—" }}</dd></div>
     <div><dt>Kategori</dt><dd>{{ asset.asset_category.name|default:"—" }}</dd></div>
     <div><dt>Umur</dt><dd>{{ asset.umur_asset_detail|umur }} <span class="dim">· beli {{ asset.tanggal_pembelian|date:"d M Y" }}</span></dd></div>

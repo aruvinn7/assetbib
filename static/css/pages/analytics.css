@@ -31,6 +31,48 @@ td.bar-col { display: flex; align-items: center; gap: 10px; }
 .rank small { font-size: 12px; color: var(--ink-3); }
 .rank b { font-weight: 600; color: var(--ink); font-size: 14px; white-space: nowrap; font-variant-numeric: tabular-nums; }
 
+/* Tinjauan umur ekonomis */
+.v-ganti { --v: var(--danger); --v-tint: var(--danger-tint); --v-ink: var(--danger-ink); }
+.v-rencanakan { --v: var(--warning-fill); --v-tint: var(--warning-tint); --v-ink: var(--warning-ink); }
+.v-periksa { --v: var(--mandatory); --v-tint: var(--mandatory-tint); --v-ink: var(--mandatory-ink); }
+.v-pertahankan { --v: var(--safe); --v-tint: var(--safe-tint); --v-ink: var(--safe-ink); }
+.v-normal { --v: var(--ink-4); --v-tint: var(--off-tint); --v-ink: var(--ink-2); }
+.lr-matrix { display: grid; gap: 8px; padding: 16px 20px; }
+.lr-row { display: grid; grid-template-columns: minmax(130px, 1fr) minmax(0, 2fr) minmax(0, 2fr); gap: 8px; align-items: stretch; }
+.lr-head span { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-size: 13px; font-weight: 500; color: var(--ink-2); padding: 0 4px; }
+.lr-head small { flex-basis: 100%; font-size: 12px; font-weight: 400; color: var(--ink-3); }
+.lr-head .sign { width: 16px; height: 16px; }
+.lr-stage { display: flex; align-items: center; font-size: 13px; font-weight: 500; color: var(--ink-2); }
+.lr-cell { display: flex; align-items: baseline; gap: 10px; padding: 12px 14px; border-radius: var(--r); background: var(--v-tint); border: 1px solid transparent; color: var(--v-ink); text-decoration: none; }
+.lr-cell strong { font-size: 22px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.lr-cell span { font-size: 13px; font-weight: 500; }
+.lr-cell:hover { border-color: var(--v); }
+.lr-cell.is-current { border-color: var(--v); box-shadow: inset 0 0 0 1px var(--v); }
+.lr-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--v); display: inline-block; }
+.lr-tools { display: flex; gap: 8px; align-items: center; }
+.lr-tools .select { width: auto; min-width: 180px; }
+.lr-advice { border-left: 4px solid var(--v); background: var(--v-tint); }
+.lr-advice h2 { color: var(--v-ink); }
+.lr-advice p { margin: 2px 0 0; font-size: 13px; color: var(--ink-2); }
+.lr-life { min-width: 150px; }
+.lr-bar { display: block; height: 6px; border-radius: 999px; background: var(--off-tint); overflow: hidden; margin-bottom: 4px; }
+.lr-bar i { display: block; height: 100%; border-radius: 999px; background: var(--safe); }
+.lr-bar.stage-hampir i { background: var(--warning-fill); }
+.lr-bar.stage-habis i { background: var(--ink-4); }
+.lr-bad { color: var(--danger-ink); font-weight: 600; }
+.lr-factors { display: flex; flex-wrap: wrap; gap: 4px; }
+.lr-factors span { font-size: 12px; padding: 2px 8px; border-radius: 999px; background: var(--off-tint); color: var(--ink-2); white-space: nowrap; }
+.lr-factors .t-warn { background: var(--warning-tint); color: var(--warning-ink); }
+.lr-factors .t-bad { background: var(--danger-tint); color: var(--danger-ink); }
+@media (max-width: 860px) {
+  .lr-row { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+  .lr-stage { grid-column: 1 / -1; padding-top: 4px; }
+  .lr-head span:first-child { display: none; }
+  .lr-tools { flex-wrap: wrap; width: 100%; }
+  .lr-tools .select, .lr-tools .search { flex: 1 1 100%; }
+  .lr-factors span { white-space: normal; }
+}
+
 @media (max-width: 1280px) {
   .an-grid, .an-grid.even { grid-template-columns: minmax(0, 1fr); }
 }

@@ -38,6 +38,11 @@ def user_dashboard(request):
         'asset__asset_category__name', 'asset__lokasi_asset__name', 'asset__lokasi_asset__full_path',
     ).order_by('asset__nama_asset'))
 
+    # Aset bersama yang diserahkan atas nama departemen karyawan ini
+    shared_assignments = list(AssetAssignment.objects.filter(
+        department_id=employee.department_id, status='active'
+    ).select_related('asset', 'asset__lokasi_asset').order_by('asset__nama_asset')) if employee.department_id else []
+
     my_reports_qs = DamageReport.objects.filter(
         reported_by=employee
     ).select_related('asset').only(
@@ -54,6 +59,7 @@ def user_dashboard(request):
         'pending_count':      counts['active'],
         'total_reports':      counts['total'],
         'total_held':         len(active_assignments),
+        'shared_assignments': shared_assignments,
     }
     return render(request, 'user/dashboard.html', context)
 
@@ -281,7 +287,7 @@ def _render_ga_detail(request, pk, resolve_posted=None, status=200):
     # Pelapor tidak harus pemegang aset; GA perlu tahu siapa pemegangnya
     holder = AssetAssignment.objects.filter(
         asset=report.asset, status='active',
-    ).select_related('assigned_to').only('assigned_to__nama', 'assigned_to_id').first()
+    ).select_related('assigned_to', 'department').first()
 
     return render(request, 'ga/damage_report_detail.html', {
         'report':              report,

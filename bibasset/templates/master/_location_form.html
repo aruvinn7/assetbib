@@ -12,6 +12,7 @@
       <label for="locName">Nama lokasi <span class="req" aria-hidden="true">*</span></label>
       <input class="input" type="text" id="locName" name="name" value="{{ l.name|default:'' }}" maxlength="100" required autofocus placeholder="mis. Ruang Meeting 2">
     </div>
+    <label class="check-row"><input type="checkbox" name="is_storage" {% if l.is_storage or posted.is_storage %}checked{% endif %}><span><strong>Tempat titip GA</strong> — aset yang dikembalikan disimpan di sini dan berstatus Tersedia sampai diserahkan lagi.</span></label>
     <div class="readonly" aria-live="polite"><i class="fa-solid fa-sitemap" aria-hidden="true" style="color:var(--ink-3)"></i><span>Akan tercatat sebagai <strong id="locPath">—</strong></span></div>
   </div>
 </section>

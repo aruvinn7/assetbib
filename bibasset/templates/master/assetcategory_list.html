@@ -35,7 +35,7 @@
         {% for c in categories %}
           <tr data-name="{{ c.name|lower }} {{ c.group.name|lower }}">
             <td class="no"><span class="visually-hidden">Nomor </span>{{ forloop.counter }}</td>
-            <td class="lead">{% if is_ga %}<a class="row-link" href="{% url 'assetcategory_update' c.pk %}">{{ c.name }}</a>{% else %}<span class="row-name">{{ c.name }}</span>{% endif %}</td>
+            <td class="lead">{% if is_ga %}<a class="row-link" href="{% url 'assetcategory_update' c.pk %}">{{ c.name }}</a>{% else %}<span class="row-name">{{ c.name }}</span>{% endif %}{% if c.personal_use %} <span class="kind-pill" title="Bisa diserahkan ke karyawan">pribadi</span>{% endif %}</td>
             <td data-label="Grup">{{ c.group.name }}</td>
             <td data-label="Interval maintenance">{% if c.default_interval_value %}Setiap {{ c.default_interval_value }} {{ c.get_default_interval_unit_display|lower }}{% else %}<span class="cell-sub">Tidak terjadwal</span>{% endif %}</td>
             <td data-label="Checklist" class="num">{% with n=c.maintenance_description.splitlines|length %}{% if c.maintenance_description %}{{ n }} langkah{% else %}<span class="cell-sub">—</span>{% endif %}{% endwith %}</td>

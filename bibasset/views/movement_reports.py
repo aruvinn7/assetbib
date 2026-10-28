@@ -69,7 +69,8 @@ def movement_report_create(request, asset_id=None):
             messages.warning(request, f"{selected.nama_asset}: {reason}")
             return redirect('movement_report_list')
         else:
-            to_location   = Location.objects.filter(pk=posted.get('to_location') or 0).first()
+            # Masuk tempat titip GA = pengembalian; itu lewat GA, bukan laporan pindah
+            to_location   = Location.objects.filter(pk=posted.get('to_location') or 0, is_storage=False).first()
             to_department = Department.objects.filter(pk=posted.get('to_department') or 0).first()
             holder_id     = posted.get('to_holder') or ''
             to_holder     = Employee.objects.filter(pk=holder_id, user_profile__isnull=False).first() if holder_id else None
@@ -118,7 +119,7 @@ def movement_report_create(request, asset_id=None):
     return render(request, 'user/movement_report_form.html', {
         'held_assets': held_assets,
         'selected':    selected,
-        'locations':   Location.objects.order_by('full_path'),
+        'locations':   Location.objects.filter(is_storage=False).order_by('full_path'),
         'departments': Department.objects.order_by('name'),
         'recipients':  Employee.objects.filter(user_profile__isnull=False, user__is_active=True)
                        .select_related('department').order_by('nama'),

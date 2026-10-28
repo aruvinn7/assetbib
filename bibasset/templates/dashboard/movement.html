@@ -1,8 +1,8 @@
 {% extends "base.html" %}
-{% load static %}
+{% load static waktu %}
 {% block title %}Riwayat perpindahan · Pelacakan{% endblock %}
 {% block nav_tracking %}active{% endblock %}
-{% block extra_head %}<link rel="stylesheet" href="{% static 'css/pages/tracking.css' %}?v=3">{% endblock %}
+{% block extra_head %}<link rel="stylesheet" href="{% static 'css/pages/tracking.css' %}?v=5">{% endblock %}
 
 {% block content %}
 {% with is_ga=request.user.employee.ga_profile %}
@@ -58,6 +58,7 @@
             {% if asset.current_movement %}
               <span class="mv-now-who"><i class="fa-regular fa-user" aria-hidden="true"></i>{{ asset.current_movement.held_by.nama|default:"Tanpa pemegang" }}</span>
               <span class="mv-now-where"><i class="fa-solid fa-location-dot" aria-hidden="true"></i>{{ asset.current_movement.location|default:"Lokasi belum diisi" }}</span>
+              <span class="mv-now-when" title="{{ asset.last_moved|date:'d M Y, H:i' }}"><i class="fa-regular fa-clock" aria-hidden="true"></i>Pindah {{ asset.last_moved|sejak }}</span>
             {% else %}
               <span class="mv-now-none">Belum ada catatan perpindahan</span>
             {% endif %}

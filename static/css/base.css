@@ -858,3 +858,7 @@ a.stat:hover { border-color: var(--brand-200); box-shadow: var(--shadow-sm); }
 .select-filter { margin-bottom: 8px; }
 .select-filter .input { height: 38px; }
 .field-hint:empty { display: none; }
+
+/* Penanda kecil di samping nama: kategori pribadi, tempat titip GA */
+.kind-pill { display: inline-flex; align-items: center; gap: 4px; margin-left: 6px; padding: 0 7px; border-radius: 999px; background: var(--brand-25); color: var(--brand-700); font-size: 11px; font-weight: 500; line-height: 18px; vertical-align: 1px; white-space: nowrap; }
+.kind-pill i { font-size: 10px; }

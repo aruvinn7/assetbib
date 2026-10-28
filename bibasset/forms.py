@@ -12,7 +12,7 @@ from django.utils import timezone
 from django.utils.crypto import get_random_string
 
 from .models import (
-    Asset, AssetCategory, AssetComponent, AssetFinancial, AssetGroup,
+    Asset, AssetAssignment, AssetCategory, AssetComponent, AssetFinancial, AssetGroup,
     AssetMaintenanceConfig, AssetWriteOff, ComponentReplacement, DamageReport, Department,
     Employee, FinanceProfile, GAProfile, Location, MaintenanceRecord, UserProfile,
 )
@@ -235,8 +235,10 @@ class AssetGroupForm(forms.ModelForm):
 class AssetCategoryForm(forms.ModelForm):
     class Meta:
         model = AssetCategory
-        fields = ['group', 'name', 'default_interval_value', 'default_interval_unit', 'maintenance_description']
-        labels = {'group': 'Grup', 'name': 'Nama kategori', 'default_interval_value': 'Interval'}
+        fields = ['group', 'name', 'personal_use', 'default_interval_value', 'default_interval_unit',
+                  'maintenance_description']
+        labels = {'group': 'Grup', 'name': 'Nama kategori', 'default_interval_value': 'Interval',
+                  'personal_use': 'Bisa diserahkan pribadi'}
 
     def clean_maintenance_description(self):
         """Checklist: satu langkah per baris, dinomori ulang otomatis (1. … 2. …)."""
@@ -249,8 +251,8 @@ class AssetCategoryForm(forms.ModelForm):
 class LocationForm(forms.ModelForm):
     class Meta:
         model = Location
-        fields = ['name', 'parent']
-        labels = {'name': 'Nama lokasi', 'parent': 'Induk lokasi'}
+        fields = ['name', 'parent', 'is_storage']
+        labels = {'name': 'Nama lokasi', 'parent': 'Induk lokasi', 'is_storage': 'Tempat titip GA'}
 
     def clean_parent(self):
         parent = self.cleaned_data.get('parent')
@@ -267,10 +269,46 @@ class LocationForm(forms.ModelForm):
 # ── Assignment, movement, damage report ──────────────────────────
 
 class AssignmentForm(forms.Form):
-    asset_id      = forms.ModelChoiceField(Asset.objects.filter(lifecycle_status='active'), label='Aset')
-    assigned_to   = forms.ModelChoiceField(Employee.objects.filter(user_profile__isnull=False), label='Penerima')
+    """Serah terima: ke karyawan (kategori pemakaian pribadi saja) atau atas nama departemen."""
+    MODE = [('personal', 'Pribadi'), ('department', 'Departemen')]
+
+    asset_id      = forms.ModelChoiceField(Asset.objects.filter(lifecycle_status='active')
+                                           .select_related('asset_category'), label='Aset')
+    mode          = forms.ChoiceField(choices=MODE, label='Diserahkan ke')
+    assigned_to   = forms.ModelChoiceField(Employee.objects.filter(user_profile__isnull=False, user__is_active=True),
+                                           required=False, label='Karyawan')
+    department    = forms.ModelChoiceField(Department.objects.all(), required=False, label='Departemen')
+    location      = forms.ModelChoiceField(Location.objects.filter(is_storage=False), label='Lokasi pemakaian')
     assigned_date = forms.DateField(required=False, label='Tanggal serah terima')
     notes         = forms.CharField(required=False)
+
+    def clean(self):
+        data = super().clean()
+        asset, mode = data.get('asset_id'), data.get('mode')
+        if mode == 'personal':
+            if not data.get('assigned_to'):
+                self.add_error('assigned_to', 'Pilih karyawan penerima.')
+            category = asset.asset_category if asset else None
+            if asset and not (category and category.personal_use):
+                self.add_error('mode', f"{category.name if category else 'Aset tanpa kategori'} dipakai bersama; "
+                                       "serahkan atas nama departemen.")
+        elif mode == 'department' and not data.get('department'):
+            self.add_error('department', 'Pilih departemen penerima.')
+        return data
+
+
+class AssignmentReturnForm(forms.Form):
+    location      = forms.ModelChoiceField(Location.objects.all(), label='Disimpan di')
+    condition     = forms.ChoiceField(choices=AssetAssignment.CONDITION, label='Kondisi saat diterima')
+    returned_date = forms.DateField(required=False, label='Tanggal kembali')
+    notes         = forms.CharField(required=False, label='Catatan')
+
+    def clean(self):
+        data = super().clean()
+        data['notes'] = (data.get('notes') or '').strip()
+        if data.get('condition', 'baik') != 'baik' and not data['notes']:
+            self.add_error('notes', 'Jelaskan kerusakannya; catatan ini jadi laporan kerusakan.')
+        return data
 
 
 class MovementForm(forms.Form):

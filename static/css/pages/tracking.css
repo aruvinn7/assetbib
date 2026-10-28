@@ -33,6 +33,7 @@
 .mv-now span { display: flex; align-items: center; gap: 8px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .mv-now i { width: 12px; color: var(--ink-4); font-size: 12px; }
 .mv-now-none { color: var(--ink-3); }
+.mv-now-when { color: var(--ink-3); font-size: 12px; }
 .mv-meta { display: flex; align-items: center; gap: 8px; justify-content: flex-end; }
 
 .mv-body { padding: 4px 20px 20px 52px; }
@@ -117,3 +118,15 @@
   .loc-split { grid-template-columns: minmax(0, 1fr); }
   .loc-nav { position: static; max-height: 360px; }
 }
+
+/* Pemegang aset: catatan di atas tabel */
+.panel-note.top { border-top: 0; border-bottom: 1px solid var(--rule-soft); padding: 14px 20px; margin: 0; }
+
+/* Serah terima & pengembalian */
+.mode-hint { margin: 8px 0 0; }
+.recipient[hidden] { display: none; }
+.return-summary { display: flex; gap: 14px; align-items: flex-start; }
+.return-summary > i { width: 36px; height: 36px; display: grid; place-items: center; border-radius: 10px; background: var(--brand-25); color: var(--brand-600); flex: none; }
+.return-summary strong { display: block; font-weight: 500; color: var(--ink); }
+.return-summary span { font-size: 13px; color: var(--ink-3); }
+.cond-list { display: grid; gap: 8px; }

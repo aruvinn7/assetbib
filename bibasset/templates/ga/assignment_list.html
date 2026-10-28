@@ -2,7 +2,7 @@
 {% load static %}
 {% block title %}Pemegang aset · Pelacakan{% endblock %}
 {% block nav_tracking %}active{% endblock %}
-{% block extra_head %}<link rel="stylesheet" href="{% static 'css/pages/tracking.css' %}?v=3">{% endblock %}
+{% block extra_head %}<link rel="stylesheet" href="{% static 'css/pages/tracking.css' %}?v=5">{% endblock %}
 
 {% block content %}
 <div class="page">
@@ -11,76 +11,90 @@
   <div class="page-head">
     <div>
       <h1>Pemegang aset</h1>
-      <div class="sub">{{ total_assigned }} aset sedang dipegang karyawan · {{ total_unassigned }} aset aktif belum punya pemegang</div>
+      <div class="sub">Barang pribadi seperti laptop diserahkan ke karyawan; aset pemakaian bersama diserahkan atas nama departemen. Aset yang dikembalikan disimpan di tempat titip GA.</div>
     </div>
     <div class="page-actions">
       <a href="{% url 'assignment_create' %}" class="btn"><i class="fa-solid fa-handshake" aria-hidden="true"></i>Serahkan aset</a>
     </div>
   </div>
 
-  <div class="stack-gap">
-    <section class="panel" aria-labelledby="heldTitle">
-      <div class="panel-head">
-        <h2 id="heldTitle">Sedang dipegang</h2>
-        <form method="get" class="search panel-search" role="search">
-          <i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i>
-          <label class="visually-hidden" for="heldSearch">Cari aset atau pemegang</label>
-          <input class="input" type="search" id="heldSearch" name="q" value="{{ search }}" placeholder="Cari aset, karyawan, departemen…" autocomplete="off">
-        </form>
-      </div>
-
-      {% if assignments %}
-      <div class="table-wrap">
-        <table class="table stack cards">
-          <thead><tr><th class="no">No</th><th>Aset</th><th>Pemegang</th><th>Departemen</th><th class="num">Sejak</th><th><span class="visually-hidden">Aksi</span></th></tr></thead>
-          <tbody>
-          {% for a in assignments %}
-            <tr>
-              <td class="no"><span class="visually-hidden">Nomor </span>{{ forloop.counter }}</td>
-              <td class="lead">
-                <a class="row-link" href="{% url 'asset_detail' a.asset_id %}">{{ a.asset.nama_asset }}</a>
-                <div class="cell-sub">{{ a.asset.asset_number }}{% if a.asset.lokasi_asset %} · {{ a.asset.lokasi_asset.name }}{% endif %}</div>
-              </td>
-              <td data-label="Pemegang"><span class="row-name">{{ a.assigned_to.nama }}</span><div class="cell-sub">{{ a.assigned_to.jabatan|default:"—" }}</div></td>
-              <td data-label="Departemen">{{ a.assigned_to.department.name|default:"—" }}</td>
-              <td data-label="Sejak" class="num nowrap">{{ a.assigned_date|date:"d M Y" }}</td>
-              <td class="act">
-                <form method="post" action="{% url 'assignment_return' a.pk %}"
-                      onsubmit="return confirm('Tandai {{ a.asset.nama_asset|escapejs }} sudah dikembalikan oleh {{ a.assigned_to.nama|escapejs }}?')">
-                  {% csrf_token %}
-                  <button type="submit" class="btn sm outline"><i class="fa-solid fa-rotate-left" aria-hidden="true"></i>Kembalikan</button>
-                </form>
-              </td>
-            </tr>
-          {% endfor %}
-          </tbody>
-        </table>
-      </div>
-      {% elif search %}
-      <div class="empty"><strong>Tidak ada pemegang yang cocok dengan “{{ search }}”</strong><a href="{{ request.path }}">Tampilkan semua</a></div>
-      {% else %}
-      <div class="empty"><strong>Belum ada aset yang diserahkan</strong><a href="{% url 'assignment_create' %}">Serahkan aset pertama</a></div>
-      {% endif %}
-    </section>
-
-    <section class="panel" aria-labelledby="freeTitle">
-      <div class="panel-head"><h2 id="freeTitle">Belum ada pemegang</h2><span class="meta">{{ total_unassigned }} aset</span></div>
-      {% if unassigned_assets %}
-      <ul class="pick-list cols">
-        {% for asset in unassigned_assets %}
-        <li>
-          <span class="pl-text"><strong title="{{ asset.nama_asset }}">{{ asset.nama_asset }}</strong><span>{{ asset.asset_number }}{% if asset.lokasi_asset %} · {{ asset.lokasi_asset.name }}{% endif %}</span></span>
-          <a class="btn sm outline" href="{% url 'assignment_create_for_asset' asset.id %}" aria-label="Serahkan {{ asset.nama_asset }}">Serahkan</a>
-        </li>
-        {% endfor %}
-      </ul>
-      {% if total_unassigned > unassigned_assets|length %}
-      <p class="panel-note">Menampilkan {{ unassigned_assets|length }} aset terbaru. Aset lain bisa dicari di <a href="{% url 'assignment_create' %}">form serah terima</a>.</p>
-      {% endif %}
-      {% else %}
-      <div class="empty"><strong>Semua aset aktif sudah punya pemegang</strong></div>
-      {% endif %}
-    </section>
+  <div class="toolbar">
+    <nav class="filters" aria-label="Kelompok aset">
+      <a class="chip {% if tab == 'pribadi' %}active{% endif %}" href="{{ request.path }}?tab=pribadi" {% if tab == 'pribadi' %}aria-current="true"{% endif %}><i class="fa-regular fa-user" aria-hidden="true"></i>Pribadi <span class="count">{{ counts.pribadi }}</span></a>
+      <a class="chip {% if tab == 'departemen' %}active{% endif %}" href="{{ request.path }}?tab=departemen" {% if tab == 'departemen' %}aria-current="true"{% endif %}><i class="fa-solid fa-people-group" aria-hidden="true"></i>Departemen <span class="count">{{ counts.departemen }}</span></a>
+      <a class="chip {% if tab == 'tersedia' %}active{% endif %}" href="{{ request.path }}?tab=tersedia" {% if tab == 'tersedia' %}aria-current="true"{% endif %}><i class="fa-solid fa-warehouse" aria-hidden="true"></i>Tersedia di gudang <span class="count">{{ counts.tersedia }}</span></a>
+      <a class="chip {% if tab == 'belum' %}active{% endif %}" href="{{ request.path }}?tab=belum" {% if tab == 'belum' %}aria-current="true"{% endif %}>Belum diserahkan <span class="count">{{ counts.belum }}</span></a>
+    </nav>
+    <form method="get" class="search" role="search">
+      <input type="hidden" name="tab" value="{{ tab }}">
+      <i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i>
+      <label class="visually-hidden" for="holderSearch">Cari</label>
+      <input class="input" type="search" id="holderSearch" name="q" value="{{ search }}" placeholder="{% if tab == 'pribadi' %}Cari aset, karyawan, departemen…{% elif tab == 'departemen' %}Cari aset, departemen, lokasi…{% else %}Cari aset, lokasi, departemen…{% endif %}" autocomplete="off">
+    </form>
   </div>
+
+  <section class="panel" aria-label="{% if tab == 'pribadi' %}Aset pribadi{% elif tab == 'departemen' %}Aset departemen{% elif tab == 'tersedia' %}Aset tersedia{% else %}Aset belum diserahkan{% endif %}">
+    {% if tab == 'tersedia' %}<p class="panel-note top">Aset yang dikembalikan dan disimpan di tempat titip GA, siap diserahkan lagi.</p>
+    {% elif tab == 'belum' %}<p class="panel-note top">Aset aktif yang terpasang di lokasinya tanpa serah terima resmi, misalnya AC atau dispenser ruangan. Serahkan atas nama departemen bila perlu penanggung jawab.</p>{% endif %}
+
+    {% if rows %}
+    <div class="table-wrap">
+      {% if tab == 'pribadi' or tab == 'departemen' %}
+      <table class="table stack cards">
+        <thead><tr><th class="no">No</th><th>Aset</th><th>{% if tab == 'pribadi' %}Pemegang{% else %}Departemen{% endif %}</th><th>Lokasi pemakaian</th><th class="num">Sejak</th><th><span class="visually-hidden">Aksi</span></th></tr></thead>
+        <tbody>
+        {% for a in rows %}
+          <tr>
+            <td class="no"><span class="visually-hidden">Nomor </span>{{ page_obj.start_index|add:forloop.counter0 }}</td>
+            <td class="lead">
+              <a class="row-link" href="{% url 'asset_detail' a.asset_id %}">{{ a.asset.nama_asset }}</a>
+              <div class="cell-sub">{{ a.asset.asset_number }}</div>
+            </td>
+            {% if tab == 'pribadi' %}
+            <td data-label="Pemegang"><span class="row-name">{{ a.assigned_to.nama }}</span><div class="cell-sub">{{ a.assigned_to.jabatan|default:"—" }}{% if a.assigned_to.department %} · {{ a.assigned_to.department.name }}{% endif %}</div></td>
+            {% else %}
+            <td data-label="Departemen"><span class="row-name">{{ a.department.name }}</span><div class="cell-sub">Pemakaian bersama</div></td>
+            {% endif %}
+            <td data-label="Lokasi">{{ a.asset.lokasi_asset|default:"—" }}</td>
+            <td data-label="Sejak" class="num nowrap">{{ a.assigned_date|date:"d M Y" }}</td>
+            <td class="act"><a class="btn sm outline" href="{% url 'assignment_return' a.pk %}"><i class="fa-solid fa-rotate-left" aria-hidden="true"></i>Kembalikan</a></td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+      {% else %}
+      <table class="table stack cards">
+        <thead><tr><th class="no">No</th><th>Aset</th><th>{% if tab == 'tersedia' %}Disimpan di{% else %}Lokasi{% endif %}</th><th>Departemen pemilik</th><th>Status</th><th><span class="visually-hidden">Aksi</span></th></tr></thead>
+        <tbody>
+        {% for asset in rows %}
+          <tr>
+            <td class="no"><span class="visually-hidden">Nomor </span>{{ page_obj.start_index|add:forloop.counter0 }}</td>
+            <td class="lead">
+              <a class="row-link" href="{% url 'asset_detail' asset.pk %}">{{ asset.nama_asset }}</a>
+              <div class="cell-sub">{{ asset.asset_number }}{% if asset.asset_category %} · {{ asset.asset_category.name }}{% if asset.asset_category.personal_use %} <span class="kind-pill">pribadi</span>{% endif %}{% endif %}</div>
+            </td>
+            <td data-label="{% if tab == 'tersedia' %}Disimpan di{% else %}Lokasi{% endif %}">{{ asset.lokasi_asset|default:"Belum ditempatkan" }}</td>
+            <td data-label="Departemen">{{ asset.owned_by_department|default:"—" }}</td>
+            <td data-label="Status">{% include "components/_lifecycle.html" with status=asset.lifecycle_status %}</td>
+            <td class="act">{% if asset.lifecycle_status == 'active' %}<a class="btn sm outline" href="{% url 'assignment_create_for_asset' asset.pk %}" aria-label="Serahkan {{ asset.nama_asset }}">Serahkan</a>{% endif %}</td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+      {% endif %}
+    </div>
+    {% include "components/_pagination.html" with label="aset" %}
+    {% elif search %}
+    <div class="empty"><strong>Tidak ada yang cocok dengan “{{ search }}”</strong><a href="{{ request.path }}?tab={{ tab }}">Tampilkan semua</a></div>
+    {% elif tab == 'pribadi' %}
+    <div class="empty"><strong>Belum ada aset yang dipegang karyawan</strong>Laptop, kursi kerja, atau kasur mess diserahkan ke karyawan di sini. <a href="{% url 'assignment_create' %}">Serahkan aset</a></div>
+    {% elif tab == 'departemen' %}
+    <div class="empty"><strong>Belum ada aset yang diserahkan ke departemen</strong>Aset pemakaian bersama diserahkan atas nama departemen yang memintanya. <a href="{% url 'assignment_create' %}">Serahkan aset</a></div>
+    {% elif tab == 'tersedia' %}
+    <div class="empty"><strong>Tempat titip GA kosong</strong>Aset yang dikembalikan akan disimpan di sini sampai diserahkan lagi.</div>
+    {% else %}
+    <div class="empty"><strong>Semua aset aktif sudah diserahkan</strong></div>
+    {% endif %}
+  </section>
 </div>
 {% endblock %}

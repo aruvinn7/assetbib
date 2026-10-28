@@ -94,7 +94,7 @@
         <ul class="wo-effects">
           <li><i class="fa-solid fa-ban" aria-hidden="true"></i><span>Status menjadi <strong>Write off</strong>; aset tidak bisa dicatat maintenance lagi.</span></li>
           <li><i class="fa-solid fa-calendar-xmark" aria-hidden="true"></i><span>{% if schedule_count %}<strong>{{ schedule_count }} jadwal</strong> maintenance aktif dihentikan.{% else %}Tidak ada jadwal aktif.{% endif %}</span></li>
-          <li><i class="fa-solid fa-user-minus" aria-hidden="true"></i><span>{% if holder %}Dikembalikan dari <strong>{{ holder.nama }}</strong>.{% else %}Tidak sedang dipegang karyawan.{% endif %}</span></li>
+          <li><i class="fa-solid fa-user-minus" aria-hidden="true"></i><span>{% if assignment %}Serah terima ke <strong>{{ assignment.recipient_name }}</strong> ditutup.{% else %}Tidak sedang diserahkan ke karyawan atau departemen.{% endif %}</span></li>
           <li><i class="fa-solid fa-clipboard-check" aria-hidden="true"></i><span>{% if report_count %}<strong>{{ report_count }} laporan kerusakan</strong> aktif ditutup.{% else %}Tidak ada laporan kerusakan aktif.{% endif %}</span></li>
           <li><i class="fa-solid fa-coins" aria-hidden="true"></i><span>Nilai buku berhenti menyusut dan dikeluarkan dari dashboard Nilai aset.</span></li>
         </ul>

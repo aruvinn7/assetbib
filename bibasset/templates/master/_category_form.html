@@ -15,6 +15,7 @@
         <input class="input" type="text" id="catName" name="name" value="{{ c.name|default:'' }}" maxlength="100" required placeholder="mis. AC">
       </div>
     </div>
+    <label class="check-row"><input type="checkbox" name="personal_use" {% if c.personal_use or posted.personal_use %}checked{% endif %}><span><strong>Bisa diserahkan pribadi</strong> — barang yang ikut orangnya, mis. laptop, kursi kerja, kasur mess. Kategori lain diserahkan atas nama departemen.</span></label>
   </div>
 </section>
 

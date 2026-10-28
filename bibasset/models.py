@@ -53,6 +53,92 @@ def compute_health(total_biaya, breakdown, nilai_awal):
     return 'normal', ratio
 
 
+def health_cause(total_biaya, breakdown, nilai_awal):
+    """Penyebab status di atas normal: 'biaya' (rasio biaya perbaikan) atau 'frekuensi' (jumlah kerusakan)."""
+    status, ratio = compute_health(total_biaya, breakdown, nilai_awal)
+    if status in ('normal', 'no_data'):
+        return None
+    if ratio is not None and ratio >= get_repair_threshold(nilai_awal)['warning']:
+        return 'biaya'
+    return 'frekuensi'
+
+
+# ================================================================
+# TINJAUAN UMUR EKONOMIS — umur dibaca bersama kondisi aset
+# ================================================================
+# Umur ekonomis habis BUKAN alasan write off: aset yang masih sehat & jarang rusak dipertahankan.
+# Yang diganti adalah aset tua yang juga bermasalah (biaya perbaikan / kerusakan tinggi).
+LIFE_NEAR_END_YEARS = 1          # sisa umur ≤ 1 tahun = hampir habis
+RECENT_BREAKDOWN_WARNING = 2     # ≥ 2 kerusakan dalam 12 bulan terakhir = sering rusak
+
+LIFE_VERDICTS = {
+    'ganti':       ('Usulkan ganti / write off', 'Umur ekonomis habis atau hampir habis dan aset bermasalah. Ajukan ke Berita Acara Kerusakan dan anggaran pengganti.'),
+    'rencanakan':  ('Siapkan pengganti', 'Umur ekonomis hampir habis, kondisi masih baik. Masukkan ke rencana anggaran pengganti, belum perlu diganti sekarang.'),
+    'periksa':     ('Rusak sebelum waktunya', 'Umur masih panjang tetapi sudah sering rusak atau biaya perbaikannya tinggi. Cek pola pemakaian, garansi, atau kualitas unit.'),
+    'pertahankan': ('Pertahankan', 'Umur ekonomis sudah habis tetapi aset masih sehat dan jarang rusak. Tidak perlu write off atau diganti; pantau di setiap inspeksi.'),
+    'normal':      ('Normal', 'Umur masih panjang dan kondisi baik.'),
+}
+
+
+def life_review(fin, total_biaya, breakdown, recent_breakdown):
+    """
+    Gabungkan umur ekonomis dengan kondisi aset → rekomendasi + alasan per faktor.
+    `fin` = AssetFinancial; `breakdown` = jumlah kerusakan sepanjang umur;
+    `recent_breakdown` = jumlah kerusakan 12 bulan terakhir.
+    Return dict: verdict, label, advice, stage, used, sisa, used_pct, ratio, problem, factors [(teks, nada)].
+    """
+    nilai = fin.nilai_awal_aset
+    _, ratio = compute_health(total_biaya, breakdown, nilai)
+    ratio = ratio or 0.0
+    th = get_repair_threshold(nilai)
+    life = Decimal(fin.umur_ekonomis or 0)
+    used = fin.umur_terpakai()
+    days = max((timezone.localdate() - fin.asset.tanggal_pembelian).days, 0)
+    age = Decimal(days) / Decimal('365.25')
+    sisa = max(life - age, Decimal(0))
+    used_pct = min(float(age / life * 100), 999) if life else 0
+    stage = 'habis' if sisa <= 0 else 'hampir' if sisa <= LIFE_NEAR_END_YEARS else 'berjalan'
+
+    costly = ratio >= th['warning']
+    per_year = breakdown / max(float(age), 1.0)
+    frequent = recent_breakdown >= RECENT_BREAKDOWN_WARNING or (breakdown >= BREAKDOWN_WARNING and per_year >= 1)
+    problem = costly or frequent
+
+    if stage == 'berjalan':
+        verdict = 'periksa' if problem else 'normal'
+    elif problem:
+        verdict = 'ganti'
+    else:
+        verdict = 'pertahankan' if stage == 'habis' else 'rencanakan'
+
+    factors = []
+    th1 = lambda x: f'{x.quantize(Decimal("0.1"))}'.replace('.', ',')
+    if stage == 'habis':
+        lewat = (age - life).quantize(Decimal('0.1'))
+        factors.append((f'Umur ekonomis {fin.umur_ekonomis} th habis{f", lewat {th1(lewat)} th" if lewat > 0 else ""}', 'warn'))
+    elif stage == 'hampir':
+        factors.append((f'Umur ekonomis tinggal {th1(sisa)} th', 'warn'))
+    else:
+        factors.append((f'Sisa umur {th1(sisa)} dari {fin.umur_ekonomis} th', 'ok'))
+    if costly:
+        factors.append((f'Biaya perbaikan {ratio:.0f}% ≥ ambang {th["warning"]}%', 'bad'))
+    else:
+        factors.append((f'Biaya perbaikan {ratio:.0f}% (ambang {th["warning"]}%)', 'ok'))
+    if breakdown:
+        # Jumlah kerusakan dibaca terhadap umur: 6× dalam 7 tahun (0,8/th) masih wajar
+        text = f'{breakdown}× rusak ({per_year:.1f}/th), {recent_breakdown}× dalam 12 bulan'.replace('.', ',')
+        factors.append((text, 'bad' if frequent else 'warn' if breakdown >= BREAKDOWN_WARNING else 'ok'))
+    else:
+        factors.append(('Belum pernah rusak', 'ok'))
+
+    label, advice = LIFE_VERDICTS[verdict]
+    return {
+        'verdict': verdict, 'label': label, 'advice': advice, 'stage': stage, 'age': age, 'used': used,
+        'sisa': sisa, 'used_pct': used_pct, 'ratio': ratio, 'threshold': th, 'problem': problem,
+        'costly': costly, 'frequent': frequent, 'factors': factors,
+    }
+
+
 def selisih_tahun_bulan(awal, akhir):
     """Umur kalender penuh dari `awal` sampai `akhir` → (tahun, bulan). Satu-satunya rumus umur aset."""
     bulan = (akhir.year - awal.year) * 12 + (akhir.month - awal.month)
@@ -122,6 +208,8 @@ class Location(models.Model):
     )
     # Cache "Induk > Anak > Cucu" — supaya __str__ tidak query parent berulang (N+1)
     full_path = models.CharField(max_length=500, blank=True, editable=False)
+    # Tempat titip GA: aset yang dikembalikan disimpan di sini dan berstatus Tersedia
+    is_storage = models.BooleanField(default=False)
 
     class Meta:
         unique_together = ('name', 'parent')
@@ -134,6 +222,22 @@ class Location(models.Model):
             return self.name
         parent = Location.objects.only('full_path', 'name').get(pk=self.parent_id)
         return f"{parent.full_path or parent.name} > {self.name}"
+
+    @property
+    def site(self):
+        """Area utama (site) = bagian pertama full_path, mis. 'Angsana'."""
+        return (self.full_path or self.name).split(' > ')[0]
+
+    @classmethod
+    def storage_for(cls, location):
+        """Tempat titip GA di site yang sama dengan `location` (atau yang pertama bila tidak ada)."""
+        storages = cls.objects.filter(is_storage=True).order_by('full_path')
+        if location is not None:
+            site = location.site
+            same = storages.filter(Q(full_path=site) | Q(full_path__startswith=f'{site} > ')).first()
+            if same:
+                return same
+        return storages.first()
 
     def save(self, *args, **kwargs):
         self.full_path = self.build_full_path()
@@ -164,6 +268,8 @@ class AssetCategory(models.Model):
     default_interval_value = models.PositiveIntegerField(null=True, blank=True)
     default_interval_unit = models.CharField(max_length=10, choices=INTERVAL_UNIT, default='months')
     maintenance_description = models.TextField(blank=True)
+    # Barang yang ikut orangnya (laptop, kursi kerja, kasur mess). Selain itu diserahkan atas nama departemen.
+    personal_use = models.BooleanField(default=False)
 
     class Meta:
         unique_together = ('group', 'name')
@@ -358,6 +464,7 @@ class Asset(models.Model):
         return {
             'status': status, 'ratio': ratio,
             'threshold': threshold, 'recommendations': reasons,
+            'cause': health_cause(total_biaya, breakdown, fin.nilai_awal_aset if fin else None),
         }
 
     def health_status(self):
@@ -665,24 +772,35 @@ class MaintenanceSchedule(models.Model):
 
 class AssetAssignment(models.Model):
     """
-    Pemegang aset (serah terima). Jangan dibuat/diubah langsung: pakai record_movement(),
-    satu-satunya jalur yang menyamakan assignment aktif dengan AssetMovement.held_by terkini.
+    Serah terima aset: ke karyawan (pemakaian pribadi, assigned_to) atau atas nama departemen
+    (pemakaian bersama, department). Jangan dibuat/diubah langsung: pakai record_movement(),
+    satu-satunya jalur yang menyamakan assignment aktif dengan AssetMovement terkini.
     """
     STATUS = [
         ('active',      'Aktif — Sedang digunakan'),
         ('returned',    'Dikembalikan'),
         ('transferred', 'Dipindahkan ke user lain'),
     ]
+    CONDITION = [
+        ('baik',         'Baik'),
+        ('rusak_ringan', 'Rusak ringan, masih bisa dipakai'),
+        ('rusak_berat',  'Rusak, tidak bisa dipakai'),
+    ]
 
     # Tanpa index sendiri: sudah tercakup Index (asset, status) & (assigned_to, status)
     asset         = models.ForeignKey(Asset, on_delete=models.CASCADE, related_name='assignments', db_index=False)
-    assigned_to   = models.ForeignKey(Employee, on_delete=models.CASCADE, related_name='held_assets', db_index=False)
+    assigned_to   = models.ForeignKey(Employee, on_delete=models.CASCADE, null=True, blank=True,
+                                      related_name='held_assets', db_index=False)
+    # PROTECT: riwayat serah terima departemen tidak boleh ikut hilang saat departemen dihapus
+    department    = models.ForeignKey(Department, on_delete=models.PROTECT, null=True, blank=True,
+                                      related_name='held_assets')
     assigned_by   = models.ForeignKey(
         Employee, on_delete=models.SET_NULL, null=True, blank=True, related_name='assigned_assets'
     )
     assigned_date = models.DateField(default=date.today)
     returned_date = models.DateField(null=True, blank=True)
     status        = models.CharField(max_length=20, choices=STATUS, default='active')
+    return_condition = models.CharField(max_length=15, choices=CONDITION, blank=True)
     notes         = models.TextField(blank=True)
     created_at    = models.DateTimeField(auto_now_add=True)
 
@@ -696,10 +814,24 @@ class AssetAssignment(models.Model):
         constraints = [
             models.UniqueConstraint(fields=['asset'], condition=Q(status='active'),
                                     name='uniq_active_assignment_per_asset'),
+            # Penerima: karyawan ATAU departemen, tidak keduanya
+            models.CheckConstraint(
+                condition=Q(assigned_to__isnull=False, department__isnull=True) |
+                          Q(assigned_to__isnull=True, department__isnull=False),
+                name='assignment_one_recipient',
+            ),
         ]
 
     def __str__(self):
-        return f"{self.asset.asset_number} → {self.assigned_to.nama} ({self.get_status_display()})"
+        return f"{self.asset.asset_number} → {self.recipient_name} ({self.get_status_display()})"
+
+    @property
+    def is_shared(self):
+        return self.assigned_to_id is None
+
+    @property
+    def recipient_name(self):
+        return self.assigned_to.nama if self.assigned_to_id else self.department.name
 
 
 # ================================================================
@@ -974,37 +1106,54 @@ class AssetMovement(models.Model):
 
 
 # ── Helper: buat movement baru & tutup yang lama ─────────────────
-def sync_holder(asset, held_by, by=None, tanggal=None, notes=''):
+def sync_holder(asset, held_by, by=None, tanggal=None, notes='', department=None, location=None,
+                shared=False, release=False):
     """
-    Satu-satunya tempat AssetAssignment berubah: samakan assignment aktif aset dengan
-    pemegang movement terkini (held_by). Pemegang sama → dibiarkan; berbeda → yang lama
-    ditutup ('transferred' bila ada penerima baru, 'returned' bila tidak) dan yang baru dibuka.
+    Satu-satunya tempat AssetAssignment berubah: samakan serah terima aktif aset dengan posisi terkini.
+    - held_by diisi → dipegang karyawan itu (pemakaian pribadi).
+    - shared=True → diserahkan atas nama `department` (pemakaian bersama).
+    - tanpa pemegang: aset bersama tetap atas nama departemennya (ikut bila departemennya berubah),
+      kecuali masuk tempat titip GA atau release=True (dikembalikan / write off).
+    Penerima sama → dibiarkan; berbeda → yang lama ditutup ('transferred' bila ada penerima baru,
+    'returned' bila tidak) dan yang baru dibuka.
     """
     tanggal = tanggal or timezone.localdate()
     current = AssetAssignment.objects.filter(asset=asset, status='active').first()
-    if current and current.assigned_to_id == getattr(held_by, 'pk', None):
+    to_storage = location is not None and location.is_storage
+
+    if held_by is not None:
+        target = (held_by.pk, None)
+    elif shared and department is not None:
+        target = (None, department.pk)
+    elif current and current.is_shared and not (release or to_storage):
+        target = (None, department.pk if department is not None else current.department_id)
+    else:
+        target = None
+
+    if current and target == (current.assigned_to_id, current.department_id):
         return current
     if current:
-        current.status        = 'transferred' if held_by else 'returned'
+        current.status        = 'transferred' if target else 'returned'
         current.returned_date = tanggal
-        if notes and not held_by:
+        if notes and not target:
             current.notes = f'{current.notes}\n[Dikembalikan: {notes}]'.strip()
         current.save(update_fields=['status', 'returned_date', 'notes'])
-    if held_by is None:
+    if target is None:
         return None
     return AssetAssignment.objects.create(
-        asset=asset, assigned_to=held_by, assigned_by=by, assigned_date=tanggal, notes=notes,
+        asset=asset, assigned_to_id=target[0], department_id=target[1],
+        assigned_by=by, assigned_date=tanggal, notes=notes,
     )
 
 
 @transaction.atomic
 def record_movement(asset, held_by, department, location, recorded_by=None, notes='',
-                    tanggal=None, holder_notes=None):
+                    tanggal=None, holder_notes=None, shared=False, release=False):
     """
     Panggil ini setiap kali aset berpindah tangan / lokasi.
     Otomatis menutup record lama, membuat yang baru, dan menyamakan assignment (sync_holder).
     `tanggal` = tanggal serah terima/pengembalian; `holder_notes` = catatan assignment
-    (default sama dengan `notes`).
+    (default sama dengan `notes`); `shared` / `release` diteruskan ke sync_holder.
     """
     now = timezone.now()
 
@@ -1030,7 +1179,8 @@ def record_movement(asset, held_by, department, location, recorded_by=None, note
         recorded_by=recorded_by,
     )
     sync_holder(asset, held_by, by=recorded_by, tanggal=tanggal,
-                notes=notes if holder_notes is None else holder_notes)
+                notes=notes if holder_notes is None else holder_notes,
+                department=department, location=location, shared=shared, release=release)
     return movement
 
 
@@ -1090,10 +1240,7 @@ class MovementReport(models.Model):
 
 
 def _site_of(location):
-    """Area utama (site) sebuah lokasi = bagian pertama full_path, mis. 'Angsana'."""
-    if location is None:
-        return None
-    return (location.full_path or location.name).split(' > ')[0]
+    return location.site if location is not None else None
 
 
 def movement_crucial_reasons(asset, to_department, to_location):
@@ -1150,7 +1297,8 @@ def write_off_asset(asset, tanggal, alasan, keterangan, by=None, nilai_jual=None
     )
     # Pemegang aktif ikut ditutup (returned per tanggal write off) lewat record_movement
     record_movement(asset, held_by=None, department=asset.owned_by_department, location=asset.lokasi_asset,
-                    recorded_by=by, notes=f'Write off: {wo.get_alasan_display()}', tanggal=tanggal, holder_notes='')
+                    recorded_by=by, notes=f'Write off: {wo.get_alasan_display()}', tanggal=tanggal, holder_notes='',
+                    release=True)
     return wo
 
 

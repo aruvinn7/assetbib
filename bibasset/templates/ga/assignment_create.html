@@ -2,7 +2,7 @@
 {% load static %}
 {% block title %}Serahkan aset · Pelacakan{% endblock %}
 {% block nav_tracking %}active{% endblock %}
-{% block extra_head %}<link rel="stylesheet" href="{% static 'css/pages/tracking.css' %}?v=3">{% endblock %}
+{% block extra_head %}<link rel="stylesheet" href="{% static 'css/pages/tracking.css' %}?v=5">{% endblock %}
 
 {% block content %}
 <div class="page">
@@ -10,14 +10,14 @@
     <a href="{% url 'assignment_list' %}">Pemegang aset</a><i class="fa-solid fa-chevron-right" aria-hidden="true" style="font-size:10px"></i>Serahkan aset
   </div>
   <div class="page-head">
-    <div><h1>Serahkan aset ke karyawan</h1><div class="sub">Pemegang lama otomatis ditutup dan riwayatnya tercatat di Pelacakan.</div></div>
+    <div><h1>Serahkan aset</h1><div class="sub">Ke karyawan untuk barang pribadi, atau atas nama departemen untuk pemakaian bersama. Penerima lama otomatis ditutup dan riwayatnya tercatat di Pelacakan.</div></div>
   </div>
 
-  <form method="post" class="form-layout">
+  <form method="post" class="form-layout" id="handoverForm">
     {% csrf_token %}
     <div class="form-main">
       <section class="fsec" aria-labelledby="secAsset">
-        <div class="fsec-head"><h2 id="secAsset">Aset & penerima</h2><p>Hanya aset berstatus Aktif dan karyawan berperan User yang bisa dipilih.</p></div>
+        <div class="fsec-head"><h2 id="secAsset">Aset</h2><p>Hanya aset berstatus Aktif yang bisa diserahkan.</p></div>
         <div class="fsec-body">
           <div class="field">
             <label for="asset_id">Aset <span class="req" aria-hidden="true">*</span></label>
@@ -29,25 +29,60 @@
               <option value="">Pilih aset ({{ assets|length }})</option>
               {% for asset in assets %}
               <option value="{{ asset.id }}" data-num="{{ asset.asset_number }}" data-cat="{{ asset.asset_category.name|default:'—' }}"
-                      data-loc="{{ asset.lokasi_asset|default:'—' }}" data-holder="{{ asset.holder_name|default:'' }}"
-                      {% if selected_asset and selected_asset.id == asset.id %}selected{% endif %}>{{ asset.nama_asset }} · {{ asset.asset_number }}{% if asset.lokasi_asset %} · {{ asset.lokasi_asset.name }}{% endif %}</option>
+                      data-personal="{% if asset.asset_category.personal_use %}1{% endif %}" data-dept="{{ asset.owned_by_department_id|default:'' }}"
+                      data-loc="{{ asset.lokasi_asset|default:'—' }}" data-loc-id="{% if asset.lokasi_asset and not asset.lokasi_asset.is_storage %}{{ asset.lokasi_asset_id }}{% endif %}"
+                      data-storage="{% if asset.lokasi_asset.is_storage %}1{% endif %}" data-holder="{{ asset.holder_name|default:'' }}"
+                      {% if posted.asset_id == asset.id|stringformat:'s' or not posted and selected_asset.id == asset.id %}selected{% endif %}>{{ asset.nama_asset }} · {{ asset.asset_number }}{% if asset.lokasi_asset %} · {{ asset.lokasi_asset.name }}{% endif %}</option>
               {% endfor %}
             </select>
             <p class="field-hint" id="assetCount" aria-live="polite"></p>
           </div>
+        </div>
+      </section>
 
+      <section class="fsec" aria-labelledby="secRecipient">
+        <div class="fsec-head"><h2 id="secRecipient">Penerima</h2><p>Laptop, kursi kerja, kasur mess, dan barang lain yang ikut orangnya diserahkan ke karyawan. Selebihnya atas nama departemen yang meminta atau mengadakan.</p></div>
+        <div class="fsec-body">
           <div class="field">
-            <label for="assigned_to">Penerima <span class="req" aria-hidden="true">*</span></label>
+            <span class="field-label" id="modeLabel">Diserahkan ke <span class="req" aria-hidden="true">*</span></span>
+            <div class="seg" role="radiogroup" aria-labelledby="modeLabel">
+              <label class="seg-opt"><input type="radio" name="mode" value="personal" {% if posted.mode == 'personal' %}checked{% endif %}><span><i class="fa-regular fa-user" aria-hidden="true"></i> Karyawan (pribadi)</span></label>
+              <label class="seg-opt"><input type="radio" name="mode" value="department" {% if posted.mode == 'department' %}checked{% endif %}><span><i class="fa-solid fa-people-group" aria-hidden="true"></i> Departemen (bersama)</span></label>
+            </div>
+            <p class="field-hint mode-hint" id="modeHint" aria-live="polite"></p>
+          </div>
+
+          <div class="field recipient" id="personalField" hidden>
+            <label for="assigned_to">Karyawan <span class="req" aria-hidden="true">*</span></label>
             <div class="select-filter">
               <label class="visually-hidden" for="empFilter">Saring daftar karyawan</label>
               <input class="input" type="search" id="empFilter" data-filter-for="assigned_to" placeholder="Ketik nama, jabatan, atau departemen…" autocomplete="off">
             </div>
-            <select name="assigned_to" id="assigned_to" class="select" required>
+            <select name="assigned_to" id="assigned_to" class="select">
               <option value="">Pilih karyawan ({{ employees|length }})</option>
               {% for emp in employees %}
-              <option value="{{ emp.id }}">{{ emp.nama }} · {{ emp.jabatan }}{% if emp.department %} · {{ emp.department.name }}{% endif %}</option>
+              <option value="{{ emp.id }}" {% if posted.assigned_to == emp.id|stringformat:'s' %}selected{% endif %}>{{ emp.nama }} · {{ emp.jabatan }}{% if emp.department %} · {{ emp.department.name }}{% endif %}</option>
               {% endfor %}
             </select>
+          </div>
+
+          <div class="field recipient" id="deptField" hidden>
+            <label for="department">Departemen <span class="req" aria-hidden="true">*</span></label>
+            <select name="department" id="department" class="select">
+              <option value="">Pilih departemen</option>
+              {% for d in departments %}<option value="{{ d.pk }}" {% if posted.department == d.pk|stringformat:'s' %}selected{% endif %}>{{ d.name }}</option>{% endfor %}
+            </select>
+            <p class="field-hint">Bawaannya departemen pemilik aset. Bila berbeda, departemen pemilik ikut berganti.</p>
+          </div>
+
+          <div class="field">
+            <label for="location">Lokasi pemakaian <span class="req" aria-hidden="true">*</span></label>
+            <input class="input select-filter" type="search" placeholder="Saring lokasi…" data-filter-for="location" aria-label="Saring daftar lokasi">
+            <select name="location" id="location" class="select" required>
+              <option value="">Pilih lokasi…</option>
+              {% for l in locations %}<option value="{{ l.pk }}" {% if posted.location == l.pk|stringformat:'s' %}selected{% endif %}>{{ l.full_path }}</option>{% endfor %}
+            </select>
+            <p class="field-hint" id="locHint">Tempat aset dipakai setelah diserahkan.</p>
           </div>
         </div>
       </section>
@@ -58,11 +93,11 @@
           <div class="fgrid">
             <div class="field">
               <label for="assigned_date">Tanggal serah terima</label>
-              <input type="date" name="assigned_date" id="assigned_date" class="input" value="{% now 'Y-m-d' %}" max="{% now 'Y-m-d' %}">
+              <input type="date" name="assigned_date" id="assigned_date" class="input" value="{{ posted.assigned_date|default:'' }}{% if not posted.assigned_date %}{% now 'Y-m-d' %}{% endif %}" max="{% now 'Y-m-d' %}">
             </div>
             <div class="field span-all">
               <label for="notes">Catatan <span class="opt">opsional</span></label>
-              <textarea name="notes" id="notes" class="textarea" rows="3" placeholder="Contoh: kondisi baik, lengkap dengan charger dan tas."></textarea>
+              <textarea name="notes" id="notes" class="textarea" rows="3" placeholder="Contoh: kondisi baik, lengkap dengan charger dan tas. Diterima oleh Budi (supervisor).">{{ posted.notes|default:'' }}</textarea>
             </div>
           </div>
         </div>
@@ -79,15 +114,15 @@
       <section class="panel" aria-labelledby="pickedTitle">
         <div class="panel-head"><h2 id="pickedTitle">Aset terpilih</h2></div>
         <div class="panel-body">
-          <p class="picked-empty" id="pickedEmpty">Pilih aset untuk melihat lokasi dan pemegangnya saat ini.</p>
+          <p class="picked-empty" id="pickedEmpty">Pilih aset untuk melihat lokasi dan penerimanya saat ini.</p>
           <dl class="kv" id="pickedInfo" hidden>
             <div><dt>Nama</dt><dd id="pkName"></dd></div>
             <div><dt>Nomor</dt><dd id="pkNum"></dd></div>
             <div><dt>Kategori</dt><dd id="pkCat"></dd></div>
             <div><dt>Lokasi</dt><dd id="pkLoc"></dd></div>
-            <div><dt>Pemegang</dt><dd id="pkHolder"></dd></div>
+            <div><dt>Penerima</dt><dd id="pkHolder"></dd></div>
           </dl>
-          <p class="note warn" id="pickedMove" hidden><i class="fa-solid fa-right-left" aria-hidden="true"></i><span>Aset ini sedang dipegang <strong id="pkHolderName"></strong>. Penyerahan akan menutup pemegang lama.</span></p>
+          <p class="note warn" id="pickedMove" hidden><i class="fa-solid fa-right-left" aria-hidden="true"></i><span>Aset ini sedang diserahkan ke <strong id="pkHolderName"></strong>. Penyerahan baru akan menutup yang lama.</span></p>
         </div>
       </section>
     </aside>
@@ -98,24 +133,54 @@
 {% block extra_scripts %}
 <script>
   (() => {
-    const sel = document.getElementById('asset_id');
     const $ = id => document.getElementById(id);
-    const show = () => {
+    const sel = $('asset_id'), dept = $('department'), loc = $('location');
+    const modes = [...document.querySelectorAll('input[name=mode]')];
+    const personalRadio = modes.find(r => r.value === 'personal');
+    const departmentRadio = modes.find(r => r.value === 'department');
+
+    const showMode = () => {
+      const mode = modes.find(r => r.checked)?.value;
+      $('personalField').hidden = mode !== 'personal';
+      $('deptField').hidden = mode !== 'department';
+      $('assigned_to').required = mode === 'personal';
+      dept.required = mode === 'department';
+    };
+
+    // Kategori non-pribadi hanya bisa diserahkan ke departemen
+    const showAsset = (fromUser) => {
       const o = sel.selectedOptions[0];
       const picked = o && o.value;
       $('pickedEmpty').hidden = !!picked;
       $('pickedInfo').hidden = !picked;
       $('pickedMove').hidden = !(picked && o.dataset.holder);
-      if (!picked) return;
+      if (!picked) { personalRadio.disabled = false; $('modeHint').textContent = ''; return; }
       $('pkName').textContent = o.textContent.split(' · ')[0];
       $('pkNum').textContent = o.dataset.num;
       $('pkCat').textContent = o.dataset.cat;
       $('pkLoc').textContent = o.dataset.loc;
-      $('pkHolder').textContent = o.dataset.holder || 'Belum ada';
+      $('pkHolder').textContent = o.dataset.holder || (o.dataset.storage ? 'Tersedia di gudang GA' : 'Belum diserahkan');
       $('pkHolderName').textContent = o.dataset.holder;
+
+      const personal = !!o.dataset.personal;
+      personalRadio.disabled = !personal;
+      $('modeHint').textContent = personal
+        ? `${o.dataset.cat} bisa diserahkan ke karyawan maupun departemen.`
+        : `${o.dataset.cat} dipakai bersama, jadi diserahkan atas nama departemen.`;
+      if (!personal) departmentRadio.checked = true;
+      else if (fromUser || !modes.some(r => r.checked)) personalRadio.checked = true;
+      if (fromUser || !dept.value) dept.value = o.dataset.dept || '';
+      if (fromUser || !loc.value) loc.value = o.dataset.locId || '';
+      $('locHint').textContent = o.dataset.storage
+        ? 'Aset ini sedang di gudang GA. Pilih tempat aset akan dipakai.'
+        : 'Tempat aset dipakai setelah diserahkan.';
+      showMode();
     };
-    sel.addEventListener('change', show);
-    show();
+
+    sel.addEventListener('change', () => showAsset(true));
+    modes.forEach(r => r.addEventListener('change', showMode));
+    showAsset(false);
+    showMode();
   })();
 </script>
 {% endblock %}

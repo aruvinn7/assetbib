@@ -33,6 +33,7 @@
 .facts dt i { width: 16px; text-align: center; color: var(--ink-4); }
 .facts dd { margin: 4px 0 0 24px; font-weight: 500; font-size: 15px; color: var(--ink); overflow-wrap: anywhere; }
 .dd-sub { display: block; font-weight: 400; font-size: 13px; color: var(--ink-3); }
+.facts .dim { font-weight: 400; color: var(--ink-3); }
 
 .detail-grid { display: grid; grid-template-columns: minmax(0, 2fr) minmax(300px, 1fr); gap: 20px; align-items: start; }
 .col-main, .col-side { display: grid; gap: 20px; min-width: 0; }
@@ -182,3 +183,22 @@
 .wo-banner p { font-size: 14px; color: var(--ink-2); margin-top: 4px; max-width: 75ch; }
 .wo-banner .wo-meta { font-size: 13px; color: var(--ink-3); }
 @media (max-width: 640px) { .wo-banner { flex-direction: column; } .wo-banner-main { flex-direction: column; } }
+
+/* Tinjauan umur ekonomis di panel kesehatan */
+.life-verdict { --v: var(--ink-4); --v-tint: var(--off-tint); --v-ink: var(--ink-2);
+  display: flex; gap: 12px; align-items: flex-start; margin: 0 0 16px; padding: 12px 14px; border-radius: var(--r);
+  background: var(--v-tint); border-left: 4px solid var(--v); color: inherit; text-decoration: none; }
+.life-verdict:hover { box-shadow: var(--shadow-sm); }
+.life-verdict.v-ganti { --v: var(--danger); --v-tint: var(--danger-tint); --v-ink: var(--danger-ink); }
+.life-verdict.v-rencanakan { --v: var(--warning-fill); --v-tint: var(--warning-tint); --v-ink: var(--warning-ink); }
+.life-verdict.v-periksa { --v: var(--mandatory); --v-tint: var(--mandatory-tint); --v-ink: var(--mandatory-ink); }
+.life-verdict.v-pertahankan { --v: var(--safe); --v-tint: var(--safe-tint); --v-ink: var(--safe-ink); }
+.life-verdict > i { color: var(--v); margin-top: 3px; }
+.life-verdict > div { display: grid; gap: 2px; min-width: 0; }
+.life-k { font-size: 12px; color: var(--ink-3); }
+.life-verdict strong { color: var(--v-ink); font-weight: 600; }
+.life-a { font-size: 13px; color: var(--ink-2); }
+.life-f { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
+.life-f em { font-style: normal; font-size: 12px; padding: 2px 8px; border-radius: 999px; background: var(--panel); color: var(--ink-2); }
+.life-f .t-warn { color: var(--warning-ink); }
+.life-f .t-bad { color: var(--danger-ink); }

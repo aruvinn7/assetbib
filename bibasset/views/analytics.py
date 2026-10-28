@@ -7,13 +7,15 @@ from datetime import date, timedelta
 from decimal import ROUND_HALF_UP, Decimal
 
 from django.db.models import Avg, Count, DurationField, ExpressionWrapper, F, Q, Sum
+from django.core.paginator import Paginator
 from django.db.models.functions import TruncMonth
 from django.shortcuts import render
 from django.utils import timezone
 
 from ..decorators import role_required
 from ..models import (
-    Asset, AssetFinancial, AssetWriteOff, DamageReport, MaintenanceRecord, MaintenanceSchedule, compute_health,
+    LIFE_NEAR_END_YEARS, LIFE_VERDICTS, RECENT_BREAKDOWN_WARNING, Asset, AssetFinancial, AssetGroup, AssetWriteOff,
+    DamageReport, MaintenanceRecord, MaintenanceSchedule, compute_health, life_review,
 )
 from .utils import is_ga_or_finance
 
@@ -116,6 +118,69 @@ def value_dashboard(request):
         'chart_years':    {'labels': [str(y) for y in years], 'cost': [float(by_year[y]) for y in years]},
     }
     return render(request, 'dashboard/value.html', context)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Tinjauan umur ekonomis: umur dibaca bersama kondisi (biaya & frekuensi kerusakan)
+# ─────────────────────────────────────────────────────────────────────────────
+LIFE_TABS = ('ganti', 'rencanakan', 'periksa', 'pertahankan', 'normal')
+LIFE_SORT = {
+    'ganti':       lambda r: (-r['ratio'], -r['breakdown']),
+    'rencanakan':  lambda r: r['sisa'],
+    'periksa':     lambda r: (-r['ratio'], -r['breakdown']),
+    'pertahankan': lambda r: -r['used_pct'],
+    'normal':      lambda r: r['sisa'],
+}
+
+
+@role_required(is_ga_or_finance)
+def life_review_dashboard(request):
+    today = timezone.localdate()
+    search = request.GET.get('q', '').strip()
+    group = request.GET.get('group', '')
+
+    qs = (Asset.objects.exclude(lifecycle_status='writeoff').filter(financial__isnull=False)
+          .select_related('financial', 'asset_category__group', 'lokasi_asset', 'owned_by_department')
+          .with_health_annotations()
+          .annotate(recent_corrective=Count('maintenance_records', filter=Q(
+              maintenance_records__maintenance_type='corrective',
+              maintenance_records__tanggal_pelaksanaan__gt=today - timedelta(days=365)))))
+    if group.isdigit():
+        qs = qs.filter(asset_category__group_id=group)
+    if search:
+        qs = qs.filter(Q(nama_asset__icontains=search) | Q(asset_number__icontains=search) |
+                       Q(asset_category__name__icontains=search) | Q(owned_by_department__name__icontains=search))
+
+    rows = []
+    for a in qs:
+        rev = life_review(a.financial, a.total_biaya_annot, a.jumlah_corrective, a.recent_corrective)
+        rows.append({**rev, 'asset': a, 'book': a.financial.book_value(), 'breakdown': a.jumlah_corrective,
+                     'recent': a.recent_corrective})
+
+    # Matriks umur × kondisi (jumlah aset per sel); tiap sel = satu rekomendasi
+    matrix = defaultdict(int)
+    for r in rows:
+        matrix[(r['stage'], r['problem'])] += 1
+    cell = {('habis', False): 'pertahankan', ('habis', True): 'ganti', ('hampir', False): 'rencanakan',
+            ('hampir', True): 'ganti', ('berjalan', False): 'normal', ('berjalan', True): 'periksa'}
+    grid = [(label, [(cell[(stage, bad)], LIFE_VERDICTS[cell[(stage, bad)]][0], matrix[(stage, bad)]) for bad in (False, True)])
+            for stage, label in (('habis', 'Umur ekonomis habis'), ('hampir', f'Sisa ≤ {LIFE_NEAR_END_YEARS} tahun'),
+                                 ('berjalan', 'Umur masih panjang'))]
+    counts = {t: sum(1 for r in rows if r['verdict'] == t) for t in LIFE_TABS}
+    tab = request.GET.get('tab') or next((t for t in LIFE_TABS if counts[t]), 'normal')
+    if tab not in LIFE_TABS:
+        tab = 'ganti'
+    shown = sorted((r for r in rows if r['verdict'] == tab), key=LIFE_SORT[tab])
+    page_obj = Paginator(shown, 25).get_page(request.GET.get('page'))
+
+    return render(request, 'dashboard/life_review.html', {
+        'today': today, 'rows': page_obj, 'page_obj': page_obj, 'tab': tab, 'counts': counts,
+        'verdicts': [(t, LIFE_VERDICTS[t][0], counts[t]) for t in LIFE_TABS],
+        'current': LIFE_VERDICTS[tab], 'grid': grid, 'total': len(rows),
+        'search': search, 'group': group, 'groups': AssetGroup.objects.order_by('name'),
+        'near_end_years': LIFE_NEAR_END_YEARS, 'recent_warning': RECENT_BREAKDOWN_WARNING,
+        'unvalued_count': Asset.objects.exclude(lifecycle_status='writeoff').filter(financial__isnull=True).count(),
+    })
 
 
 # ─────────────────────────────────────────────────────────────────────────────

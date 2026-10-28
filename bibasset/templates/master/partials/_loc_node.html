@@ -5,7 +5,7 @@
     {% if node.children %}
       <button type="button" class="loc-toggle" aria-expanded="{% if depth < 1 %}true{% else %}false{% endif %}" aria-label="Buka/tutup {{ node.obj.name }}"><i class="fa-solid fa-chevron-right" aria-hidden="true"></i></button>
     {% else %}<span class="loc-toggle-space" aria-hidden="true"></span>{% endif %}
-    <span class="loc-name"><strong>{{ node.obj.name }}</strong>{% if node.children %}<small>{{ node.children|length }} sub-lokasi</small>{% endif %}</span>
+    <span class="loc-name"><strong>{{ node.obj.name }}</strong>{% if node.obj.is_storage %}<span class="kind-pill"><i class="fa-solid fa-warehouse" aria-hidden="true"></i> Tempat titip GA</span>{% endif %}{% if node.children %}<small>{{ node.children|length }} sub-lokasi</small>{% endif %}</span>
     <a class="loc-count" href="{% url 'asset_list' %}?location={{ node.obj.pk }}" title="Aset langsung di lokasi ini">{% if node.obj.asset_count %}{{ node.obj.asset_count }} aset{% else %}<span class="cell-sub">0 aset</span>{% endif %}</a>
     <span class="loc-total" title="Termasuk semua sub-lokasi">{% if node.children %}{{ node.total }} total{% endif %}</span>
     {% if is_ga %}

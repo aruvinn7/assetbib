@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% load static waktu %}
 {% block title %}Aset saya{% endblock %}
-{% block extra_head %}<link rel="stylesheet" href="{% static 'css/pages/user_dashboard.css' %}?v=5">{% endblock %}
+{% block extra_head %}<link rel="stylesheet" href="{% static 'css/pages/user_dashboard.css' %}?v=6">{% endblock %}
 
 {% block content %}
 {% with emp=request.user.employee %}
@@ -26,6 +26,7 @@
   {% endif %}
 
   <div class="ud-grid">
+    <div class="stack-gap">
     <section class="panel" aria-labelledby="heldTitle">
       <div class="panel-head"><h2 id="heldTitle">Aset yang Anda pegang</h2><span class="meta">{{ total_held }} unit</span></div>
       {% if active_assignments %}
@@ -53,6 +54,31 @@
       <div class="empty"><strong>Anda belum memegang aset</strong>Aset yang diserahkan GA kepada Anda akan muncul di sini.</div>
       {% endif %}
     </section>
+
+    {% if shared_assignments %}
+    <section class="panel" aria-labelledby="sharedTitle">
+      <div class="panel-head"><h2 id="sharedTitle">Aset bersama {{ emp.department.name }}</h2><span class="meta">{{ shared_assignments|length }} unit</span></div>
+      <ul class="ud-assets">
+        {% for a in shared_assignments %}
+        <li>
+          <div class="ud-asset-text">
+            <strong>{{ a.asset.nama_asset }}</strong>
+            <span>{{ a.asset.asset_number }}{% if a.asset.lokasi_asset %} · {{ a.asset.lokasi_asset.name }}{% endif %}</span>
+            <span class="ud-since">Diserahkan ke departemen {{ a.assigned_date|date:"d M Y" }}</span>
+          </div>
+          <div class="ud-asset-act">
+            {% include "components/_lifecycle.html" with status=a.asset.lifecycle_status %}
+            {% if a.asset.lifecycle_status == 'active' %}
+            <a class="btn sm outline" href="{% url 'damage_report_create_for_asset' a.asset.id %}" aria-label="Laporkan kerusakan {{ a.asset.nama_asset }}">Lapor rusak</a>
+            {% endif %}
+            <a class="btn sm outline" href="{% url 'movement_report_create_for_asset' a.asset.id %}" aria-label="Laporkan perpindahan {{ a.asset.nama_asset }}">Lapor pindah</a>
+          </div>
+        </li>
+        {% endfor %}
+      </ul>
+    </section>
+    {% endif %}
+    </div>
 
     <section class="panel" aria-labelledby="repTitle">
       <div class="panel-head">

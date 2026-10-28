@@ -1,5 +1,6 @@
 # views/assets.py [OPTIMIZED + PAGINATION]
 import os
+from datetime import timedelta
 from decimal import Decimal
 
 from django.contrib import messages
@@ -22,7 +23,7 @@ from ..forms import AssetForm, AssetUpdateForm, WriteOffForm, flash_form_errors
 from ..models import (
     Asset, AssetAssignment, AssetComponent, AssetPhoto, AssetGroup, AssetCategory,
     Department, Location, MaintenanceRecord, MaintenanceSchedule,
-    AssetWriteOff, BeritaAcara, DamageReport, cancel_write_off, compute_health, hapuskan_aset,
+    AssetWriteOff, BeritaAcara, DamageReport, cancel_write_off, compute_health, hapuskan_aset, life_review,
     initialize_schedule_for_asset,
 )
 from ..roles import is_ga
@@ -188,7 +189,7 @@ def asset_write_off(request, pk):
 
     fin = asset.financial if hasattr(asset, 'financial') else None
     health, ratio = compute_health(asset.total_biaya_annot, asset.jumlah_corrective, fin.nilai_awal_aset if fin else None)
-    holder = AssetAssignment.objects.filter(asset=asset, status='active').select_related('assigned_to').first()
+    assignment = AssetAssignment.objects.filter(asset=asset, status='active').select_related('assigned_to', 'department').first()
     # Alasan yang disarankan dari kondisi aset (tetap bisa diganti)
     suggested = 'rusak' if health in ('critical', 'waspada') or asset.lifecycle_status == 'maintenance' else \
                 'usang' if fin and fin.sisa_umur_ekonomis() <= 0 else ''
@@ -199,7 +200,7 @@ def asset_write_off(request, pk):
         'book_today':     fin.book_value() if fin else None,
         'health':         health,
         'ratio':          ratio,
-        'holder':         holder.assigned_to if holder else None,
+        'assignment':     assignment,
         'schedule_count': asset.schedules.active().count(),
         'report_count':   DamageReport.objects.filter(
                               asset=asset, report_status__in=DamageReport.ACTIVE_STATUS).count(),
@@ -229,7 +230,7 @@ def asset_quickview(request, pk):
     )
     nilai_awal = asset.financial.nilai_awal_aset if hasattr(asset, 'financial') else None
     health, ratio = compute_health(asset.total_biaya_annot, asset.jumlah_corrective, nilai_awal)
-    holder = AssetAssignment.objects.filter(asset=asset, status='active').select_related('assigned_to').first()
+    assignment = AssetAssignment.objects.filter(asset=asset, status='active').select_related('assigned_to', 'department').first()
     context = {
         'asset':         asset,
         'photo':         asset.photos.order_by('-is_primary', '-uploaded_at').first(),
@@ -241,7 +242,7 @@ def asset_quickview(request, pk):
         'last_record':   asset.maintenance_records.select_related('performed_by')
                               .order_by('-tanggal_pelaksanaan', '-id').first(),
         'open_report':   asset.get_pending_damage_report(),
-        'holder':        holder.assigned_to if holder else None,
+        'assignment':    assignment,
         'interval':      asset.get_effective_interval_days(),
     }
     return render(request, 'asset/_quickview.html', context)
@@ -392,9 +393,13 @@ def asset_detail(request, pk):
         return round((n or 0) / corrective_count * 100) if corrective_count else 0
 
     # Posisi nilai buku di antara nilai residual (0%) dan nilai awal (100%)
-    book_value = book_value_pct = None
+    book_value = book_value_pct = life = None
     if hasattr(asset, 'financial'):
         fin = asset.financial
+        if asset.lifecycle_status != 'writeoff':
+            year_ago = timezone.localdate() - timedelta(days=365)
+            recent = sum(1 for r in all_records if r.maintenance_type == 'corrective' and r.tanggal_pelaksanaan > year_ago)
+            life = life_review(fin, stats['total_biaya_corrective'] or Decimal('0'), corrective_count, recent)
         book_value = fin.book_value()
         rentang = fin.nilai_awal_aset - fin.nilai_residual
         book_value_pct = round(float((book_value - fin.nilai_residual) / rentang * 100)) if rentang > 0 else 0
@@ -404,6 +409,8 @@ def asset_detail(request, pk):
         "book_value_pct":       book_value_pct,
         "wo":                   getattr(asset, 'write_off', None) if asset.lifecycle_status == 'writeoff' else None,
         "asset":                asset,
+        "assignment":           AssetAssignment.objects.filter(asset=asset, status='active')
+                                .select_related('assigned_to', 'department').first(),
         "maintenance_records":  all_records,
         "corrective_records":   [r for r in all_records if r.maintenance_type == 'corrective'],
         "schedules":            schedules,
@@ -434,6 +441,8 @@ def asset_detail(request, pk):
         "repair_cost_ratio":      health['ratio'],
         "repair_recommendations": health['recommendations'],
         "threshold":              health['threshold'],
+        "health_cause":           health['cause'],
+        "life":                   life,
     }
     return render(request, "asset/detail.html", context)
 

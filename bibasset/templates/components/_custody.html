@@ -1,0 +1,5 @@
+{# Siapa yang bertanggung jawab atas aset. `assignment` = serah terima aktif (boleh kosong), `asset` = aset. #}
+{% if assignment.assigned_to_id %}{{ assignment.assigned_to.nama }} <span class="dim">· pribadi</span>
+{% elif assignment %}{{ assignment.department.name }} <span class="dim">· pemakaian bersama</span>
+{% elif asset.lokasi_asset.is_storage %}Tersedia <span class="dim">· di {{ asset.lokasi_asset.name }}</span>
+{% else %}<span class="dim">Belum diserahkan</span>{% endif %}

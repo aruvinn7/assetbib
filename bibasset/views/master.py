@@ -48,7 +48,11 @@ def department_create(request):
 
 @role_required(is_ga)
 def department_delete(request, pk):
-    get_object_or_404(Department, pk=pk).delete()
+    dept = get_object_or_404(Department, pk=pk)
+    if dept.held_assets.exists():
+        messages.error(request, f"Departemen '{dept.name}' tidak bisa dihapus karena punya riwayat serah terima aset.")
+        return redirect("department_list")
+    dept.delete()
     return redirect("department_list")
 
 

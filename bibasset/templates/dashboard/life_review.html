@@ -1,0 +1,97 @@
+{% extends "base.html" %}
+{% load static rupiah %}
+{% block title %}Tinjauan umur ekonomis{% endblock %}
+{% block nav_life %}active{% endblock %}
+{% block extra_head %}<link rel="stylesheet" href="{% static 'css/pages/analytics.css' %}?v=5">{% endblock %}
+
+{% block content %}
+<div class="page">
+  <div class="page-head">
+    <div>
+      <h1>Tinjauan umur ekonomis</h1>
+      <div class="sub">Umur ekonomis dibaca bersama kondisi aset. Aset yang umurnya habis tapi masih sehat dan jarang rusak <strong>tidak perlu</strong> di-write off atau diganti; yang diganti adalah aset tua yang juga bermasalah.</div>
+    </div>
+    {% if unvalued_count %}
+    <div class="page-actions"><a class="btn outline" href="{% url 'asset_list' %}?financial=no"><svg class="sign" aria-hidden="true"><use href="#sign-none"/></svg>{{ unvalued_count }} aset belum dinilai</a></div>
+    {% endif %}
+  </div>
+
+  <section class="panel" aria-labelledby="mxTitle">
+    <div class="panel-head"><h2 id="mxTitle">Umur × kondisi</h2><span class="meta">{{ total }} aset berjalan yang sudah dinilai Finance · klik sel untuk melihat daftarnya</span></div>
+    <div class="lr-matrix" role="table" aria-label="Jumlah aset per kombinasi umur ekonomis dan kondisi">
+      <div class="lr-row lr-head" role="row">
+        <span role="columnheader"></span>
+        <span role="columnheader"><svg class="sign" aria-hidden="true"><use href="#sign-safe"/></svg>Kondisi baik<small>biaya &lt; ambang warning, jarang rusak</small></span>
+        <span role="columnheader"><svg class="sign" aria-hidden="true"><use href="#sign-warning"/></svg>Bermasalah<small>biaya ≥ ambang warning, atau sering rusak</small></span>
+      </div>
+      {% for label, cells in grid %}
+      <div class="lr-row" role="row">
+        <span class="lr-stage" role="rowheader">{{ label }}</span>
+        {% for verdict, vlabel, n in cells %}
+        <a role="cell" class="lr-cell v-{{ verdict }}{% if verdict == tab %} is-current{% endif %}" href="{{ request.path }}?tab={{ verdict }}{% if group %}&group={{ group }}{% endif %}{% if search %}&q={{ search|urlencode }}{% endif %}" {% if verdict == tab %}aria-current="true"{% endif %}>
+          <strong>{{ n }}</strong><span>{{ vlabel }}</span>
+        </a>
+        {% endfor %}
+      </div>
+      {% endfor %}
+    </div>
+    <p class="panel-note">Bermasalah = biaya perbaikan kerusakan ≥ ambang warning sesuai nilai aset, <em>atau</em> ≥ {{ recent_warning }} kerusakan dalam 12 bulan terakhir, <em>atau</em> rata-rata ≥ 1 kerusakan per tahun pemakaian. Hampir habis = sisa umur ≤ {{ near_end_years }} tahun.</p>
+  </section>
+
+  <div class="toolbar">
+    <nav class="filters" aria-label="Rekomendasi">
+      {% for key, label, n in verdicts %}
+      <a class="chip {% if tab == key %}active{% endif %}" href="{{ request.path }}?tab={{ key }}{% if group %}&group={{ group }}{% endif %}{% if search %}&q={{ search|urlencode }}{% endif %}" {% if tab == key %}aria-current="true"{% endif %}><i class="lr-dot v-{{ key }}" aria-hidden="true"></i>{{ label }} <span class="count">{{ n }}</span></a>
+      {% endfor %}
+    </nav>
+    <form method="get" class="lr-tools" role="search">
+      <input type="hidden" name="tab" value="{{ tab }}">
+      <label class="visually-hidden" for="lrGroup">Grup aset</label>
+      <select class="input select" id="lrGroup" name="group" onchange="this.form.submit()">
+        <option value="">Semua grup</option>
+        {% for g in groups %}<option value="{{ g.pk }}" {% if group == g.pk|stringformat:'s' %}selected{% endif %}>{{ g.name }}</option>{% endfor %}
+      </select>
+      <div class="search">
+        <i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i>
+        <label class="visually-hidden" for="lrSearch">Cari aset</label>
+        <input class="input" type="search" id="lrSearch" name="q" value="{{ search }}" placeholder="Cari nama, nomor, kategori…" autocomplete="off">
+      </div>
+    </form>
+  </div>
+
+  <section class="panel" aria-labelledby="lrTitle">
+    <div class="panel-head lr-advice v-{{ tab }}">
+      <div><h2 id="lrTitle">{{ current.0 }}</h2><p>{{ current.1 }}</p></div>
+    </div>
+    {% if rows %}
+    <div class="table-wrap">
+      <table class="table stack cards">
+        <thead><tr><th class="no">No</th><th>Aset</th><th>Umur ekonomis</th><th class="num">Biaya perbaikan</th><th class="num">Kerusakan</th><th class="num">Nilai buku</th><th>Alasan</th></tr></thead>
+        <tbody>
+        {% for r in rows %}
+          <tr>
+            <td class="no"><span class="visually-hidden">Nomor </span>{{ page_obj.start_index|add:forloop.counter0 }}</td>
+            <td class="lead">
+              <a class="row-link" href="{% url 'asset_detail' r.asset.pk %}">{{ r.asset.nama_asset }}</a>
+              <div class="cell-sub">{{ r.asset.asset_number }} · {{ r.asset.asset_category.name|default:"—" }}{% if r.asset.owned_by_department %} · {{ r.asset.owned_by_department.name }}{% endif %}</div>
+            </td>
+            <td data-label="Umur ekonomis" class="lr-life">
+              <span class="lr-bar stage-{{ r.stage }}" aria-hidden="true"><i style="width:{% if r.used_pct > 100 %}100{% else %}{{ r.used_pct|floatformat:0 }}{% endif %}%"></i></span>
+              <span class="cell-sub">{{ r.age|floatformat:1 }} dari {{ r.asset.financial.umur_ekonomis }} th · {% if r.stage == 'habis' %}habis{% else %}sisa {{ r.sisa|floatformat:1 }} th{% endif %}</span>
+            </td>
+            <td data-label="Biaya perbaikan" class="num nowrap"><span class="{% if r.costly %}lr-bad{% endif %}">{{ r.ratio|floatformat:1 }}%</span><div class="cell-sub">ambang {{ r.threshold.warning }}%</div></td>
+            <td data-label="Kerusakan" class="num nowrap"><span class="{% if r.frequent %}lr-bad{% endif %}">{{ r.breakdown }}×</span><div class="cell-sub">{{ r.recent }}× 12 bln</div></td>
+            <td data-label="Nilai buku" class="num nowrap">{{ r.book|rupiah }}</td>
+            <td data-label="Alasan" class="wide"><div class="lr-factors">{% for text, tone in r.factors %}<span class="t-{{ tone }}">{{ text }}</span>{% endfor %}</div></td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% include "components/_pagination.html" with label="aset" %}
+    {% else %}
+    <div class="empty"><strong>Tidak ada aset di kelompok ini</strong>{% if search or group %}<a href="{{ request.path }}?tab={{ tab }}">Hapus saringan</a>{% endif %}</div>
+    {% endif %}
+  </section>
+</div>
+{% endblock %}

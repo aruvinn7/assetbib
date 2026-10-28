@@ -2,7 +2,7 @@
 from django.contrib import messages
 from django.core.paginator import Paginator
 from django.db import transaction
-from django.db.models import Exists, OuterRef, Prefetch, Q, prefetch_related_objects
+from django.db.models import Exists, F, Max, OuterRef, Prefetch, Q, prefetch_related_objects
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils.http import url_has_allowed_host_and_scheme
@@ -31,6 +31,7 @@ def _back(request, asset_id):
 def movement_dashboard(request):
     """
     Histori movement per aset (accordion), dipaginasi 25 aset per halaman.
+    Urut dari perpindahan terbaru; aset yang belum pernah dicatat di paling bawah.
     Search & filter jalan di server supaya berlaku ke semua halaman.
     Form tambah/edit dirender SEKALI dan dipakai ulang lewat JS.
     """
@@ -41,7 +42,10 @@ def movement_dashboard(request):
     has_movement = Exists(AssetMovement.objects.filter(asset=OuterRef('pk')))
     assets_qs = Asset.objects.select_related(
         'lokasi_asset', 'asset_category__group',
-    ).annotate(has_movement=has_movement).order_by('nama_asset')
+    ).annotate(
+        has_movement=has_movement,
+        last_moved=Max('movements__moved_in'),
+    ).order_by(F('last_moved').desc(nulls_last=True), 'nama_asset')
 
     if search:
         assets_qs = assets_qs.filter(
@@ -147,7 +151,8 @@ def movement_update(request, pk):
         if mv.is_current:
             if mv.location_id:
                 Asset.objects.filter(pk=mv.asset_id).update(lokasi_asset_id=mv.location_id)
-            sync_holder(mv.asset, mv.held_by, by=request.user.employee, notes=mv.notes)
+            sync_holder(mv.asset, mv.held_by, by=request.user.employee, notes=mv.notes,
+                        department=mv.department, location=mv.location)
     messages.success(request, "Catatan perpindahan diperbarui.")
     return _back(request, mv.asset_id)
 
@@ -167,11 +172,12 @@ def movement_delete(request, pk):
         mv.delete()
         # Kalau yang dihapus record aktif, record sebelumnya jadi aktif lagi (beserta pemegangnya)
         if was_current:
-            prev = asset.movements.select_related('held_by').order_by('-moved_in').first()
+            prev = asset.movements.select_related('held_by', 'department', 'location').order_by('-moved_in').first()
             if prev:
                 prev.is_current = True
                 prev.moved_out  = None
                 prev.save(update_fields=['is_current', 'moved_out'])
-            sync_holder(asset, prev.held_by if prev else None, by=request.user.employee)
+            sync_holder(asset, prev.held_by if prev else None, by=request.user.employee,
+                        department=prev.department if prev else None, location=prev.location if prev else None)
     messages.success(request, f"Catatan perpindahan '{asset.nama_asset}' dihapus.")
     return _back(request, asset.pk)

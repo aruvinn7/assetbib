@@ -17,6 +17,7 @@ urlpatterns = [
     path('dashboard/location/', views.location_dashboard, name='location_dashboard'),
     path('dashboard/nilai-aset/', views.value_dashboard, name='value_dashboard'),
     path('dashboard/kinerja-maintenance/', views.performance_dashboard, name='performance_dashboard'),
+    path('dashboard/umur-ekonomis/', views.life_review_dashboard, name='life_review_dashboard'),
     
     # ===========================
     # ASSET

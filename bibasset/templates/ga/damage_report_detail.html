@@ -14,7 +14,7 @@
     <div>
       <h1>{{ report.title }}</h1>
       <div class="sub">#{{ report.pk }} · dari {{ report.reported_by.nama|default:"—" }}{% if report.reported_by.jabatan %} ({{ report.reported_by.jabatan }}){% endif %} · {{ report.reported_at|sejak }}
-        · {% if not holder %}aset belum punya pemegang{% elif holder.assigned_to_id == report.reported_by_id %}pelapor adalah pemegang aset{% else %}pemegang aset: {{ holder.assigned_to.nama }}{% endif %}</div>
+        · {% if not holder %}aset belum diserahkan ke siapa pun{% elif holder.assigned_to_id and holder.assigned_to_id == report.reported_by_id %}pelapor adalah pemegang aset{% elif holder.is_shared %}aset bersama departemen {{ holder.department.name }}{% else %}pemegang aset: {{ holder.assigned_to.nama }}{% endif %}</div>
       <div class="head-tags">
         {% include "components/_severity.html" with severity=report.severity %}
         {% include "components/_report_status.html" with status=report.report_status %}

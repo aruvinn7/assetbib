@@ -2,7 +2,7 @@
 {% load static rupiah math_filter waktu %}
 {% block title %}{{ asset.nama_asset }} · {{ asset.asset_number }}{% endblock %}
 {% block nav_assets %}active{% endblock %}
-{% block extra_head %}<link rel="stylesheet" href="{% static 'css/pages/asset_detail.css' %}?v=4">{% endblock %}
+{% block extra_head %}<link rel="stylesheet" href="{% static 'css/pages/asset_detail.css' %}?v=6">{% endblock %}
 
 {% block content %}
 {% with emp=request.user.employee %}
@@ -93,6 +93,7 @@
     <dl class="facts panel">
       <div><dt><i class="fa-solid fa-location-dot" aria-hidden="true"></i>Lokasi</dt><dd>{{ asset.lokasi_asset|default:"Belum ditempatkan" }}</dd></div>
       <div><dt><i class="fa-solid fa-building" aria-hidden="true"></i>Departemen</dt><dd>{{ asset.owned_by_department|default:"—" }}</dd></div>
+      <div><dt><i class="fa-solid fa-handshake" aria-hidden="true"></i>Pemegang</dt><dd>{% include "components/_custody.html" %}</dd></div>
       <div><dt><i class="fa-solid fa-receipt" aria-hidden="true"></i>No. PO</dt><dd>{{ asset.no_po|default:"—" }}</dd></div>
       <div><dt><i class="fa-solid fa-calendar" aria-hidden="true"></i>Tanggal beli</dt><dd>{{ asset.tanggal_pembelian|date:"d M Y" }}</dd></div>
       <div><dt><i class="fa-solid fa-hourglass-half" aria-hidden="true"></i>Umur</dt><dd>{{ asset.umur_asset_detail|umur }}</dd></div>
@@ -115,10 +116,22 @@
           <div class="health-verdict {{ health_status }}">
             <svg class="sign" aria-hidden="true"><use href="#sign-{% if health_status == 'critical' %}danger{% elif health_status == 'waspada' or health_status == 'warning' %}warning{% elif health_status == 'normal' %}safe{% else %}none{% endif %}"/></svg>
             <div>
-              <strong>{% if health_status == 'critical' %}Perlu ditinjau untuk writeoff atau penggantian{% elif health_status == 'waspada' %}Biaya perbaikan mendekati batas — pantau ketat{% elif health_status == 'warning' %}Biaya perbaikan mulai tinggi{% elif health_status == 'normal' %}Kondisi baik, biaya perbaikan masih wajar{% else %}Belum bisa dinilai — data finansial belum diisi{% endif %}</strong>
-              <span>{{ corrective_count }} kerusakan · {{ preventive_count }} preventive · {{ inspection_count }} inspeksi</span>
+              <strong>{% if health_status == 'critical' %}Perlu ditinjau untuk writeoff atau penggantian{% elif health_status == 'waspada' %}Biaya perbaikan mendekati batas — pantau ketat{% elif health_status == 'warning' and health_cause == 'frekuensi' %}Sering rusak, biaya perbaikan masih wajar{% elif health_status == 'warning' %}Biaya perbaikan mulai tinggi{% elif health_status == 'normal' %}Kondisi baik, biaya perbaikan masih wajar{% else %}Belum bisa dinilai — data finansial belum diisi{% endif %}</strong>
+              <span>{{ corrective_count }} kerusakan · {{ preventive_count }} preventive · {{ inspection_count }} inspeksi{% if health_status == 'warning' %} · {% if health_cause == 'frekuensi' %}warning karena jumlah kerusakan ({{ corrective_count }}×), bukan biaya{% else %}warning karena biaya perbaikan{% endif %}{% endif %}</span>
             </div>
           </div>
+
+          {% if life %}
+          <a class="life-verdict v-{{ life.verdict }}" href="{% url 'life_review_dashboard' %}?tab={{ life.verdict }}">
+            <i class="fa-solid fa-hourglass-half" aria-hidden="true"></i>
+            <div>
+              <span class="life-k">Tinjauan umur ekonomis</span>
+              <strong>{{ life.label }}</strong>
+              <span class="life-a">{{ life.advice }}</span>
+              <span class="life-f">{% for text, tone in life.factors %}<em class="t-{{ tone }}">{{ text }}</em>{% endfor %}</span>
+            </div>
+          </a>
+          {% endif %}
 
           {% if repair_cost_ratio is not None and threshold %}
           <div class="budget">
