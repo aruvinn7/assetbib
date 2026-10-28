@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="id"><head><meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{width:1440px;height:900px;overflow:hidden;background:#F9FAFB;color:#111827;font-family:Inter,sans-serif;display:flex}
+.side{width:240px;background:#fff;border-right:1px solid #E5E7EB;padding:20px 14px}
+.side .b{font-weight:700;font-size:17px;padding:0 10px 20px}
+.side a{display:block;padding:9px 10px;border-radius:8px;font-size:14px;color:#4B5563}
+.side a.on{background:#EFF6FF;color:#2563EB;font-weight:600}
+.main{flex:1;padding:28px 32px}
+h1{font-size:24px;font-weight:700;margin-bottom:20px}
+.cards{display:grid;grid-template-columns:repeat(4,1fr);gap:16px}
+.card{background:#fff;border:1px solid #E5E7EB;border-radius:12px;padding:18px;box-shadow:0 1px 2px rgba(0,0,0,.05)}
+.card p{font-size:13px;color:#6B7280}.card b{font-size:28px;display:block;margin-top:6px}
+.row{display:grid;grid-template-columns:2fr 1fr;gap:16px;margin-top:16px}
+.chart{height:250px;background:#fff;border:1px solid #E5E7EB;border-radius:12px;padding:18px}
+.bars{display:flex;align-items:flex-end;gap:18px;height:170px;margin-top:20px}.bars i{flex:1;background:#2563EB;border-radius:4px 4px 0 0;opacity:.85}
+table{width:100%;border-collapse:collapse;font-size:14px;background:#fff}
+.tw{margin-top:16px;background:#fff;border:1px solid #E5E7EB;border-radius:12px;overflow:hidden}
+th{text-align:left;font-size:12px;color:#6B7280;padding:12px 16px;background:#F9FAFB;border-bottom:1px solid #E5E7EB}
+td{padding:12px 16px;border-bottom:1px solid #F3F4F6}
+.pill{font-size:12px;padding:2px 10px;border-radius:999px;background:#ECFDF5;color:#047857}
+.pill.r{background:#FEF2F2;color:#B91C1C}
+</style></head><body>
+<aside class="side"><div class="b">AssetMS</div><a class="on">Dashboard</a><a>Aset</a><a>Maintenance</a><a>Laporan Kerusakan</a><a>Movement</a><a>Master Data</a></aside>
+<main class="main"><h1>Dashboard</h1>
+<div class="cards"><div class="card"><p>Total aset</p><b>305</b></div><div class="card"><p>Aktif</p><b>301</b></div><div class="card"><p>Jadwal terlambat</p><b>196</b></div><div class="card"><p>Aset critical</p><b>64</b></div></div>
+<div class="row"><div class="chart"><p style="font-weight:600">Maintenance per bulan</p><div class="bars"><i style="height:40%"></i><i style="height:65%"></i><i style="height:52%"></i><i style="height:80%"></i><i style="height:60%"></i><i style="height:72%"></i></div></div>
+<div class="chart"><p style="font-weight:600">Aset per lokasi</p><p style="margin-top:20px;font-size:14px;line-height:2">Angsana 257<br>Kusan 27<br>Bunati 13<br>Tanpa lokasi 6</p></div></div>
+<div class="tw"><table><tr><th>Aset</th><th>Lokasi</th><th>Status</th><th>Jadwal</th></tr>
+<tr><td>AC Cassette Panasonic 3 PK</td><td>Angsana › Mess 2</td><td><span class="pill r">Overdue</span></td><td>142 hari lalu</td></tr>
+<tr><td>Genset Perkins 100 kVA</td><td>Angsana › Workshop</td><td><span class="pill r">Overdue</span></td><td>96 hari lalu</td></tr>
+<tr><td>Laptop Dell Latitude 5540</td><td>Office Angsana</td><td><span class="pill">Aktif</span></td><td>33 hari lalu</td></tr></table></div>
+</main></body></html>

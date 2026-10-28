@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="id"><head><meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..900&display=swap" rel="stylesheet">
+<style>
+:root{--blk:#111;--y:#F2C200;--g:#1E7B3C;--r:#C8102E;--b:#005BAC;--soft:#555;--line:#D6D6D6}
+*{box-sizing:border-box;margin:0;padding:0}
+body{width:1440px;height:900px;overflow:hidden;background:#F6F6F4;color:var(--blk);font-family:Archivo,sans-serif;font-variant-numeric:tabular-nums}
+.top{height:56px;background:var(--blk);color:#fff;display:flex;align-items:center;padding:0 28px;gap:36px}
+.brand{font-weight:900;font-size:17px;font-stretch:80%}
+.nav a{color:#bbb;font-size:14px;padding:8px 12px}.nav a.on{color:#fff;box-shadow:inset 0 -3px 0 var(--y)}
+.head{padding:22px 28px 16px;display:flex;align-items:baseline;gap:18px}
+h1{font-size:26px;font-weight:800;font-stretch:85%}
+.signs{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;padding:0 28px}
+.sign{background:#fff;border:3px solid var(--blk);display:flex;align-items:stretch;height:118px}
+.pic{width:96px;display:grid;place-items:center}
+.pic svg{width:56px;height:56px}
+.txt{padding:14px 16px;border-left:3px solid var(--blk);flex:1}
+.txt b{display:block;font-size:40px;font-weight:900;font-stretch:80%;line-height:1}
+.txt span{font-size:14px;font-weight:600}
+.g .pic{background:var(--g)}.y .pic{background:var(--y)}.r .pic{background:var(--r)}.bl .pic{background:var(--b)}
+.tape{height:10px;background:repeating-linear-gradient(-45deg,var(--y) 0 14px,var(--blk) 14px 28px);margin:22px 28px 0}
+.panel{margin:0 28px;background:#fff;border:3px solid var(--blk);border-top:0}
+.ph{padding:12px 16px;display:flex;justify-content:space-between;border-bottom:1px solid var(--line)}
+.ph h2{font-size:16px;font-weight:800}
+table{width:100%;border-collapse:collapse;font-size:14px}
+th{text-align:left;font-size:12px;color:var(--soft);padding:9px 16px;border-bottom:1px solid var(--line)}
+td{padding:11px 16px;border-bottom:1px solid #EEE}.r{text-align:right}
+.tag{display:inline-block;font-size:12px;font-weight:800;padding:3px 8px;border:2px solid var(--blk)}
+.tag.r{background:var(--r);color:#fff;border-color:var(--r)}.tag.y{background:var(--y)}
+.code{font-size:12px;color:var(--soft);font-stretch:80%}
+</style></head><body>
+<div class="top"><div class="brand">AssetMS</div><nav class="nav"><a class="on">Ringkasan</a><a>Aset</a><a>Maintenance</a><a>Laporan</a><a>Movement</a><a>Master Data</a></nav></div>
+<div class="head"><h1>Status keselamatan aset</h1><span class="code">PT Borneo Indobara · 26 Okt 2026</span></div>
+<div class="signs">
+<div class="sign g"><div class="pic"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5"><path d="M5 12l5 5 9-10"/></svg></div><div class="txt"><b>301</b><span>Aset aktif</span></div></div>
+<div class="sign bl"><div class="pic"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5"><circle cx="12" cy="12" r="4"/><path d="M12 2v4M12 18v4M2 12h4M18 12h4"/></svg></div><div class="txt"><b>2</b><span>Dalam maintenance</span></div></div>
+<div class="sign y"><div class="pic"><svg viewBox="0 0 24 24" fill="none" stroke="#111" stroke-width="2.5"><path d="M12 3l10 18H2z"/><path d="M12 10v5M12 18v.5"/></svg></div><div class="txt"><b>196</b><span>Jadwal terlambat</span></div></div>
+<div class="sign r"><div class="pic"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5"><circle cx="12" cy="12" r="9"/><path d="M6 6l12 12"/></svg></div><div class="txt"><b>64</b><span>Aset critical</span></div></div>
+</div>
+<div class="tape"></div>
+<section class="panel"><div class="ph"><h2>Antrean kerja hari ini</h2><span class="code">12 dari 196</span></div>
+<table><tr><th>Status</th><th>Aset</th><th>Lokasi</th><th class="r">Terlambat</th></tr>
+<tr><td><span class="tag r">KRITIS</span></td><td>AC Cassette Panasonic 3 PK <span class="code">ELK-AC-011</span></td><td>Angsana › Mess › Mess 2</td><td class="r">142 hari</td></tr>
+<tr><td><span class="tag r">KRITIS</span></td><td>Genset Perkins 100 kVA <span class="code">MKN-GS-003</span></td><td>Angsana › Workshop</td><td class="r">96 hari</td></tr>
+<tr><td><span class="tag y">WASPADA</span></td><td>Water Heater Ariston 30L <span class="code">ELK-WH-021</span></td><td>Angsana › Mess › Mess 1</td><td class="r">61 hari</td></tr>
+<tr><td><span class="tag y">WASPADA</span></td><td>Laptop Dell Latitude 5540 <span class="code">IT-LP-044</span></td><td>Office Angsana</td><td class="r">33 hari</td></tr>
+<tr><td><span class="tag">TERJADWAL</span></td><td>AC Split Daikin 1 PK <span class="code">ELK-AC-052</span></td><td>Angsana › Gym</td><td class="r">12 hari</td></tr>
+<tr><td><span class="tag">TERJADWAL</span></td><td>Printer Epson L3210 <span class="code">IT-PR-009</span></td><td>Office Angsana</td><td class="r">4 hari</td></tr></table></section>
+</body></html>

@@ -22,3 +22,9 @@ backup_*.json
 .idea/
 Thumbs.db
 .DS_Store
+
+# Backup database lokal (berisi data karyawan)
+db.sqlite3.bak*
+
+# Template pihak ketiga untuk acuan desain (bukan kode proyek)
+references/
