@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% load static waktu %}
+{% load static waktu media %}
 {% block title %}Daftar aset{% endblock %}
 {% block nav_assets %}{% if financial_filter != 'no' %}active{% endif %}{% endblock %}
 {% block nav_financial %}{% if financial_filter == 'no' %}active{% endif %}{% endblock %}
@@ -77,7 +77,7 @@
             <td class="no"><span class="visually-hidden">Nomor </span>{{ page_obj.start_index|add:forloop.counter0 }}</td>
             <td data-label="Aset" class="lead">
               <div class="asset-cell-wrap">
-                {% if asset.photo_path %}<img class="thumb" src="{% get_media_prefix %}{{ asset.photo_path }}" alt="" loading="lazy">{% else %}<span class="thumb" aria-hidden="true"><i class="fa-solid fa-box"></i></span>{% endif %}
+                {% if asset.photo_path %}<img class="thumb" src="{{ asset.photo_path|media_url }}" alt="" loading="lazy">{% else %}<span class="thumb" aria-hidden="true"><i class="fa-solid fa-box"></i></span>{% endif %}
                 <div>
                   <a class="row-link" href="{% url 'asset_detail' asset.id %}">{{ asset.nama_aset }}</a>
                   <div class="cell-sub">{{ asset.nomor_aset }}{% if asset.nomor_po %} · PO {{ asset.nomor_po }}{% endif %}</div>

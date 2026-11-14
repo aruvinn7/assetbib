@@ -1,115 +1,131 @@
-# Deploy AssetMS ke Vercel
+# Deploy AssetMS ke Vercel + Neon (gratis)
 
-Vercel menjalankan Django sebagai *serverless function*. Akibatnya, file di server tidak permanen:
-`db.sqlite3` dan folder `media/` **tidak bisa** dipakai di sana. Di server, aplikasi memakai:
+Susunan gratis yang dipakai:
 
-| Kebutuhan | Di laptop (tanpa env) | Di Vercel |
+| Bagian | Layanan | Paket |
 |---|---|---|
-| Database | `db.sqlite3` | PostgreSQL (`DATABASE_URL`) |
-| Foto aset, foto kerusakan, scan & foto BA | folder `media/` | bucket S3-compatible privat (`MEDIA_BUCKET` dkk.) |
-| CSS/JS/font | runserver | CDN Vercel (`collectstatic` dijalankan Vercel otomatis saat build) |
+| Aplikasi Django | Vercel | Hobby (gratis, **hanya untuk pemakaian non-komersial**) |
+| Database **dan** file unggahan (foto aset, foto kerusakan, scan & foto BA) | Neon PostgreSQL | Free: 1 GB per proyek, 100 CU-jam/bulan |
 
-Semua pengaturan dibaca dari *environment variable* (daftar lengkap: [`.env.example`](../.env.example)).
-Tanpa env apa pun, aplikasi di laptop tetap jalan seperti biasa.
+Neon tidak pernah menghentikan proyek karena lama tidak dipakai. Setelah 5 menit tanpa akses,
+komputasinya "tidur", lalu bangun sendiri pada akses berikutnya. Akses pertama sesudahnya sedikit lebih lambat.
 
-Rekomendasi paling sederhana: **Supabase**. Satu akun sudah menyediakan PostgreSQL dan Storage (S3-compatible).
-Pilih region **Southeast Asia (Singapore)** supaya dekat dengan fungsi Vercel, yang di [`vercel.json`](../vercel.json)
-juga sudah diset ke Singapura (`sin1`). Alternatif lain: Neon (Postgres) + Cloudflare R2 (foto).
+File unggahan disimpan di tabel `BerkasMedia` pada database yang sama, lalu disajikan lewat `/berkas/<nama>`.
+Alamat ini **hanya bisa dibuka setelah login**. Di laptop tanpa env, file tetap disimpan di folder `media/`.
+Perkiraan kapasitas: 1 GB cukup untuk data (±30–50 MB) ditambah sekitar 1.000–2.000 foto, karena foto
+diperkecil di browser sebelum diunggah. Kalau suatu saat butuh lebih, set `MEDIA_BUCKET` dkk.
+(lihat [`.env.example`](../.env.example)) supaya foto pindah ke bucket S3-compatible.
 
 ---
 
-## 1. Siapkan Supabase
+## 1. Buat database di Neon
 
-1. Buat proyek di supabase.com dengan region **Southeast Asia (Singapore)**. Simpan password database-nya.
-2. **Database → Connect**, salin dua URL:
-   - **Transaction pooler** (port `6543`) → dipakai Vercel sebagai `DATABASE_URL`.
-   - **Session pooler** (port `5432`) → dipakai sekali dari laptop untuk memindahkan data (langkah 4).
-3. **Storage → New bucket**: nama `assetms-media`, **Public bucket: OFF** (privat).
-4. **Storage → Settings → S3 Connection**: aktifkan, lalu catat *Endpoint* dan *Region*. Buat **access key** dan
-   catat *Access key ID* serta *Secret access key*.
+1. Daftar di **neon.com** (bisa login dengan GitHub).
+2. Buat project:
+   - Name: `assetms`
+   - Region: **AWS Asia Pacific (Singapore)**
+   - Postgres: versi terbaru
+3. Di Dashboard, klik **Connect** dan salin dua URL:
+   - **Connection pooling ON**: host-nya mengandung `-pooler`. URL ini dipakai Vercel.
+   - **Connection pooling OFF**: koneksi langsung. URL ini dipakai sekali dari laptop di langkah 2.
 
-## 2. Buat proyek di Vercel
+## 2. Pindahkan data & foto dari laptop
 
-1. Push kode ke GitHub (`origin` repo ini), lalu di vercel.com pilih **Add New → Project** dan impor repo ini.
-   Vercel mengenali Django dari `manage.py` dan `requirements.txt`. Python 3.12 dipilih dari `.python-version`.
-2. Sebelum klik **Deploy**, buka **Environment Variables** dan isi:
-
-   | Nama | Nilai |
-   |---|---|
-   | `DJANGO_SECRET_KEY` | hasil `python -c "import secrets; print(secrets.token_urlsafe(50))"` |
-   | `DATABASE_URL` | URL *Transaction pooler* dari langkah 1.2 |
-   | `MEDIA_BUCKET` | `assetms-media` |
-   | `MEDIA_ENDPOINT_URL` | Endpoint S3 Supabase, mis. `https://xxxx.supabase.co/storage/v1/s3` |
-   | `MEDIA_REGION` | Region S3 Supabase, mis. `ap-southeast-1` |
-   | `MEDIA_ADDRESSING_STYLE` | `path` |
-   | `MEDIA_ACCESS_KEY_ID` / `MEDIA_SECRET_ACCESS_KEY` | access key dari langkah 1.4 |
-
-   `DEBUG` otomatis mati di Vercel, dan domain `*.vercel.app` otomatis diizinkan. Kalau env wajib belum diisi,
-   build berhenti dengan pesan yang menyebut env mana yang kurang.
-3. Klik **Deploy**. Database masih kosong pada tahap ini; datanya diisi di langkah berikut.
-
-## 3. (Opsional) Domain sendiri
-
-Tambahkan domain di Vercel → *Domains*, lalu set env:
-`DJANGO_ALLOWED_HOSTS=aset.contoh.co.id` dan `DJANGO_CSRF_TRUSTED_ORIGINS=https://aset.contoh.co.id`.
-
-## 4. Pindahkan data & foto dari laptop
-
-Jalankan sekali dari folder proyek di laptop (PowerShell). Perintah ini membaca `db.sqlite3` dan folder `media/`,
-lalu menulis ke Postgres dan bucket server. Database lokal tidak diubah.
+Buka **PowerShell baru** di folder proyek, lalu jalankan:
 
 ```powershell
 pip install -r requirements.txt
-$env:DATABASE_URL = "<URL Session pooler, port 5432>"
-$env:MEDIA_BUCKET = "assetms-media"
-$env:MEDIA_ENDPOINT_URL = "https://xxxx.supabase.co/storage/v1/s3"
-$env:MEDIA_REGION = "ap-southeast-1"
-$env:MEDIA_ADDRESSING_STYLE = "path"
-$env:MEDIA_ACCESS_KEY_ID = "<access key id>"
-$env:MEDIA_SECRET_ACCESS_KEY = "<secret access key>"
+$env:DATABASE_URL = "<URL Neon TANPA pooler>"
 python manage.py pindah_ke_server --data --media
 ```
 
-- `--data` membuat tabel di server (`migrate`), lalu menyalin semua data dalam satu transaksi. Kalau gagal di tengah,
-  server tidak berubah. Tanggal asli (dibuat/diperbarui) ikut tersalin apa adanya, dan penomoran id berlanjut.
-- Perintah menolak jalan kalau server sudah berisi aset/user. Untuk mengganti seluruh isi server dengan data laptop,
-  tambahkan `--timpa`.
-- `--media` mengunggah isi `media/`. File yang sudah ada di bucket dilewati, jadi aman diulang.
-- Pakai **akun yang sama** untuk login. Password tetap sama karena tabel user ikut disalin.
+Hasil yang benar diakhiri dengan:
 
-Tutup jendela PowerShell setelah selesai supaya env server tidak terbawa ke `runserver` lokal.
+```
+Selesai: 41286 baris disalin ke server.
+Mengunggah media/ ke DatabaseStorage…
+Selesai: 6 file diunggah, 0 sudah ada.
+```
 
-## 5. Cek setelah deploy
+Cara kerja perintah ini:
+
+- `--data` menjalankan `migrate`, lalu menyalin semua data dari `db.sqlite3` dalam **satu transaksi**.
+  Kalau gagal di tengah, server tidak berubah. Tanggal asli ikut tersalin, dan penomoran id berlanjut.
+  Sesi login dan log admin tidak ikut disalin.
+- Perintah menolak jalan kalau server sudah berisi aset/user. Untuk mengganti seluruh data server
+  dengan data laptop, tambahkan `--timpa`. Foto yang sudah ada di server tidak ikut terhapus.
+- `--media` mengunggah isi folder `media/` ke database. File yang sudah ada dilewati, jadi aman diulang.
+- Akun dan password login sama dengan di laptop.
+
+Buat kunci rahasia Django, lalu simpan hasilnya untuk langkah 3:
+
+```powershell
+python -c "import secrets; print(secrets.token_urlsafe(50))"
+```
+
+**Tutup jendela PowerShell ini setelah selesai.** Kalau Anda menjalankan `runserver` di jendela yang sama,
+aplikasi lokal akan menulis ke database Neon, bukan ke `db.sqlite3`.
+
+## 3. Deploy di Vercel
+
+1. Daftar di **vercel.com** dengan **Continue with GitHub**, lalu pilih plan **Hobby**.
+2. Klik **Add New → Project** dan **Import** repo `aruvinn7/assetbib`.
+   Biarkan *Framework Preset* dan *Root Directory* apa adanya. Vercel mengenali Django dari `manage.py`.
+3. Buka **Environment Variables** dan isi **dua** nilai berikut:
+
+   | Key | Value |
+   |---|---|
+   | `DJANGO_SECRET_KEY` | hasil perintah `secrets` di langkah 2 |
+   | `DATABASE_URL` | URL Neon **dengan** `-pooler` |
+
+4. Klik **Deploy** dan tunggu ±1–3 menit. Buka `https://<nama-proyek>.vercel.app`, lalu login.
+
+Yang sudah otomatis di Vercel:
+- `DEBUG` mati dan domain `*.vercel.app` diizinkan.
+- Cookie hanya dikirim lewat HTTPS.
+- Foto disimpan di database, dan fungsi berjalan di region Singapura (`vercel.json`).
+
+Kalau env wajib belum diisi, build berhenti dengan pesan yang menyebut env mana yang kurang.
+
+## 4. Cek setelah deploy
 
 - Login sebagai GA, Finance, dan Karyawan. Buka Ringkasan, Daftar aset, dan detail aset yang berfoto.
 - Unggah satu foto dari ponsel di halaman detail aset, lalu hapus lagi.
-- Vercel → *Logs*: error Django tampil di sini (logging ke console sudah aktif).
+- Kalau ada error, buka Vercel → proyek → **Logs**. Error Django tampil di sana.
 
-## Perubahan skema berikutnya
+Masalah yang sering terjadi:
+- `Set env DJANGO_SECRET_KEY ...` atau `Set env DATABASE_URL ...`: env belum diisi. Lengkapi, lalu buka **Deployments** dan klik **Redeploy**.
+- `password authentication failed`: URL Neon salah salin. Salin ulang dari tombol **Connect**.
+- Halaman pertama lambat sesudah lama tidak dipakai: Neon sedang bangun dari tidur (normal, kurang dari 1 detik).
 
-Setiap ada migration baru, jalankan dari laptop dengan URL *Session pooler*:
+## Domain sendiri (opsional)
 
-```powershell
-$env:DATABASE_URL = "<URL Session pooler>"
-python manage.py migrate
-```
+Tambahkan domain di Vercel → *Domains*. Lalu set env
+`DJANGO_ALLOWED_HOSTS=aset.contoh.co.id` dan `DJANGO_CSRF_TRUSTED_ORIGINS=https://aset.contoh.co.id`.
 
-Jalankan migrate **sebelum** atau **bersamaan** dengan deploy kode yang membutuhkannya.
+## Setelah tayang
 
-## Batasan yang perlu diketahui
+- Setiap `git push` ke `master`, Vercel otomatis deploy ulang.
+- Kalau ada migration baru, jalankan dari laptop **sebelum** atau bersamaan dengan push:
+  ```powershell
+  $env:DATABASE_URL = "<URL Neon TANPA pooler>"
+  python manage.py migrate
+  ```
 
-- **Ukuran unggahan maks. 4,5 MB per permintaan** (batas Vercel). Foto JPEG/PNG/WebP di atas 1,5 MB otomatis
-  diperkecil di browser (sisi terpanjang 2048 px) sebelum dikirim (`static/js/app.js`). Scan berita acara
-  berformat **PDF tidak diperkecil**, jadi harus < 4,5 MB.
-- **Foto bersifat privat.** Tautan foto ditandatangani dan berlaku 1 jam, sehingga tautan yang disalin keluar akan kedaluwarsa.
-- **Data simulasi** (`bangun_ulang_data`) bisa dijalankan ke server dengan `DATABASE_URL` yang sama,
-  tetapi itu menghapus data operasional. Jalankan hanya kalau memang perlu.
+## Batasan
+
+- **Ukuran unggahan maks. 4,5 MB per permintaan** (batas Vercel). Foto JPEG/PNG/WebP di atas 1,5 MB
+  otomatis diperkecil di browser (sisi terpanjang 2048 px) sebelum dikirim (`static/js/app.js`).
+  Scan berita acara berformat **PDF tidak diperkecil**, jadi harus di bawah 4,5 MB.
+- **Kuota Neon Free:** penyimpanan 1 GB per proyek. Kalau penuh, simpan dan ubah data akan gagal sampai
+  ada ruang kosong. Pantau di Neon → *Monitoring*.
+- `bangun_ulang_data` menghapus data operasional. Jangan jalankan dengan `DATABASE_URL` server kecuali memang perlu.
 - Ikon Font Awesome adalah *subset*. Kalau menambah ikon baru, jalankan `python scripts/build_icons.py` sebelum commit.
 
 ## Sebelum dibuka untuk umum (keamanan)
 
-Pengaturan dasar sudah dari env (`SECRET_KEY`, `DEBUG`, `ALLOWED_HOSTS`, cookie HTTPS, foto privat). Masih terbuka:
-
-- Beberapa aksi berubah data menerima GET (hapus master data, `maintenance_generate_schedule`).
-- Upload belum memeriksa tipe file di server.
+Sudah ditangani: `SECRET_KEY`, `DEBUG`, dan `ALLOWED_HOSTS` dibaca dari env; cookie HTTPS; file unggahan hanya bisa dibuka setelah login.
+Masih terbuka:
+- Beberapa aksi yang mengubah data masih menerima GET (hapus master data, `maintenance_generate_schedule`).
+- Tipe file unggahan belum diperiksa di server.
 - Django 5.1 sudah EOL dan Pillow 10.0.1 sudah usang: naikkan ke Django 5.2 LTS dan Pillow terbaru.

@@ -1577,3 +1577,28 @@ def hapuskan_aset(assets, tanggal, alasan, keterangan, by=None, rujukan=None, ni
                                        kerusakan=(src.kerusakan if src else keterangan),
                                        laporan_kerusakan =src.laporan_kerusakan if src else None)
     return terbitkan_ba(ba, tanggal, by=by)
+
+
+# ================================================================
+# BERKAS MEDIA (penyimpanan file di database)
+# ================================================================
+
+class BerkasMedia(models.Model):
+    """
+    Isi file unggahan (foto aset, foto bukti kerusakan, scan & foto BA) bila disimpan di database,
+    bukan di folder media/. Dipakai di server (Vercel + Neon): filesystem Vercel tidak permanen dan
+    proyek ini sengaja tidak memakai layanan penyimpanan terpisah. Lihat bibasset/storage.py.
+    `nama` sama dengan nilai yang tersimpan di FileField/ImageField, mis. 'asset_photos/2026/03/a.jpg'.
+    """
+    nama = models.CharField(max_length=255, unique=True)
+    isi = models.BinaryField()
+    ukuran = models.PositiveIntegerField()
+    tipe_konten = models.CharField(max_length=100, blank=True)
+    dibuat_pada = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = 'Berkas media'
+        verbose_name_plural = 'Berkas media'
+
+    def __str__(self):
+        return self.nama

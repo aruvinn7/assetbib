@@ -3,6 +3,8 @@ from django.urls import path
 from . import views
 
 urlpatterns = [
+    # File unggahan yang disimpan di database (server); lokal tetap /media/
+    path('berkas/<path:nama>', views.berkas_media, name='berkas_media'),
 
     # ===========================
     # AUTH

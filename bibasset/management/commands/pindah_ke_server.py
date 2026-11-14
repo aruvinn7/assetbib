@@ -8,7 +8,8 @@ Data:  dibaca dari db.sqlite3 (atau --sqlite PATH), ditulis ke database `default
        DATABASE_URL) dalam SATU transaksi: gagal di tengah → database tujuan tidak berubah.
        Server belum boleh berisi aset/user (pakai --timpa untuk mengganti seluruhnya dengan data laptop).
        Sesi login, log admin, dan izin bawaan Django tidak disalin (dibuat ulang oleh migrate).
-Media: setiap file di MEDIA_ROOT diunggah dengan nama yang sama; yang sudah ada di bucket dilewati.
+Media: setiap file di MEDIA_ROOT diunggah dengan nama yang sama ke penyimpanan server (database
+       PostgreSQL bila DATABASE_URL diset, atau bucket bila MEDIA_BUCKET diset); yang sudah ada dilewati.
 """
 from contextlib import contextmanager
 from pathlib import Path
@@ -23,8 +24,10 @@ from django.core.management.color import no_style
 from django.db import connections, transaction
 
 SOURCE = 'sqlite_lokal'
-# Dibuat ulang oleh `migrate` atau tidak perlu dipindah
-SKIP = {'contenttypes.contenttype', 'auth.permission', 'admin.logentry', 'sessions.session'}
+# Dibuat ulang oleh `migrate` atau tidak perlu dipindah. Isi file (BerkasMedia) diurus --media,
+# jadi --data/--timpa tidak pernah menghapus foto yang sudah ada di server.
+SKIP = {'contenttypes.contenttype', 'auth.permission', 'admin.logentry', 'sessions.session',
+        'bibasset.berkasmedia'}
 
 
 @contextmanager
@@ -44,7 +47,7 @@ def keep_timestamps(models):
 
 
 class Command(BaseCommand):
-    help = 'Salin data SQLite lokal ke PostgreSQL (--data) dan folder media/ ke bucket (--media).'
+    help = 'Salin data SQLite lokal ke PostgreSQL (--data) dan folder media/ ke server (--media).'
 
     def add_arguments(self, parser):
         parser.add_argument('--data', action='store_true', help='salin data ke DATABASE_URL')
@@ -124,8 +127,12 @@ class Command(BaseCommand):
     # ── Media ───────────────────────────────────────────────────────────
     def upload_media(self):
         backend = settings.STORAGES['default']['BACKEND']
-        if 's3' not in backend.lower():
-            raise CommandError('Penyimpanan tujuan belum bucket. Set env MEDIA_BUCKET dkk. dulu.')
+        if backend.endswith('FileSystemStorage'):
+            raise CommandError('Penyimpanan tujuan masih folder media/ lokal. Set env DATABASE_URL '
+                               '(simpan di database server) atau MEDIA_BUCKET dulu.')
+        self.stdout.write(f'Mengunggah media/ ke {backend.rsplit(".", 1)[-1]}…')
+        if backend.endswith('DatabaseStorage'):
+            call_command('migrate', interactive=False, verbosity=0)  # tabel BerkasMedia harus ada
         root = Path(settings.MEDIA_ROOT)
         files = [p for p in root.rglob('*') if p.is_file()]
         sent = skipped = 0

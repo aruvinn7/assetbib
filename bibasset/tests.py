@@ -650,3 +650,86 @@ class HandoverTest(TestCase):
         self.hand_over(self.printer, mode='department', departemen=self.hse.pk)
         write_off_asset(self.printer, date.today(), 'rusak', '-', by=self.ga)
         self.assertIsNone(self.active(self.printer))
+
+
+DB_STORAGE = {
+    'default': {'BACKEND': 'bibasset.storage.DatabaseStorage'},
+    'staticfiles': {'BACKEND': 'django.contrib.staticfiles.storage.StaticFilesStorage'},
+}
+
+
+def png_bytes():
+    import io
+    from PIL import Image
+    buf = io.BytesIO()
+    Image.new('RGB', (8, 8), (70, 95, 255)).save(buf, 'PNG')
+    return buf.getvalue()
+
+
+class DatabaseMediaTest(TestCase):
+    """Server tanpa layanan penyimpanan terpisah: file unggahan disimpan & disajikan dari database."""
+
+    def setUp(self):
+        self.ga_user, self.ga = make_employee('ga', GAProfile)
+        self.usr_user, _ = make_employee('usr', UserProfile)
+        self.aset = Asset.objects.create(nomor_po='PO', nomor_aset='AC-1', nama_aset='AC',
+                                         tanggal_pembelian=date(2025, 1, 1))
+
+    def test_storage_roundtrip(self):
+        from django.core.files.base import ContentFile
+        from .models import BerkasMedia
+        from .storage import DatabaseStorage
+        st = DatabaseStorage()
+        name = st.save('asset_photos/a.png', ContentFile(png_bytes()))
+        self.assertEqual(name, 'asset_photos/a.png')
+        again = st.save('asset_photos/a.png', ContentFile(b'lain'))
+        self.assertNotEqual(again, name)                       # tidak menimpa, diberi akhiran
+        self.assertTrue(st.exists(name))
+        self.assertEqual(st.size(name), len(png_bytes()))
+        self.assertEqual(st.open(name).read(), png_bytes())
+        self.assertEqual(st.url(name), '/berkas/asset_photos/a.png')
+        self.assertEqual(st.listdir('asset_photos'), ([], sorted(['a.png', again.split('/')[-1]])))
+        st.delete(name)
+        self.assertFalse(st.exists(name))
+        self.assertEqual(BerkasMedia.objects.count(), 1)
+
+    def test_serve_requires_login_and_blocks_html(self):
+        from django.core.files.base import ContentFile
+        from .storage import DatabaseStorage
+        st = DatabaseStorage()
+        st.save('x/foto.png', ContentFile(png_bytes()))
+        st.save('x/jahat.html', ContentFile(b'<script>alert(1)</script>'))
+        self.assertEqual(self.client.get('/berkas/x/foto.png').status_code, 302)   # belum login
+        self.client.force_login(self.usr_user)
+        r = self.client.get('/berkas/x/foto.png')
+        self.assertEqual((r.status_code, r['Content-Type']), (200, 'image/png'))
+        self.assertTrue(r['Content-Disposition'].startswith('inline'))
+        self.assertEqual(self.client.get('/berkas/x/foto.png', HTTP_IF_NONE_MATCH=r['ETag']).status_code, 304)
+        r = self.client.get('/berkas/x/jahat.html')
+        self.assertEqual(r['Content-Type'], 'application/octet-stream')
+        self.assertTrue(r['Content-Disposition'].startswith('attachment'))
+        self.assertEqual(self.client.get('/berkas/x/tidak-ada.png').status_code, 404)
+
+    def test_photo_upload_primary_and_delete(self):
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        from django.test import override_settings
+        from .models import AssetPhoto, BerkasMedia
+        self.client.force_login(self.ga_user)
+        with override_settings(STORAGES=DB_STORAGE):
+            for i in range(2):
+                f = SimpleUploadedFile(f'p{i}.png', png_bytes(), content_type='image/png')
+                self.client.post(f'/asset/{self.aset.pk}/photo/upload/',
+                                 {'foto': f, 'jenis_foto': 'lokasi', 'keterangan': f'k{i}', 'foto_utama': 'on'})
+            photos = AssetPhoto.objects.filter(aset=self.aset)
+            self.assertEqual(photos.count(), 2)
+            self.assertEqual(photos.filter(foto_utama=True).count(), 1)     # hanya satu foto utama
+            latest = photos.get(keterangan='k1')
+            self.assertTrue(latest.foto_utama)
+            self.assertEqual(latest.jenis_foto, 'lokasi')
+            self.assertEqual(BerkasMedia.objects.count(), 2)
+            # Daftar aset memakai URL dari storage aktif, bukan MEDIA_URL
+            r = self.client.get('/asset/')
+            self.assertContains(r, f'src="/berkas/{latest.foto.name}"')
+            self.client.post(f'/photo/{latest.pk}/delete/')
+            self.assertEqual(BerkasMedia.objects.count(), 1)               # isi file ikut terhapus
+            self.assertTrue(AssetPhoto.objects.get(aset=self.aset).foto_utama)

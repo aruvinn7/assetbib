@@ -179,10 +179,16 @@ STORAGES = {
                     else 'whitenoise.storage.CompressedManifestStaticFilesStorage'},
 }
 
-# Foto aset, foto bukti kerusakan, scan & foto berita acara: di Vercel harus di object storage
-# S3-compatible (Supabase Storage, Cloudflare R2, AWS S3), karena file di server Vercel hilang tiap deploy.
-# Bucket dibuat PRIVAT: tautan foto ditandatangani & kedaluwarsa (1 jam), jadi tidak bisa dibuka orang luar.
-if os.environ.get('MEDIA_BUCKET'):
+# File unggahan (foto aset, foto bukti kerusakan, scan & foto berita acara). Filesystem Vercel tidak
+# permanen, jadi di server file TIDAK boleh di folder media/. Urutan pilihan:
+#   1. MEDIA_BUCKET diset      → bucket S3-compatible privat (R2, B2, Supabase Storage, AWS S3)
+#   2. database server dipakai → tabel BerkasMedia di PostgreSQL yang sama (bawaan untuk Vercel + Neon),
+#      disajikan lewat /berkas/<nama> yang hanya bisa dibuka setelah login
+#   3. lokal tanpa env         → folder media/ seperti biasa
+# MEDIA_STORAGE=database / filesystem memaksa pilihan 2 / 3.
+_media_storage = os.environ.get('MEDIA_STORAGE') or (
+    's3' if os.environ.get('MEDIA_BUCKET') else 'database' if (DATABASE_URL or ON_VERCEL) else 'filesystem')
+if _media_storage == 's3':
     STORAGES['default'] = {
         'BACKEND': 'storages.backends.s3.S3Storage',
         'OPTIONS': {
@@ -193,15 +199,18 @@ if os.environ.get('MEDIA_BUCKET'):
             'secret_key': os.environ.get('MEDIA_SECRET_ACCESS_KEY'),
             'location': os.environ.get('MEDIA_PREFIX', 'media'),
             'default_acl': None,
+            # Bucket privat: tautan ditandatangani & kedaluwarsa 1 jam
             'querystring_auth': True,
             'querystring_expire': 3600,
             'file_overwrite': False,
             'signature_version': 's3v4',
-            'addressing_style': os.environ.get('MEDIA_ADDRESSING_STYLE') or None,  # Supabase: 'path'
+            'addressing_style': os.environ.get('MEDIA_ADDRESSING_STYLE') or None,  # Supabase/R2/B2: 'path'
         },
     }
+elif _media_storage == 'database':
+    STORAGES['default'] = {'BACKEND': 'bibasset.storage.DatabaseStorage'}
 elif ON_VERCEL:
-    raise ImproperlyConfigured('Set env MEDIA_BUCKET dkk. di Vercel; upload foto tidak bisa disimpan di server Vercel.')
+    raise ImproperlyConfigured('MEDIA_STORAGE=filesystem tidak bisa dipakai di Vercel (file hilang tiap deploy).')
 
 LOGGING = {
     'version': 1, 'disable_existing_loggers': False,

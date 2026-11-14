@@ -1,4 +1,5 @@
 from .auth import login_view, logout_view
+from .berkas import berkas_media
 from .dashboard import (dashboard, location_dashboard)
 from .analytics import value_dashboard, performance_dashboard, life_review_dashboard  
 from .assets import (

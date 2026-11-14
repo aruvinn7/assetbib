@@ -3,13 +3,13 @@ from datetime import timedelta
 from decimal import Decimal
 
 from django.contrib import messages
+from django.core.files.storage import default_storage
 from django.core.paginator import Paginator
 from django.db import transaction
 from django.db.models import (
     Avg, Case, Count, F, FloatField, IntegerField, OuterRef, Prefetch, Q, Subquery, Sum, Value, When,
 )
 from django.db.models.functions import Coalesce
-from django.conf import settings
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
@@ -273,7 +273,7 @@ def asset_search(request):
                                                str(a.lokasi) if a.lokasi else 'Belum ditempatkan'] if x),
         'status':       a.status_siklus_hidup,
         'status_label': status_label.get(a.status_siklus_hidup, ''),
-        'photo':        f'{settings.MEDIA_URL}{a.photo_path}' if a.photo_path else '',
+        'photo':        default_storage.url(a.photo_path) if a.photo_path else '',
         'url':          reverse('asset_detail', args=[a.pk]),
         'maint_url':    reverse('maintenance_create', args=[a.pk]) if can_log and a.status_siklus_hidup != 'writeoff' else '',
     } for a in qs[:8]]
