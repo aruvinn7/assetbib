@@ -12,7 +12,7 @@ from ..models import (
     Asset, AssetFinancial, MaintenanceRecord,
     MaintenanceSchedule, DamageReport,
     AssetGroup, AssetCategory, Location,
-    attach_maintenance_status, refresh_overdue_schedules_daily,
+    attach_maintenance_status, bangun_pohon_lokasi, refresh_overdue_schedules_daily,
 )
 
 
@@ -20,42 +20,14 @@ from ..models import (
 # HELPER: bangun location tree + propagasi count (dipakai oleh dua view)
 # ─────────────────────────────────────────────────────────────────────────────
 def _build_location_tree():
-    all_locations = list(
-        Location.objects.annotate(
-            direct_total    = Count('asset'),
-            direct_active   = Count('asset', filter=Q(asset__status_siklus_hidup='active')),
-            direct_maint    = Count('asset', filter=Q(asset__status_siklus_hidup='maintenance')),
-            direct_writeoff = Count('asset', filter=Q(asset__status_siklus_hidup='writeoff')),
-        ).order_by('nama')
-    )
-
-    loc_map = {loc.pk: loc for loc in all_locations}
-    for loc in all_locations:
-        loc.total_assets   = loc.direct_total
-        loc.total_active   = loc.direct_active
-        loc.total_maint    = loc.direct_maint
-        loc.total_writeoff = loc.direct_writeoff
-        loc.children_list  = []
-
-    roots = []
-    for loc in all_locations:
-        if loc.induk_id and loc.induk_id in loc_map:
-            loc_map[loc.induk_id].children_list.append(loc)
-        elif not loc.induk_id:
-            roots.append(loc)
-
-    def _propagate(node):
-        for child in node.children_list:
-            _propagate(child)
-            node.total_assets   += child.total_assets
-            node.total_active   += child.total_active
-            node.total_maint    += child.total_maint
-            node.total_writeoff += child.total_writeoff
-
-    for root in roots:
-        _propagate(root)
-
-    return roots, loc_map
+    # Hasil: .total_assets / .total_active / .total_maint / .total_writeoff (termasuk sub-lokasi)
+    locations = Location.objects.annotate(
+        assets   = Count('asset'),
+        active   = Count('asset', filter=Q(asset__status_siklus_hidup='active')),
+        maint    = Count('asset', filter=Q(asset__status_siklus_hidup='maintenance')),
+        writeoff = Count('asset', filter=Q(asset__status_siklus_hidup='writeoff')),
+    ).order_by('nama')
+    return bangun_pohon_lokasi(locations, jumlah=('assets', 'active', 'maint', 'writeoff'))
 
 
 # ─────────────────────────────────────────────────────────────────────────────

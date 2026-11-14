@@ -7,7 +7,7 @@ from ..decorators import role_required
 from ..forms import (
     AssetCategoryForm, AssetGroupForm, DepartmentForm, LocationForm, flash_form_errors,
 )
-from ..models import Department, Location, AssetGroup, AssetCategory
+from ..models import Department, Location, AssetGroup, AssetCategory, bangun_pohon_lokasi
 from ..roles import is_ga
 
 
@@ -60,43 +60,11 @@ def department_delete(request, pk):
 # LOCATION
 # ===============================
 
-def build_location_tree(locations):
-    """
-    Ubah flat QuerySet → nested dict tree.
-
-    Return: list of root nodes, each node = {
-        'obj':      Location instance,
-        'children': [node, node, ...]   # rekursif
-    }
-
-    Kompleksitas: O(n) — cukup 1 query all locations.
-    """
-    # Map pk → node
-    node_map = {loc.pk: {'obj': loc, 'children': []} for loc in locations}
-
-    roots = []
-    for loc in locations:
-        if loc.induk_id and loc.induk_id in node_map:
-            node_map[loc.induk_id]['children'].append(node_map[loc.pk])
-        elif not loc.induk_id:
-            roots.append(node_map[loc.pk])
-
-    return roots
-
-
-# ── View: location_list (ganti yang lama) ───────────────────────────────────
-
 @role_required(is_ga)
 def location_list(request):
-    # select_related parent supaya __str__ tidak N+1
-    locations = Location.objects.select_related('induk').annotate(asset_count=Count('asset')).order_by('jalur_lengkap')
-    tree      = build_location_tree(locations)
-    # Jumlah aset termasuk semua sub-lokasi
-    def _total(node):
-        node['total'] = node['obj'].asset_count + sum(_total(ch) for ch in node['children'])
-        return node['total']
-    for root in tree:
-        _total(root)
+    # .assets = aset langsung di lokasi ini, .total_assets = termasuk semua sub-lokasi
+    locations = list(Location.objects.annotate(assets=Count('asset')).order_by('jalur_lengkap'))
+    tree, _   = bangun_pohon_lokasi(locations, jumlah=('assets',))
 
     return render(request, "master/location_list.html", {
         "locations": locations,   # untuk bulk-delete form & count

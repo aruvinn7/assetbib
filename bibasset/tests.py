@@ -9,7 +9,7 @@ from .models import (
     Asset, AssetAssignment, AssetCategory, AssetFinancial, AssetGroup, AssetMovement, DamageReport,
     Department, Employee, FinanceProfile, GAProfile, Location, MaintenanceRecord, MovementReport,
     UserProfile,
-    compute_health, get_repair_threshold,
+    bangun_pohon_lokasi, compute_health, get_repair_threshold,
 )
 from .views.import_views import _parse_decimal
 
@@ -97,6 +97,26 @@ class LocationPathTest(TestCase):
         root.save()
         child.refresh_from_db()
         self.assertEqual(str(child), 'Site Baru > Gedung')
+
+    def test_pohon_lokasi_menjumlahkan_sub_lokasi(self):
+        site   = Location.objects.create(nama='Site')
+        gedung = Location.objects.create(nama='Gedung', induk=site)
+        ruang  = Location.objects.create(nama='Ruang', induk=gedung)
+        lain   = Location.objects.create(nama='Lain')
+        jumlah = {site.pk: 1, gedung.pk: 2, ruang.pk: 4, lain.pk: 0}
+        locs = list(Location.objects.order_by('jalur_lengkap'))
+        for loc in locs:
+            loc.assets = jumlah[loc.pk]
+
+        roots, loc_map = bangun_pohon_lokasi(locs, jumlah=('assets',))
+
+        self.assertEqual([r.nama for r in roots], ['Lain', 'Site'])
+        self.assertEqual([c.nama for c in loc_map[site.pk].children_list], ['Gedung'])
+        self.assertEqual(loc_map[ruang.pk].children_list, [])
+        self.assertEqual(loc_map[site.pk].total_assets, 7)    # 1 + 2 + 4
+        self.assertEqual(loc_map[gedung.pk].total_assets, 6)  # 2 + 4
+        self.assertEqual(loc_map[ruang.pk].total_assets, 4)
+        self.assertEqual(loc_map[site.pk].assets, 1)          # nilai langsung tidak berubah
 
 
 class ImportParseTest(TestCase):

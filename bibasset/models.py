@@ -247,6 +247,38 @@ class Location(models.Model):
             child.save()
 
 
+def bangun_pohon_lokasi(locations, jumlah=()):
+    """Susun daftar lokasi (satu query) menjadi pohon, dan jumlahkan hitungan ke atas.
+
+    Tiap lokasi mendapat `.children_list` (urutan mengikuti `locations`), dan untuk
+    tiap nama atribut `f` di `jumlah` juga `.total_<f>` = nilai `f` miliknya sendiri
+    ditambah total semua sub-lokasinya. Return (roots, loc_map) dengan loc_map = {pk: lokasi}.
+    """
+    locations = list(locations)
+    loc_map = {loc.pk: loc for loc in locations}
+    for loc in locations:
+        loc.children_list = []
+        for f in jumlah:
+            setattr(loc, f'total_{f}', getattr(loc, f) or 0)
+
+    roots = []
+    for loc in locations:
+        if loc.induk_id is None:
+            roots.append(loc)
+        elif loc.induk_id in loc_map:
+            loc_map[loc.induk_id].children_list.append(loc)
+
+    def _naikkan(node):
+        for child in node.children_list:
+            _naikkan(child)
+            for f in jumlah:
+                setattr(node, f'total_{f}', getattr(node, f'total_{f}') + getattr(child, f'total_{f}'))
+
+    for root in roots:
+        _naikkan(root)
+    return roots, loc_map
+
+
 class AssetGroup(models.Model):
     nama = models.CharField(max_length=100, unique=True)
 
