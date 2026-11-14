@@ -78,7 +78,7 @@
 <script>
   (() => {
     const form = document.getElementById('returnForm');
-    const notes = document.getElementByid('catatan');
+    const notes = document.getElementById('catatan');
     // Rusak → catatan wajib karena jadi isi laporan kerusakan
     const sync = () => {
       const damaged = form.querySelector('input[name=kondisi]:checked')?.value !== 'baik';
