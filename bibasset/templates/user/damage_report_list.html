@@ -25,11 +25,11 @@
         {% for r in reports %}
           <tr>
             <td class="no"><span class="visually-hidden">Nomor </span>{{ forloop.counter }}</td>
-            <td data-label="Tingkat" class="sev-cell">{% include "components/_severity.html" with severity=r.severity %}</td>
-            <td data-label="Laporan" class="report-cell"><a class="row-link" href="{% url 'user_damage_report_detail' r.pk %}">{{ r.title }}</a></td>
-            <td data-label="Aset" class="asset-col">{{ r.asset.nama_asset }}</td>
-            <td data-label="Status" class="status-col">{% include "components/_report_status.html" with status=r.report_status %}</td>
-            <td data-label="Dilaporkan" class="num when-col"><span title="{{ r.reported_at|date:'d M Y, H:i' }}">{{ r.reported_at|date:"d M Y" }}</span><div class="cell-sub">{{ r.reported_at|sejak }}</div></td>
+            <td data-label="Tingkat" class="sev-cell">{% include "components/_severity.html" with severity=r.tingkat_keparahan %}</td>
+            <td data-label="Laporan" class="report-cell"><a class="row-link" href="{% url 'user_damage_report_detail' r.pk %}">{{ r.judul }}</a></td>
+            <td data-label="Aset" class="asset-col">{{ r.aset.nama_aset }}</td>
+            <td data-label="Status" class="status-col">{% include "components/_report_status.html" with status=r.status_laporan %}</td>
+            <td data-label="Dilaporkan" class="num when-col"><span title="{{ r.dilaporkan_pada|date:'d M Y, H:i' }}">{{ r.dilaporkan_pada|date:"d M Y" }}</span><div class="cell-sub">{{ r.dilaporkan_pada|sejak }}</div></td>
           </tr>
         {% endfor %}
         </tbody>

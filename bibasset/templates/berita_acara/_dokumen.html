@@ -54,7 +54,7 @@
     <p class="ba-ref">No Berita Acara: {{ ba.nomor|default:"(diberikan saat terbit)" }}</p>
     <h3>{% if ba.jenis == 'penghapusan' %}DOKUMENTASI ASSET YANG DIHAPUSKAN{% else %}DOKUMENTASI ASSET RUSAK{% endif %}</h3>
     <div class="ba-foto">
-      {% for f in foto %}<figure><img src="{{ f.url }}" alt="Dokumentasi {{ f.caption }}" loading="lazy"><figcaption>{{ f.caption }}</figcaption></figure>{% endfor %}
+      {% for f in foto %}<figure><img src="{{ f.url }}" alt="Dokumentasi {{ f.keterangan }}" loading="lazy"><figcaption>{{ f.keterangan }}</figcaption></figure>{% endfor %}
     </div>
   </section>
   {% endif %}

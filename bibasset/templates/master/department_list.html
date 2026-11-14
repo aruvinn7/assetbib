@@ -26,14 +26,14 @@
           <thead><tr><th class="no">No</th><th>Nama</th><th class="num">Karyawan</th><th class="num">Aset</th><th><span class="visually-hidden">Aksi</span></th></tr></thead>
           <tbody>
           {% for d in departments %}
-            <tr data-name="{{ d.name|lower }}">
+            <tr data-name="{{ d.nama|lower }}">
               <td class="no"><span class="visually-hidden">Nomor </span>{{ forloop.counter }}</td>
-              <td class="lead">{{ d.name }}{% if not d.emp_count and not d.asset_count %}<div class="cell-sub">Belum dipakai</div>{% endif %}</td>
+              <td class="lead">{{ d.nama }}{% if not d.emp_count and not d.asset_count %}<div class="cell-sub">Belum dipakai</div>{% endif %}</td>
               <td data-label="Karyawan" class="num">{{ d.emp_count|default:"—" }}</td>
-              <td data-label="Aset" class="num">{% if d.asset_count %}<a href="{% url 'asset_list' %}?q={{ d.name|urlencode }}">{{ d.asset_count }}</a>{% else %}—{% endif %}</td>
+              <td data-label="Aset" class="num">{% if d.asset_count %}<a href="{% url 'asset_list' %}?q={{ d.nama|urlencode }}">{{ d.asset_count }}</a>{% else %}—{% endif %}</td>
               <td class="row-actions act">{% if is_ga %}
                 <form method="post" action="{% url 'department_delete' d.pk %}"
-                      onsubmit="return confirm('Hapus departemen {{ d.name|escapejs }}?{% if d.asset_count or d.emp_count %} {{ d.asset_count }} aset dan {{ d.emp_count }} karyawan akan kehilangan departemennya.{% endif %}')">
+                      onsubmit="return confirm('Hapus departemen {{ d.nama|escapejs }}?{% if d.asset_count or d.emp_count %} {{ d.asset_count }} aset dan {{ d.emp_count }} karyawan akan kehilangan departemennya.{% endif %}')">
                   {% csrf_token %}<button type="submit" class="del">Hapus</button>
                 </form>
                 {% endif %}</td>

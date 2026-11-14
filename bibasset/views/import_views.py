@@ -24,8 +24,8 @@ from .utils import is_ga_or_finance
 # KONSTANTA
 # ================================================================
 
-ASSET_REQUIRED_COLS  = {'no_po', 'asset_number', 'nama_asset', 'tanggal_pembelian'}
-FIN_REQUIRED_COLS    = {'asset_number', 'nilai_awal_aset', 'nilai_residual', 'umur_ekonomis'}
+ASSET_REQUIRED_COLS  = {'nomor_po', 'nomor_aset', 'nama_aset', 'tanggal_pembelian'}
+FIN_REQUIRED_COLS    = {'nomor_aset', 'nilai_awal', 'nilai_residual', 'umur_ekonomis'}
 VALID_STATUS         = {'active', 'maintenance', 'writeoff'}
 MAX_ROWS             = 500
 
@@ -39,15 +39,15 @@ IMPORT_PAGES = {
         'sub': 'Tambahkan banyak aset sekaligus dari template Excel. Jadwal maintenance awal dibuat otomatis dari interval kategori.',
         'template_url': 'download_template_asset',
         'columns': [
-            ('no_po', True, 'Nomor purchase order.'),
-            ('asset_number', True, 'Kode unik aset; tidak boleh sama dengan aset yang sudah ada.'),
-            ('nama_asset', True, 'Nama lengkap aset.'),
+            ('nomor_po', True, 'Nomor purchase order.'),
+            ('nomor_aset', True, 'Kode unik aset; tidak boleh sama dengan aset yang sudah ada.'),
+            ('nama_aset', True, 'Nama lengkap aset.'),
             ('tanggal_pembelian', True, 'Format YYYY-MM-DD, mis. 2024-02-20.'),
-            ('lokasi_asset', False, 'Nama lokasi seperti di master data; salah ketik ringan diperbaiki otomatis.'),
-            ('department', False, 'Nama departemen pemilik aset.'),
+            ('lokasi', False, 'Nama lokasi seperti di master data; salah ketik ringan diperbaiki otomatis.'),
+            ('departemen', False, 'Nama departemen pemilik aset.'),
             ('asset_group', False, 'Membantu mencari kategori. Grup tanpa kategori masuk ke kategori “Lainnya” grup itu.'),
-            ('asset_category', False, 'Kategori di dalam grup; menentukan interval maintenance otomatis.'),
-            ('lifecycle_status', False, 'active, maintenance, atau writeoff. Kosong = active.'),
+            ('kategori_aset', False, 'Kategori di dalam grup; menentukan interval maintenance otomatis.'),
+            ('status_siklus_hidup', False, 'active, maintenance, atau writeoff. Kosong = active.'),
         ],
         'steps': [
             'Unduh template aset, lalu baca sheet RULES & PANDUAN.',
@@ -60,8 +60,8 @@ IMPORT_PAGES = {
         'sub': 'Isi nilai perolehan, residual, dan umur ekonomis untuk banyak aset sekaligus.',
         'template_url': 'download_template_finansial',
         'columns': [
-            ('asset_number', True, 'Kode aset yang sudah terdaftar di sistem.'),
-            ('nilai_awal_aset', True, 'Harga perolehan dalam rupiah, angka saja tanpa titik/koma.'),
+            ('nomor_aset', True, 'Kode aset yang sudah terdaftar di sistem.'),
+            ('nilai_awal', True, 'Harga perolehan dalam rupiah, angka saja tanpa titik/koma.'),
             ('nilai_residual', True, 'Nilai sisa di akhir umur ekonomis; boleh 0, tidak boleh melebihi nilai awal.'),
             ('umur_ekonomis', True, 'Umur ekonomis dalam tahun, bilangan bulat 1–100.'),
         ],
@@ -176,7 +176,7 @@ def _fuzzy_resolve(query: str, lookup: dict, field_name: str):
         return None, None
 
     best_obj  = lookup[best_key]
-    best_name = best_obj.name  # semua model punya .name
+    best_name = best_obj.nama  # semua model punya .nama
 
     if best_score >= 0.85:
         # Sangat mirip — auto-fix, catat saja sebagai informasi
@@ -277,17 +277,17 @@ def import_asset(request):
         return redirect('import_asset')
 
     # Cache master data
-    locations   = {loc.name.lower(): loc   for loc in Location.objects.all()}
-    departments = {dep.name.lower(): dep   for dep in Department.objects.all()}
-    groups      = {grp.name.lower(): grp   for grp in AssetGroup.objects.all()}
+    locations   = {loc.nama.lower(): loc   for loc in Location.objects.all()}
+    departments = {dep.nama.lower(): dep   for dep in Department.objects.all()}
+    groups      = {grp.nama.lower(): grp   for grp in AssetGroup.objects.all()}
     # Kategori dicari di dalam grupnya dulu — nama kategori bisa sama di grup berbeda
     categories_by_group = {}
     categories_any      = {}
     for cat in AssetCategory.objects.all():
-        categories_by_group.setdefault(cat.group_id, {})[cat.name.lower()] = cat
-        categories_any.setdefault(cat.name.lower(), cat)
+        categories_by_group.setdefault(cat.grup_id, {})[cat.nama.lower()] = cat
+        categories_any.setdefault(cat.nama.lower(), cat)
 
-    existing_numbers = set(Asset.objects.values_list('asset_number', flat=True))
+    existing_numbers = set(Asset.objects.values_list('nomor_aset', flat=True))
     created_by = request.user.employee
 
     assets_to_create = []
@@ -297,44 +297,44 @@ def import_asset(request):
     #   status: 'success' | 'rejected'
     #   reject_reason: string (kalau rejected)
     #   warnings: list string (fuzzy fix notes)
-    #   kolom-kolom data: no_po, asset_number, nama_asset, ...
+    #   kolom-kolom data: nomor_po, nomor_aset, nama_aset, ...
     result_rows = []
 
     for row_num, row in enumerate(rows, start=1):
-        no_po             = _cell_str(row.get('no_po'))
-        asset_number      = _cell_str(row.get('asset_number'))
-        nama_asset        = _cell_str(row.get('nama_asset'))
+        nomor_po             = _cell_str(row.get('nomor_po'))
+        nomor_aset      = _cell_str(row.get('nomor_aset'))
+        nama_aset        = _cell_str(row.get('nama_aset'))
         tanggal_pembelian = _parse_date(row.get('tanggal_pembelian'))
 
         # Data mentah dari Excel untuk ditampilkan (sebelum resolve)
-        raw_lokasi    = _cell_str(row.get('lokasi_asset'))
-        raw_dept      = _cell_str(row.get('department'))
+        raw_lokasi    = _cell_str(row.get('lokasi'))
+        raw_dept      = _cell_str(row.get('departemen'))
         raw_group     = _cell_str(row.get('asset_group'))
-        raw_category  = _cell_str(row.get('asset_category'))
-        status_raw    = _cell_str(row.get('lifecycle_status')).lower()
+        raw_category  = _cell_str(row.get('kategori_aset'))
+        status_raw    = _cell_str(row.get('status_siklus_hidup')).lower()
         lifecycle     = status_raw if status_raw in VALID_STATUS else 'active'
 
         # Base row data untuk template
         row_data = {
             'row_num':          row_num,
-            'no_po':            no_po,
-            'asset_number':     asset_number,
-            'nama_asset':       nama_asset,
+            'nomor_po':         nomor_po,
+            'nomor_aset':       nomor_aset,
+            'nama_aset':        nama_aset,
             'tanggal_pembelian': tanggal_pembelian,
-            'lokasi_asset':     raw_lokasi,
-            'department':       raw_dept,
+            'lokasi':           raw_lokasi,
+            'departemen':       raw_dept,
             'asset_group':      raw_group,
-            'asset_category':   raw_category,
-            'lifecycle_status': lifecycle,
+            'kategori_aset':    raw_category,
+            'status_siklus_hidup': lifecycle,
             'warnings':         [],
             'status':           'success',
             'reject_reason':    '',
         }
 
         # ── Validasi kolom wajib ──
-        if not all([no_po, asset_number, nama_asset]):
+        if not all([nomor_po, nomor_aset, nama_aset]):
             row_data['status'] = 'rejected'
-            row_data['reject_reason'] = "Kolom wajib (no_po / asset_number / nama_asset) kosong"
+            row_data['reject_reason'] = "Kolom wajib (nomor_po / nomor_aset / nama_aset) kosong"
             result_rows.append(row_data)
             continue
 
@@ -344,9 +344,9 @@ def import_asset(request):
             result_rows.append(row_data)
             continue
 
-        if asset_number in existing_numbers:
+        if nomor_aset in existing_numbers:
             row_data['status'] = 'rejected'
-            row_data['reject_reason'] = f"asset_number '{asset_number}' sudah ada di sistem"
+            row_data['reject_reason'] = f"nomor_aset '{nomor_aset}' sudah ada di sistem"
             result_rows.append(row_data)
             continue
 
@@ -361,13 +361,13 @@ def import_asset(request):
                 row_warnings.append(warn)
             return obj
 
-        lokasi   = _resolve('lokasi_asset',   raw_lokasi,   locations,   'lokasi_asset')
-        dept     = _resolve('department',     raw_dept,     departments, 'department')
+        lokasi   = _resolve('lokasi',   raw_lokasi,   locations,   'lokasi')
+        dept     = _resolve('departemen',     raw_dept,     departments, 'departemen')
         group    = _resolve('asset_group',    raw_group,    groups,      'asset_group')
         category = _resolve(
-            'asset_category', raw_category,
+            'kategori_aset', raw_category,
             categories_by_group.get(group.pk, {}) if group else categories_any,
-            'asset_category',
+            'kategori_aset',
         )
         # Grup aset tidak disimpan di aset (ikut kategori). Grup tanpa kategori → kategori 'Lainnya'
         # grup itu, supaya informasi grupnya tidak hilang.
@@ -375,31 +375,31 @@ def import_asset(request):
             category = categories_by_group.setdefault(group.pk, {}).get(AssetCategory.LAINNYA.lower())
             if category is None:
                 category = AssetCategory.lainnya(group)
-                categories_by_group[group.pk][category.name.lower()] = category
-            row_warnings.append(f"Kategori tidak ditemukan → dimasukkan ke '{group.name} → {category.name}'")
+                categories_by_group[group.pk][category.nama.lower()] = category
+            row_warnings.append(f"Kategori tidak ditemukan → dimasukkan ke '{group.nama} → {category.nama}'")
         if category is not None:
-            group = category.group
+            group = category.grup
 
         # Update nama yang sudah di-resolve ke row_data (untuk tampilkan hasil fuzzy fix)
-        row_data['lokasi_asset']    = lokasi.name   if lokasi   else raw_lokasi
-        row_data['department']      = dept.name     if dept     else raw_dept
-        row_data['asset_group']     = group.name    if group    else raw_group
-        row_data['asset_category']  = category.name if category else raw_category
+        row_data['lokasi']    = lokasi.nama   if lokasi   else raw_lokasi
+        row_data['departemen']      = dept.nama     if dept     else raw_dept
+        row_data['asset_group']     = group.nama    if group    else raw_group
+        row_data['kategori_aset']  = category.nama if category else raw_category
         row_data['warnings']        = row_warnings
 
         # ── Kumpulkan aset, disimpan sekaligus setelah loop ──
         asset = Asset(
-            no_po=no_po,
-            asset_number=asset_number,
-            nama_asset=nama_asset,
+            nomor_po=nomor_po,
+            nomor_aset=nomor_aset,
+            nama_aset=nama_aset,
             tanggal_pembelian=tanggal_pembelian,
-            lokasi_asset=lokasi,
-            owned_by_department=dept,
-            asset_category=category,
-            lifecycle_status=lifecycle,
-            created_by=created_by,
+            lokasi=lokasi,
+            departemen_pemilik=dept,
+            kategori_aset=category,
+            status_siklus_hidup=lifecycle,
+            dibuat_oleh=created_by,
         )
-        existing_numbers.add(asset_number)
+        existing_numbers.add(nomor_aset)
         assets_to_create.append(asset)
         result_rows.append(row_data)
 
@@ -410,19 +410,19 @@ def import_asset(request):
         # custom config, jadi interval = default kategori
         schedules = []
         for asset in created:
-            interval = asset.asset_category.default_interval_in_days() if asset.asset_category else None
-            if interval and asset.lifecycle_status != 'writeoff':
+            interval = asset.kategori_aset.default_interval_in_days() if asset.kategori_aset else None
+            if interval and asset.status_siklus_hidup != 'writeoff':
                 schedules.append(MaintenanceSchedule(
-                    asset=asset,
-                    scheduled_date=asset.tanggal_pembelian + timedelta(days=int(interval)),
+                    aset=asset,
+                    tanggal_jadwal=asset.tanggal_pembelian + timedelta(days=int(interval)),
                     status='upcoming',
                 ))
         MaintenanceSchedule.objects.bulk_create(schedules, batch_size=200)
         # Aset yang diimport langsung berstatus write off tetap butuh catatan write off
         AssetWriteOff.objects.bulk_create([
-            AssetWriteOff(asset=a, tanggal=timezone.localdate(), alasan='lainnya', created_by=created_by,
+            AssetWriteOff(aset=a, tanggal=timezone.localdate(), alasan='lainnya', dibuat_oleh=created_by,
                           keterangan='Diimport dari Excel dengan status write off. Lengkapi alasan bila perlu.')
-            for a in created if a.lifecycle_status == 'writeoff'
+            for a in created if a.status_siklus_hidup == 'writeoff'
         ])
     success_count = len(created)
 
@@ -467,32 +467,32 @@ def import_finansial(request):
         messages.error(request, f"Maksimal {MAX_ROWS} baris per upload.")
         return redirect('import_finansial')
 
-    # Cache: asset_number → Asset object
+    # Cache: nomor_aset → Asset object
     assets_map = {
-        a.asset_number: a
+        a.nomor_aset: a
         for a in Asset.objects.filter(financial__isnull=True)
         # Hanya aset yang BELUM punya finansial
     }
 
-    all_numbers   = set(Asset.objects.values_list('asset_number', flat=True))
+    all_numbers   = set(Asset.objects.values_list('nomor_aset', flat=True))
     created_by    = request.user.employee
     success_count = 0
     skipped_rows  = []
     financials    = []  # Kumpulkan untuk bulk_create
 
     for row_num, row in enumerate(rows, start=1):
-        asset_number = _cell_str(row.get('asset_number'))
-        nilai_awal   = _parse_decimal(row.get('nilai_awal_aset'))
+        nomor_aset = _cell_str(row.get('nomor_aset'))
+        nilai_awal   = _parse_decimal(row.get('nilai_awal'))
         nilai_resid  = _parse_decimal(row.get('nilai_residual'))
         umur_raw     = row.get('umur_ekonomis')
 
         # Validasi kolom wajib
-        if not asset_number:
-            skipped_rows.append((row_num, "asset_number kosong"))
+        if not nomor_aset:
+            skipped_rows.append((row_num, "nomor_aset kosong"))
             continue
 
         if nilai_awal is None:
-            skipped_rows.append((row_num, f"nilai_awal_aset tidak valid: '{row.get('nilai_awal_aset')}'. Isi angka saja tanpa titik/koma"))
+            skipped_rows.append((row_num, f"nilai_awal tidak valid: '{row.get('nilai_awal')}'. Isi angka saja tanpa titik/koma"))
             continue
 
         if nilai_resid is None:
@@ -508,14 +508,14 @@ def import_finansial(request):
             skipped_rows.append((row_num, f"umur_ekonomis tidak valid: '{umur_raw}'. Isi angka tahun (1-100)"))
             continue
 
-        # Cek asset_number ada di sistem
-        asset = assets_map.get(asset_number)
-        if asset is None:
+        # Cek nomor_aset ada di sistem
+        aset = assets_map.get(nomor_aset)
+        if aset is None:
             # Cek apakah karena belum ada atau karena sudah punya finansial
-            if asset_number in all_numbers:
-                skipped_rows.append((row_num, f"Aset '{asset_number}' sudah memiliki data finansial"))
+            if nomor_aset in all_numbers:
+                skipped_rows.append((row_num, f"Aset '{nomor_aset}' sudah memiliki data finansial"))
             else:
-                skipped_rows.append((row_num, f"Aset '{asset_number}' tidak ditemukan di sistem"))
+                skipped_rows.append((row_num, f"Aset '{nomor_aset}' tidak ditemukan di sistem"))
             continue
 
         # Validasi nilai residual tidak lebih besar dari nilai awal
@@ -523,14 +523,14 @@ def import_finansial(request):
             skipped_rows.append((row_num, f"nilai_residual ({nilai_resid:,.0f}) tidak boleh lebih besar dari nilai_awal_aset ({nilai_awal:,.0f})"))
             continue
 
-        # pop: asset_number dobel di file yang sama tidak bikin IntegrityError
-        assets_map.pop(asset_number)
+        # pop: nomor_aset dobel di file yang sama tidak bikin IntegrityError
+        assets_map.pop(nomor_aset)
         financials.append(AssetFinancial(
-            asset=asset,
-            nilai_awal_aset=nilai_awal,
+            aset=aset,
+            nilai_awal=nilai_awal,
             nilai_residual=nilai_resid,
             umur_ekonomis=umur,
-            created_by=created_by,
+            dibuat_oleh=created_by,
         ))
         success_count += 1
 
@@ -646,15 +646,15 @@ def download_template_asset(request):
 
     # ── Baris 4: Header kolom ───────────────────────────────────
     COLS = [
-        ("no_po *",              16, '0E3FBA'),  # biru tua = wajib
-        ("asset_number *",       18, '0E3FBA'),
-        ("nama_asset *",         30, '0E3FBA'),
+        ("nomor_po *",              16, '0E3FBA'),  # biru tua = wajib
+        ("nomor_aset *",       18, '0E3FBA'),
+        ("nama_aset *",         30, '0E3FBA'),
         ("tanggal_pembelian *",  20, '0E3FBA'),
-        ("lokasi_asset",         25, '1A56DB'),  # biru biasa = opsional
-        ("department",           22, '1A56DB'),
+        ("lokasi",         25, '1A56DB'),  # biru biasa = opsional
+        ("departemen",           22, '1A56DB'),
         ("asset_group",          18, '1A56DB'),
-        ("asset_category",       18, '1A56DB'),
-        ("lifecycle_status",     16, '1A56DB'),
+        ("kategori_aset",       18, '1A56DB'),
+        ("status_siklus_hidup",     16, '1A56DB'),
     ]
     for col_idx, (name, width, bg) in enumerate(COLS, 1):
         _header_cell(ws.cell(row=4, column=col_idx), name, bg=bg)
@@ -718,16 +718,16 @@ def download_template_asset(request):
     ws2.row_dimensions[3].height = 24
 
     RULES_DETAIL = [
-        ("no_po",            "Nomor Purchase Order pembelian aset",                        "WAJIB",   "Teks bebas",                                  "PO-2024-001"),
-        ("asset_number",     "Kode unik aset. TIDAK BOLEH duplikat di sistem",             "WAJIB",   "Teks bebas, unik",                            "ELK-AC-001"),
-        ("nama_asset",       "Nama lengkap dan deskriptif aset",                           "WAJIB",   "Teks bebas, maks 200 karakter",               "AC Split Daikin 2 PK"),
+        ("nomor_po",            "Nomor Purchase Order pembelian aset",                        "WAJIB",   "Teks bebas",                                  "PO-2024-001"),
+        ("nomor_aset",     "Kode unik aset. TIDAK BOLEH duplikat di sistem",             "WAJIB",   "Teks bebas, unik",                            "ELK-AC-001"),
+        ("nama_aset",       "Nama lengkap dan deskriptif aset",                           "WAJIB",   "Teks bebas, maks 200 karakter",               "AC Split Daikin 2 PK"),
         ("tanggal_pembelian","Tanggal aset dibeli / diterima",                             "WAJIB",   "YYYY-MM-DD saja\nContoh: 2024-02-20",         "2024-02-20"),
-        ("lokasi_asset",     "Nama lokasi. Harus persis sama dengan data di sistem",       "Opsional","Teks. Kosongkan jika tidak ada",               "Office Angsana > Lantai 2"),
-        ("department",       "Nama departemen pemilik aset",                               "Opsional","Teks. Harus persis sama di sistem",            "HRGA"),
+        ("lokasi",     "Nama lokasi. Harus persis sama dengan data di sistem",       "Opsional","Teks. Kosongkan jika tidak ada",               "Office Angsana > Lantai 2"),
+        ("departemen",       "Nama departemen pemilik aset",                               "Opsional","Teks. Harus persis sama di sistem",            "HRGA"),
         ("asset_group",      "Grup aset (Elektronik, Furnitur, dll). Membantu mencari kategori;\nbila kategori kosong, aset masuk kategori 'Lainnya' grup ini",
                              "Opsional","Teks. Harus persis sama di sistem",            "Elektronik"),
-        ("asset_category",   "Kategori spesifik dalam grup",                               "Opsional","Teks. Harus persis sama di sistem",            "AC & Pendingin"),
-        ("lifecycle_status", "Status awal aset saat diimport",                             "Opsional","active / maintenance / writeoff\nDefault: active","active"),
+        ("kategori_aset",   "Kategori spesifik dalam grup",                               "Opsional","Teks. Harus persis sama di sistem",            "AC & Pendingin"),
+        ("status_siklus_hidup", "Status awal aset saat diimport",                             "Opsional","active / maintenance / writeoff\nDefault: active","active"),
     ]
     for row_idx, (col, desc, req, fmt, ex) in enumerate(RULES_DETAIL, 4):
         data = [col, desc, req, fmt, ex]
@@ -750,8 +750,8 @@ def download_template_asset(request):
     ws2.row_dimensions[14].height = 26
 
     NOTES = [
-        ("Kolom WAJIB",        "no_po, asset_number, nama_asset, tanggal_pembelian harus diisi semua. Baris yang kolom wajibnya kosong akan DILEWATI."),
-        ("asset_number unik",  "Jika asset_number sudah ada di sistem, baris DILEWATI — tidak update, tidak error."),
+        ("Kolom WAJIB",        "nomor_po, nomor_aset, nama_aset, tanggal_pembelian harus diisi semua. Baris yang kolom wajibnya kosong akan DILEWATI."),
+        ("nomor_aset unik",  "Jika nomor_aset sudah ada di sistem, baris DILEWATI — tidak update, tidak error."),
         ("Lokasi & Dept",      "Jika nama tidak ditemukan di sistem, field dikosongkan. Aset tetap tersimpan."),
         ("Format tanggal",     "HANYA YYYY-MM-DD. Format lain (20/02/2024 dll) menyebabkan baris DILEWATI."),
         ("Hapus baris contoh", "Hapus baris contoh (highlight biru, baris 6-8) sebelum upload."),
@@ -791,7 +791,7 @@ def download_template_finansial(request):
 
     ws.merge_cells('A2:D2')
     sub = ws['A2']
-    sub.value     = "Import SETELAH import aset. asset_number harus sudah ada di sistem."
+    sub.value     = "Import SETELAH import aset. nomor_aset harus sudah ada di sistem."
     sub.font      = Font(name='Arial', size=9, italic=True, color='6B7280')
     sub.fill      = PatternFill('solid', start_color='F8F9FC')
     sub.alignment = Alignment(horizontal='center', vertical='center')
@@ -799,8 +799,8 @@ def download_template_finansial(request):
     ws.row_dimensions[3].height = 6
 
     FIN_COLS = [
-        ("asset_number *",    22, '065F46'),
-        ("nilai_awal_aset *", 22, '065F46'),
+        ("nomor_aset *",    22, '065F46'),
+        ("nilai_awal *", 22, '065F46'),
         ("nilai_residual *",  22, '065F46'),
         ("umur_ekonomis *",   18, '065F46'),
     ]
@@ -860,7 +860,7 @@ def download_template_finansial(request):
 
     ws2.merge_cells('A3:E3')
     info = ws2['A3']
-    info.value     = "⚠️ Import finansial dilakukan SETELAH import aset. asset_number harus sudah ada di database."
+    info.value     = "⚠️ Import finansial dilakukan SETELAH import aset. nomor_aset harus sudah ada di database."
     info.font      = Font(name='Arial', bold=True, size=10, color='065F46')
     info.fill      = PatternFill('solid', start_color='D1FAE5')
     info.alignment = Alignment(horizontal='center', vertical='center')
@@ -872,8 +872,8 @@ def download_template_finansial(request):
     ws2.row_dimensions[5].height = 24
 
     FIN_RULES_DETAIL = [
-        ("asset_number",    "Kode unik aset. HARUS sudah ada di database aset",                "WAJIB", "Teks. Persis sama dengan di sistem",          "ELK-AC-001"),
-        ("nilai_awal_aset", "Harga perolehan/beli aset dalam Rupiah",                          "WAJIB", "Angka bulat tanpa Rp/titik/koma",             "15000000"),
+        ("nomor_aset",    "Kode unik aset. HARUS sudah ada di database aset",                "WAJIB", "Teks. Persis sama dengan di sistem",          "ELK-AC-001"),
+        ("nilai_awal", "Harga perolehan/beli aset dalam Rupiah",                          "WAJIB", "Angka bulat tanpa Rp/titik/koma",             "15000000"),
         ("nilai_residual",  "Nilai sisa aset di akhir umur ekonomis. Bisa diisi 0",            "WAJIB", "Angka bulat ≥ 0. Harus ≤ nilai_awal_aset",    "1500000"),
         ("umur_ekonomis",   "Perkiraan usia ekonomis dalam tahun",                             "WAJIB", "Angka bulat 1–100",                           "5"),
     ]

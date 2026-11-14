@@ -107,7 +107,7 @@ class Plan:
         self.key = Plan.counter
         self.code, self.cat, self.name, self.price, self.life = code, cat, name, price, life
         self.buy, self.loc, self.dept, self.opts = buy, loc, dept, opts
-        self.fam = K.FAMILY.get(cat.name, 'office')
+        self.fam = K.FAMILY.get(cat.nama, 'office')
         for word, fam in K.NAME_FAMILY:
             if word in name:
                 self.fam = fam
@@ -193,18 +193,25 @@ class Command(BaseCommand):
                       ComponentReplacement, DamageReport, MaintenanceRecord, AssetComponent, AssetMaintenanceConfig,
                       AssetWriteOff, AssetAssignment, AssetMovement, AssetFinancial):
             model.objects.all()._raw_delete(model.objects.db)
-        AssetPhoto.objects.exclude(asset_id__in=keep_ids)._raw_delete(AssetPhoto.objects.db)
+        AssetPhoto.objects.exclude(aset_id__in=keep_ids)._raw_delete(AssetPhoto.objects.db)
         Asset.objects.exclude(pk__in=keep_ids)._raw_delete(Asset.objects.db)
-        Asset.objects.filter(pk__in=keep_ids).update(lokasi_asset=None, asset_category=None, owned_by_department=None)
+        Asset.objects.filter(pk__in=keep_ids).update(lokasi=None, kategori_aset=None, departemen_pemilik=None)
         for model in (Location, AssetCategory, AssetGroup):
             model.objects.all()._raw_delete(model.objects.db)
+        reset = (BeritaAcaraFoto, BeritaAcaraItem, BeritaAcara, MovementReport, MaintenanceSchedule,
+                 ComponentReplacement, DamageReport, MaintenanceRecord, AssetComponent, AssetMaintenanceConfig,
+                 AssetWriteOff, AssetAssignment, AssetMovement, AssetFinancial, Location, AssetCategory, AssetGroup)
         with connection.cursor() as c:
-            for model in (BeritaAcaraFoto, BeritaAcaraItem, BeritaAcara, MovementReport, MaintenanceSchedule,
-                          ComponentReplacement, DamageReport, MaintenanceRecord, AssetComponent, AssetMaintenanceConfig,
-                          AssetWriteOff, AssetAssignment, AssetMovement, AssetFinancial, Location, AssetCategory, AssetGroup):
-                c.execute('UPDATE sqlite_sequence SET seq = 0 WHERE name = %s', [model._meta.db_table])
+            if connection.vendor == 'sqlite':
+                for model in reset:
+                    c.execute('UPDATE sqlite_sequence SET seq = 0 WHERE name = %s', [model._meta.db_table])
+            else:
+                # PostgreSQL: kembalikan sequence id ke max(id)+1 (tabel kosong → 1)
+                from django.core.management.color import no_style
+                for sql in connection.ops.sequence_reset_sql(no_style(), reset):
+                    c.execute(sql)
         # Karyawan simulasi lama dibuat ulang; karyawan asli tidak disentuh
-        return {a.asset_number: a for a in keep_assets}
+        return {a.nomor_aset: a for a in keep_assets}
 
     # ── 2. Master data ──────────────────────────────────────────────────
     def build_locations(self):
@@ -216,7 +223,7 @@ class Command(BaseCommand):
                 storage = name.startswith('*')
                 name = name.lstrip('*')
                 full = f'{path} > {name}' if path else name
-                loc = Location(name=name, parent=parent, full_path=full, is_storage=storage)
+                loc = Location(nama=name, induk=parent, jalur_lengkap=full, tempat_penyimpanan=storage)
                 loc.save_base(raw=True)
                 self.L[full] = loc
                 walk(loc, full, children)
@@ -234,12 +241,12 @@ class Command(BaseCommand):
         self.C = {}
         self.cat_meta = {}
         for gname, cats in K.CATEGORIES.items():
-            g = AssetGroup.objects.create(name=gname)
+            g = AssetGroup.objects.create(nama=gname)
             for name, val, unit, personal, life, kind, checklist in cats:
                 lines = [l for l in checklist.splitlines() if l.strip()]
                 c = AssetCategory.objects.create(
-                    group=g, name=name, default_interval_value=val, default_interval_unit=unit, personal_use=personal,
-                    maintenance_description='\n'.join(f'{i}. {l}' for i, l in enumerate(lines, 1)),
+                    grup=g, nama=name, interval_default=val, satuan_interval_default=unit, pemakaian_pribadi=personal,
+                    deskripsi_maintenance='\n'.join(f'{i}. {l}' for i, l in enumerate(lines, 1)),
                 )
                 self.C[(gname, name)] = c
                 self.cat_meta[c.pk] = dict(life=life, kind=kind, checklist=lines)
@@ -255,7 +262,7 @@ class Command(BaseCommand):
         return self.by_name[name]
 
     def build_employees(self):
-        self.D = {d.name: d for d in Department.objects.all()}
+        self.D = {d.nama: d for d in Department.objects.all()}
         # Karyawan simulasi baru dibuat ulang setiap kali (idempoten)
         names = [n for n, *_ in K.NEW_EMPLOYEES]
         old_new = Employee.objects.filter(nama__in=names).select_related('user')
@@ -263,7 +270,7 @@ class Command(BaseCommand):
         pw = make_password(PASSWORD)
         taken = set(User.objects.values_list('username', flat=True))
         last_id = max(int(e.split('-')[1]) for e in Employee.objects.filter(employee_id__startswith='BIB-')
-                      .values_list('employee_id', flat=True)) if Employee.objects.filter(employee_id__startswith='BIB-').exists() else 1000
+                      .values_list('nomor_karyawan', flat=True)) if Employee.objects.filter(employee_id__startswith='BIB-').exists() else 1000
         created = []
         for i, (nama, jabatan, dept, site, ga, join, leave) in enumerate(K.NEW_EMPLOYEES, start=1):
             parts = nama.lower().replace("'", '').split()
@@ -274,8 +281,8 @@ class Command(BaseCommand):
             user = User(username=username, password=pw, first_name=nama.split()[0], last_name=' '.join(nama.split()[1:]),
                         is_active=leave is None, date_joined=dt(date.fromisoformat(join), 8))
             user.save()
-            emp = Employee.objects.create(user=user, employee_id=f'BIB-{last_id + i * 7}', nama=nama,
-                                          department=self.D[dept], jabatan=jabatan)
+            emp = Employee.objects.create(user=user, nomor_karyawan=f'BIB-{last_id + i * 7}', nama=nama,
+                                          departemen=self.D[dept], jabatan=jabatan)
             UserProfile.objects.create(employee=emp)
             if ga:
                 GAProfile.objects.create(employee=emp)
@@ -287,8 +294,8 @@ class Command(BaseCommand):
         self.staff = defaultdict(list)
         self.ga_staff = []
         self.fin_staff = []
-        for emp in Employee.objects.select_related('department', 'user', 'user_profile', 'ga_profile', 'finance_profile'):
-            dept = emp.department.name if emp.department else None
+        for emp in Employee.objects.select_related('departemen', 'user', 'user_profile', 'ga_profile', 'finance_profile'):
+            dept = emp.departemen.nama if emp.departemen else None
             if emp.nama in new_info:
                 site, join, leave = new_info[emp.nama]
                 join, leave = date.fromisoformat(join), (date.fromisoformat(leave) if leave else None)
@@ -318,7 +325,7 @@ class Command(BaseCommand):
         return self.rng.choice(live) if live else None
 
     def dept_staff(self, dept, d, site=None, kws=None, need_user=True):
-        people = self.staff.get(dept.name if dept else '', [])
+        people = self.staff.get(dept.nama if dept else '', [])
         if kws:
             people = [p for p in people if any(k in p.emp.jabatan for k in kws)] or people
         return self.pick([p for p in people if p.has_user or not need_user], d, site)
@@ -364,11 +371,11 @@ class Command(BaseCommand):
         for number, path in PROTECTED.items():
             a = self.keep[number]
             g, c = PROTECTED_CAT[number]
-            p = Plan(number, self.C[(g, c)], a.nama_asset, 0, 8, a.tanggal_pembelian, self.loc(path), self.D['HRGA'],
+            p = Plan(number, self.C[(g, c)], a.nama_aset, 0, 8, a.tanggal_pembelian, self.loc(path), self.D['HRGA'],
                      protected=a)
-            fin = AssetFinancial.objects.filter(asset=a).first()
-            p.price = int(fin.nilai_awal_aset) if fin else (2_230_000 if number == '1.1.2.15' else 5_142_000)
-            p.po = a.no_po
+            fin = AssetFinancial.objects.filter(aset=a).first()
+            p.price = int(fin.nilai_awal) if fin else (2_230_000 if number == '1.1.2.15' else 5_142_000)
+            p.po = a.nomor_po
             self.plans.append(p)
         self.stats['aset bersama (rencana)'] = len(self.plans)
 
@@ -387,9 +394,9 @@ class Command(BaseCommand):
                 name = f'{model} ({lab}-{self.label_seq[lab]:02d})'
         p = Plan(code, cat, name, self.price(base), life, buy, loc, dept, opts)
         p.line_models = models
-        if cat.name in ('Light Vehicle', 'Truk Operasional', 'Bus Karyawan', 'Ambulans', 'Fire Truck'):
+        if cat.nama in ('Light Vehicle', 'Truk Operasional', 'Bus Karyawan', 'Ambulans', 'Fire Truck'):
             brand = model.split()[1] if model.split()[0] in ('Bus', 'Microbus', 'Truk', 'Ambulans', 'Fire') else model.split()[0]
-            p.comp_key = K.VEHICLE_COMP.get(brand, 'truk' if cat.name != 'Light Vehicle' else 'lv_toyota')
+            p.comp_key = K.VEHICLE_COMP.get(brand, 'truk' if cat.nama != 'Light Vehicle' else 'lv_toyota')
         else:
             p.comp_key = p.fam if p.fam in K.COMPONENTS else None
         self.plans.append(p)
@@ -462,28 +469,28 @@ class Command(BaseCommand):
                     self.maybe_replace(p, d)
 
         old = lambda p: p.buy
-        fate(pick(lambda p: p.cat.name == 'TV / Monitor Display' and p.buy.year == 2019, 2, old), 'usang',
+        fate(pick(lambda p: p.cat.nama == 'TV / Monitor Display' and p.buy.year == 2019, 2, old), 'usang',
              lambda p: date(2024, 5, 21), 'Panel redup dan sudah tidak didukung update; diganti TV baru.', True)
-        fate(pick(lambda p: p.cat.name == 'Mesin Fotokopi' and p.buy.year <= 2020, 1, old), 'usang',
+        fate(pick(lambda p: p.cat.nama == 'Mesin Fotokopi' and p.buy.year <= 2020, 1, old), 'usang',
              lambda p: date(2024, 5, 21), 'Counter melewati 1,2 juta lembar, sparepart tidak tersedia lagi.', True)
-        fate(pick(lambda p: p.cat.name == 'Access Point' and 'TP-Link' in p.name, 2, old), 'usang',
+        fate(pick(lambda p: p.cat.nama == 'Access Point' and 'TP-Link' in p.name, 2, old), 'usang',
              lambda p: date(2025, 5, 20), 'Tidak mendukung WiFi 6 dan manajemen terpusat; diganti perangkat baru.', True)
-        fate(pick(lambda p: p.cat.name == 'Switch' and 'OfficeConnect' in p.name, 1, old), 'usang',
+        fate(pick(lambda p: p.cat.nama == 'Switch' and 'OfficeConnect' in p.name, 1, old), 'usang',
              lambda p: date(2025, 5, 20), 'End of support dari vendor; diganti switch PoE baru.', True)
-        fate(pick(lambda p: p.cat.name == 'APAR' and p.buy.year == 2019, 3, old), 'usang',
+        fate(pick(lambda p: p.cat.nama == 'APAR' and p.buy.year == 2019, 3, old), 'usang',
              lambda p: date(2024, 11, 12), 'Tabung gagal uji hidrostatik (korosi), tidak layak direfill.', True)
-        fate(pick(lambda p: p.cat.name == 'Monitor' and p.buy.year <= 2020, 1, old), 'usang',
+        fate(pick(lambda p: p.cat.nama == 'Monitor' and p.buy.year <= 2020, 1, old), 'usang',
              lambda p: date(2025, 5, 20), 'Layar menguning dan dead pixel; habis umur pakai.')
-        fate(pick(lambda p: p.cat.name == 'Light Vehicle' and p.buy.year == 2019, 2, old), 'dijual',
+        fate(pick(lambda p: p.cat.nama == 'Light Vehicle' and p.buy.year == 2019, 2, old), 'dijual',
              lambda p: date(2025, 3, 18), 'Dilelang melalui KPKNL/balai lelang setelah melewati 6 tahun pemakaian di area tambang.',
              True, jual=lambda p: Decimal(rng.randrange(165, 240) * 1_000_000))
-        fate(pick(lambda p: p.cat.name in ('Rak Dokumen', 'Whiteboard') and p.buy.year <= 2020, 3, old), 'dihibahkan',
+        fate(pick(lambda p: p.cat.nama in ('Rak Dokumen', 'Whiteboard') and p.buy.year <= 2020, 3, old), 'dihibahkan',
              lambda p: date(2024, 8, 14), 'Dihibahkan ke SDN 2 Angsana melalui program CSR & Empowerment.')
-        fate(pick(lambda p: p.cat.name in ('Meja Meeting', 'Kursi Meeting') and p.buy.year <= 2019, 2, old), 'dihibahkan',
+        fate(pick(lambda p: p.cat.nama in ('Meja Meeting', 'Kursi Meeting') and p.buy.year <= 2019, 2, old), 'dihibahkan',
              lambda p: date(2024, 8, 14), 'Dihibahkan ke Kantor Desa Angsana melalui program CSR & Empowerment.')
-        fate(pick(lambda p: p.cat.name == 'CCTV' and 'Pos KM 27' in p.loc.full_path, 1), 'hilang',
+        fate(pick(lambda p: p.cat.nama == 'CCTV' and 'Pos KM 27' in p.loc.jalur_lengkap, 1), 'hilang',
              lambda p: date(2023, 11, 8), 'Kamera dicuri di Pos KM 27; sudah dilaporkan ke Polsek Angsana (LP/112/XI/2023).', True)
-        fate(pick(lambda p: p.cat.name == 'GPS Handheld', 1), 'hilang',
+        fate(pick(lambda p: p.cat.nama == 'GPS Handheld', 1), 'hilang',
              lambda p: date(2024, 7, 23), 'Terjatuh di sungai saat survey batas IUP Kusan; pencarian 3 hari tidak berhasil.')
         self.stats['write off direncanakan (bersama)'] = sum(1 for p in self.plans if p.writeoff)
 
@@ -502,7 +509,7 @@ class Command(BaseCommand):
             return []
         out = []
         home = self.home(e)
-        office_room = 'Office' in home.full_path
+        office_room = 'Office' in home.jalur_lengkap
         if not e.field:
             out.append('laptop')
             if office_room:
@@ -692,16 +699,16 @@ class Command(BaseCommand):
         locker_units = defaultdict(list)
         for p in self.plans:
             if 'kamar' in p.opts:
-                room_units[p.loc.full_path].append(p)
+                room_units[p.loc.jalur_lengkap].append(p)
             elif 'locker' in p.opts:
-                locker_units[p.loc.full_path].append(p)
+                locker_units[p.loc.jalur_lengkap].append(p)
             if 'kamar' in p.opts or 'locker' in p.opts:
                 p.personal = True
                 p.seg(dt(p.buy + timedelta(days=rng.randint(1, 4)), rng.randint(9, 15)), p.loc, p.dept,
                       note='Penerimaan aset baru', by=self.ga(p.buy, p.loc.site))
 
         # Kasur lama diganti 2024 (usang) → unit baru di kamar yang sama
-        old_kasur = sorted([p for paths in room_units.values() for p in paths if p.cat.name == 'Kasur' and p.buy.year == 2019],
+        old_kasur = sorted([p for paths in room_units.values() for p in paths if p.cat.nama == 'Kasur' and p.buy.year == 2019],
                            key=lambda p: p.buy)[:8]
         repl_day = date(2024, 3, 12)
         for p in old_kasur:
@@ -713,7 +720,7 @@ class Command(BaseCommand):
             np_.personal, np_.line_models, np_.comp_key, np_.swap_in = True, p.line_models, None, repl_day
             np_.seg(dt(repl_day, 10), p.loc, p.dept, note='Penerimaan aset baru (pengganti kasur lama)', by=self.ga(repl_day))
             self.plans.append(np_)
-            room_units[p.loc.full_path].append(np_)
+            room_units[p.loc.jalur_lengkap].append(np_)
 
         # Penghuni mess: karyawan lapangan & karyawan site Kusan/Bunati
         occupants = []
@@ -790,7 +797,7 @@ class Command(BaseCommand):
                 continue
             end = e.leave if e.leave and e.leave < self.today else None
             free_l[unit.key] = (end + timedelta(days=10)) if end else date(2100, 1, 1)
-            apply([unit], 'locker', unit.loc.name, e, start, end, 'resign', ho=f'Locker pribadi di {unit.loc.name}')
+            apply([unit], 'locker', unit.loc.nama, e, start, end, 'resign', ho=f'Locker pribadi di {unit.loc.nama}')
 
     # ── 7. Riwayat aset bersama ─────────────────────────────────────────
     def plan_shared_history(self):
@@ -807,7 +814,7 @@ class Command(BaseCommand):
             if 'serah' in p.opts:
                 t1 = t0 + timedelta(days=rng.randint(0, 6), hours=rng.randint(1, 4))
                 share = p.dept
-                p.seg(t1, p.loc, p.dept, share=share, note=f'Serah terima ke departemen {p.dept.name}', by=self.ga(d_of(t1), site),
+                p.seg(t1, p.loc, p.dept, share=share, note=f'Serah terima ke departemen {p.dept.nama}', by=self.ga(d_of(t1), site),
                       ho_note=rng.choice(['Kondisi baru, lengkap dengan manual dan kartu garansi', 'Diterima oleh supervisor departemen',
                                           'Unit baru sesuai PR departemen']))
             end = p.writeoff['date'] if p.writeoff else self.today
@@ -833,10 +840,10 @@ class Command(BaseCommand):
             other = 'Kusan' if cur['loc'].site == 'Angsana' else 'Angsana'
             to = self.loc(rng.choice(K.PITS.get(other) or K.PITS['Angsana']))
             t = dt(d, rng.randint(8, 16), rng.randint(0, 59))
-            self.mreports.append(dict(plan=p, by=rep, frm=cur, to_loc=to, to_dept=cur['owner'], to_holder=None, status='rejected',
-                                      reasons='Pindah site', notes='Dibutuhkan untuk pekerjaan malam di site ' + other,
+            self.mreports.append(dict(plan=p, by=rep, frm=cur, to_loc=to, to_dept=cur['owner'], pemegang_tujuan=None, status='rejected',
+                                      alasan='Pindah site', catatan='Dibutuhkan untuk pekerjaan malam di site ' + other,
                                       created=t, reviewer=self.ga(d), reviewed=t + timedelta(hours=rng.randint(2, 30)),
-                                      review_notes=rng.choice(['Unit masih dibutuhkan di site asal; ajukan peminjaman dari unit cadangan.',
+                                      catatan_tinjauan=rng.choice(['Unit masih dibutuhkan di site asal; ajukan peminjaman dari unit cadangan.',
                                                                'Pemindahan antar site harus melalui permintaan resmi ke GA, bukan laporan pindah.',
                                                                'Tidak disetujui: rencana tambang bulan ini masih memakai unit di lokasi sekarang.'])))
         for p in rng.sample(movers, min(3, len(movers))):
@@ -847,14 +854,14 @@ class Command(BaseCommand):
                 continue
             other = 'Kusan' if cur['loc'].site == 'Angsana' else 'Angsana'
             to = self.loc(rng.choice(K.PITS.get(other) or K.PITS['Angsana']))
-            self.mreports.append(dict(plan=p, by=rep, frm=cur, to_loc=to, to_dept=cur['owner'], to_holder=None, status='pending',
-                                      reasons='Pindah site', notes=f'Pinjam pakai untuk area kerja malam di site {other}',
+            self.mreports.append(dict(plan=p, by=rep, frm=cur, to_loc=to, to_dept=cur['owner'], pemegang_tujuan=None, status='pending',
+                                      alasan='Pindah site', catatan=f'Pinjam pakai untuk area kerja malam di site {other}',
                                       created=dt(d, rng.randint(7, 11), rng.randint(0, 59))))
 
     def relocations(self, p, share, end):
         """Perpindahan selama umur aset: dilaporkan karyawan departemen pemilik atau dicatat GA."""
         rng = self.rng
-        cat = p.cat.name
+        cat = p.cat.nama
         last = p.segs[-1]
         t = last['t']
 
@@ -873,11 +880,11 @@ class Command(BaseCommand):
             if rep and when > dt(date(2021, 1, 4)):
                 status = 'approved' if crucial else 'recorded'
                 created = when - (timedelta(hours=rng.randint(4, 40)) if crucial else timedelta(minutes=rng.randint(5, 50)))
-                report = dict(plan=p, by=rep, frm=cur, to_loc=loc, to_dept=owner, to_holder=holder, status=status,
-                              reasons=' · '.join(crucial), notes=note, created=created,
+                report = dict(plan=p, by=rep, frm=cur, to_loc=loc, to_dept=owner, pemegang_tujuan=holder, status=status,
+                              alasan=' · '.join(crucial), catatan=note, created=created,
                               reviewer=self.ga(d_of(when), cur['loc'].site) if crucial else None,
                               reviewed=when if crucial else None,
-                              review_notes=rng.choice(['', 'OK, sudah dikonfirmasi ke supervisor.', 'Disetujui sesuai rencana kerja.']) if crucial else '')
+                              catatan_tinjauan=rng.choice(['', 'OK, sudah dikonfirmasi ke supervisor.', 'Disetujui sesuai rencana kerja.']) if crucial else '')
                 self.mreports.append(report)
                 by = report['reviewer'] if crucial else rep.emp
                 mnote = f'Dilaporkan {rep.emp.nama}' + (f': {note}' if note else '')
@@ -900,8 +907,8 @@ class Command(BaseCommand):
                 site = last['loc'].site
                 if rng.random() < 0.08:
                     site = 'Kusan' if site == 'Angsana' else 'Angsana'
-                options = [x for x in pool.get(site, pool['Angsana']) if x != last['loc'].full_path] or \
-                          [x for x in pool['Angsana'] if x != last['loc'].full_path]
+                options = [x for x in pool.get(site, pool['Angsana']) if x != last['loc'].jalur_lengkap] or \
+                          [x for x in pool['Angsana'] if x != last['loc'].jalur_lengkap]
                 loc = self.loc(rng.choice(options))
                 why = rng.choice(['Mengikuti kemajuan front penambangan', 'Dipindah ke area kerja shift malam', 'Penerangan area loading',
                                   'Dipindah karena area lama sudah selesai ditambang', 'Permintaan pengawas pit'])
@@ -914,11 +921,11 @@ class Command(BaseCommand):
                 new = self.D[rng.choice(['Operasional Tambang', 'HSE Operation', 'Coal Rom & Hauling Dept', 'Survey, Geology & Exploration',
                                          'Environment & Reclamation', 'Infrastructure Project & Maintenance'])]
                 if new != last['owner']:
-                    home = self.loc(K.DEPT_HOME.get(new.name, K.PIT + 'Pos Pengawas Pit'))
-                    if 'Office' in home.full_path and new.name != 'Infrastructure Project & Maintenance':
+                    home = self.loc(K.DEPT_HOME.get(new.nama, K.PIT + 'Pos Pengawas Pit'))
+                    if 'Office' in home.jalur_lengkap and new.nama != 'Infrastructure Project & Maintenance':
                         home = self.loc(K.PIT + 'Pos Pengawas Pit')
                     move(t, home, owner=new, new_share=new, by_report=False,
-                         note=f'Serah terima ke departemen {new.name} (realokasi armada)')
+                         note=f'Serah terima ke departemen {new.nama} (realokasi armada)')
         elif cat in ('TV / Monitor Display', 'Proyektor', 'Kursi Meeting', 'Whiteboard', 'Printer', 'Speaker / Audio System',
                      'Dispenser', 'Monitor', 'GNSS RTK', 'Total Station', 'Genset') and rng.random() < 0.22 and 'label:GS' not in p.opts:
             t = t + timedelta(days=rng.randint(120, 800))
@@ -927,14 +934,14 @@ class Command(BaseCommand):
                     to = self.loc(K.KT + 'Pos Pengawas Kusan') if last['loc'].site == 'Angsana' else self.loc(K.A2 + 'Ruang Planning')
                     move(t, to, note='Dipakai untuk pengukuran progres tambang dan stockpile')
                 else:
-                    same = [x for x in K.OFFICE_ROOMS + K.SITE_ROOMS if self.L[x].site == last['loc'].site and x != last['loc'].full_path]
+                    same = [x for x in K.OFFICE_ROOMS + K.SITE_ROOMS if self.L[x].site == last['loc'].site and x != last['loc'].jalur_lengkap]
                     move(t, self.loc(rng.choice(same)), by_report=rng.random() < 0.6,
                          note=rng.choice(['Ruangan lama direnovasi', 'Dipindah sesuai kebutuhan ruang meeting', 'Penataan ulang ruangan',
                                           'Pindah ke ruangan yang lebih sering dipakai']))
         elif cat == 'AC' and rng.random() < 0.06 and last['loc'].site == 'Angsana':
             t = dt(workday(date(2023, 7, rng.randint(3, 28))), 10)
             if t > last['t'] and d_of(t) < end - timedelta(days=10):
-                same = [x for x in K.OFFICE_ROOMS if x != last['loc'].full_path]
+                same = [x for x in K.OFFICE_ROOMS if x != last['loc'].jalur_lengkap]
                 move(t, self.loc(rng.choice(same)), by_report=False, note='Relokasi AC karena renovasi ruangan')
 
     # ── 8. Nomor aset, PO & penyimpanan aset ────────────────────────────
@@ -946,11 +953,11 @@ class Command(BaseCommand):
         for p in plans:
             if p.protected:
                 continue
-            group = (p.code, p.buy.year, p.buy.month // 2 if p.personal else p.buy.isocalendar()[1] // 3)
-            if group not in po_keys:
+            grup = (p.code, p.buy.year, p.buy.month // 2 if p.personal else p.buy.isocalendar()[1] // 3)
+            if grup not in po_keys:
                 po_seq += self.rng.randint(3, 19)
-                po_keys[group] = str(po_seq)
-            p.po = po_keys[group]
+                po_keys[grup] = str(po_seq)
+            p.po = po_keys[grup]
             per_code[p.code] += 1
             p.number = f'{p.code}-{per_code[p.code]:03d}'
         self.plans = plans
@@ -964,17 +971,17 @@ class Command(BaseCommand):
             last = p.segs[-1]
             if p.protected:
                 a = p.protected
-                a.lokasi_asset, a.asset_category, a.owned_by_department = last['loc'], p.cat, last['owner']
-                a.lifecycle_status = 'active'
+                a.lokasi, a.kategori_aset, a.departemen_pemilik = last['loc'], p.cat, last['owner']
+                a.status_siklus_hidup = 'active'
                 a.save()
                 p.asset = a
                 continue
             while next_id in keep_ids:
                 next_id += 1
             created = dt(p.buy + timedelta(days=rng.randint(1, 4)), rng.randint(9, 16), rng.randint(0, 59))
-            a = Asset(id=next_id, no_po=p.po, asset_number=p.number, nama_asset=p.name, tanggal_pembelian=p.buy,
-                      lokasi_asset=last['loc'], owned_by_department=last['owner'], asset_category=p.cat,
-                      lifecycle_status='active', created_by=self.ga(p.buy, p.loc.site), created_at=created)
+            a = Asset(id=next_id, nomor_po=p.po, nomor_aset=p.number, nama_aset=p.name, tanggal_pembelian=p.buy,
+                      lokasi=last['loc'], departemen_pemilik=last['owner'], kategori_aset=p.cat,
+                      status_siklus_hidup='active', dibuat_oleh=self.ga(p.buy, p.loc.site), dibuat_pada=created)
             next_id += 1
             new_assets.append(a)
             p.asset = a
@@ -988,10 +995,10 @@ class Command(BaseCommand):
                 continue    # baru diterima, belum dinilai Finance
             residual = Decimal(int(p.price * rng.choice([0.05, 0.1]) / 1000) * 1000)
             fin_by = self.pick(self.fin_staff, p.buy) or self.fin_staff[0]
-            fins.append(AssetFinancial(asset=a, nilai_awal_aset=Decimal(p.price), nilai_residual=residual, umur_ekonomis=p.life,
-                                       created_by=fin_by.emp, created_at=dt(p.buy + timedelta(days=rng.randint(3, 14)), rng.randint(9, 16))))
+            fins.append(AssetFinancial(aset=a, nilai_awal=Decimal(p.price), nilai_residual=residual, umur_ekonomis=p.life,
+                                       dibuat_oleh=fin_by.emp, dibuat_pada=dt(p.buy + timedelta(days=rng.randint(3, 14)), rng.randint(9, 16))))
         AssetFinancial.objects.bulk_create(fins, batch_size=500)
-        self.fin_of = {f.asset_id: f for f in fins}
+        self.fin_of = {f.aset_id: f for f in fins}
         self.stats['aset dinilai Finance'] = len(fins)
 
         self.comp_of = defaultdict(dict)
@@ -1001,10 +1008,10 @@ class Command(BaseCommand):
                 continue
             unit = ''.join(ch for ch in p.name.split()[1 if len(p.name.split()) > 1 else 0].upper() if ch.isalnum())[:6] or 'STD'
             for key, nm, pn, qty, crit, sup, price, every in tmpl:
-                c = AssetComponent(asset=p.asset, part_number=pn.format(u=unit), component_name=nm, quantity=qty, is_critical=crit,
-                                   supplier_name=sup, estimated_price=Decimal(price), last_replaced=None,
-                                   created_by=self.ga(p.buy), created_at=dt(p.buy + timedelta(days=rng.randint(5, 20)), 10),
-                                   updated_at=dt(p.buy + timedelta(days=rng.randint(5, 20)), 10))
+                c = AssetComponent(aset=p.asset, nomor_part=pn.format(u=unit), nama_komponen=nm, jumlah=qty, komponen_kritis=crit,
+                                   nama_pemasok=sup, harga_estimasi=Decimal(price), penggantian_terakhir=None,
+                                   dibuat_oleh=self.ga(p.buy), dibuat_pada=dt(p.buy + timedelta(days=rng.randint(5, 20)), 10),
+                                   diperbarui_pada=dt(p.buy + timedelta(days=rng.randint(5, 20)), 10))
                 c.key, c.every = key, every
                 comps.append(c)
                 self.comp_of[p.key][key] = c
@@ -1020,9 +1027,9 @@ class Command(BaseCommand):
         }
         for p in self.plans:
             for (cat, where), (days, why) in custom.items():
-                if p.cat.name == cat and where in p.loc.full_path and not p.writeoff:
-                    configs.append(AssetMaintenanceConfig(asset=p.asset, custom_interval_days=days, reason=why,
-                                                          set_by=self.ga(p.buy), created_at=dt(p.buy + timedelta(days=20), 10)))
+                if p.cat.nama == cat and where in p.loc.jalur_lengkap and not p.writeoff:
+                    configs.append(AssetMaintenanceConfig(aset=p.asset, interval_khusus_hari=days, alasan=why,
+                                                          ditetapkan_oleh=self.ga(p.buy), dibuat_pada=dt(p.buy + timedelta(days=20), 10)))
                     p.custom_days = days
         AssetMaintenanceConfig.objects.bulk_create(configs)
         self.stats['interval khusus'] = len(configs)
@@ -1055,7 +1062,7 @@ class Command(BaseCommand):
 
     def repair_cap(self, p):
         fin = self.fin_of.get(p.asset.pk)
-        value = float(fin.nilai_awal_aset) if fin else float(p.price)
+        value = float(fin.nilai_awal) if fin else float(p.price)
         th = get_repair_threshold(value)
         if p.lemon:
             return value * th['critical'] / 100 * self.rng.uniform(1.05, 1.4)
@@ -1143,7 +1150,7 @@ class Command(BaseCommand):
                     break
                 if rng.random() < 0.025:
                     self.schedules.append(dict(plan=p, date=due, status='skipped',
-                                               notes=rng.choice(['Dilewati: unit sedang dipakai operasi penuh', 'Dilewati: teknisi vendor berhalangan'])))
+                                               catatan=rng.choice(['Dilewati: unit sedang dipakai operasi penuh', 'Dilewati: teknisi vendor berhalangan'])))
                     base = due
                     pending_due = base + timedelta(days=interval)
                     continue
@@ -1167,20 +1174,20 @@ class Command(BaseCommand):
             # Laporan kerusakan
             tmpl = self.pick_template(p, last_tmpl, nxt_rep)
             last_tmpl = tmpl[0]
-            title, desc, sev, (lo, hi), part, fix = tmpl
+            judul, desc, sev, (lo, hi), part, fix = tmpl
             if nxt_rep['kind'] == 'return':
-                title = 'Rusak saat dikembalikan'
+                judul = 'Rusak saat dikembalikan'
                 desc = nxt_rep['desc']
                 sev = 'low' if nxt_rep['cond'] == 'rusak_ringan' else 'high'
                 by = self.ga(d, p.at(d)['loc'].site)
             else:
                 by = self.reporter(p, d)
             t = dt(d, rng.randint(7, 17), rng.randint(0, 59))
-            rep = dict(plan=p, title=title, desc=desc, sev=sev, by=by, at=t, status='resolved', part=part, fix=fix)
+            rep = dict(plan=p, judul=judul, desc=desc, sev=sev, by=by, at=t, status='resolved', part=part, fix=fix)
             self.reports.append(rep)
             # preventive yang sedang menunggu ikut dilewati (aplikasi: upcoming → skipped)
             if interval and pending_due:
-                self.schedules.append(dict(plan=p, date=pending_due, status='skipped', notes=''))
+                self.schedules.append(dict(plan=p, date=pending_due, status='skipped', catatan=''))
                 pending_due = None
             final_lemon = nxt_rep['kind'] == 'final'
             reject = (not final_lemon and nxt_rep['kind'] == 'random' and rng.random() < 0.055)
@@ -1188,24 +1195,24 @@ class Command(BaseCommand):
             rep['handler'] = handler
             if reject:
                 rep['status'] = 'rejected'
-                rep['ga_notes'] = rng.choice(K.REJECT_NOTES)
+                rep['catatan_ga'] = rng.choice(K.REJECT_NOTES)
                 rep['updated'] = t + timedelta(hours=rng.randint(3, 40))
                 if interval and pending_due is None:
                     pending_due = base + timedelta(days=interval)
                     if pending_due <= d:
                         pending_due = d + timedelta(days=interval)
                 continue
-            add_finding(d, 'laporan', ringkas_laporan(title, desc), report=rep, rekom='hapus' if final_lemon else 'perbaiki')
+            add_finding(d, 'laporan', ringkas_laporan(judul, desc), report=rep, rekom='hapus' if final_lemon else 'perbaiki')
             if final_lemon:
                 rep['status'] = 'in_progress' if (self.today - d).days > 6 else 'acknowledged'
-                rep['ga_notes'] = 'Biaya perbaikan tidak ekonomis; diusulkan penghapusan melalui Berita Acara Kerusakan.'
+                rep['catatan_ga'] = 'Biaya perbaikan tidak ekonomis; diusulkan penghapusan melalui Berita Acara Kerusakan.'
                 if p.writeoff:
                     wo = p.writeoff['date']
-                    rep.update(status='resolved', resolved=dt(wo, 15), ga_notes='Ditutup karena aset di-write off.', record=None)
+                    rep.update(status='resolved', resolved=dt(wo, 15), catatan_ga='Ditutup karena aset di-write off.', record=None)
                     self.schedules.append(dict(plan=p, date=d, status='skipped', report=rep,
-                                               notes=self.corr_note(rep)))
+                                               catatan=self.corr_note(rep)))
                 else:
-                    self.schedules.append(dict(plan=p, date=d, status='overdue', report=rep, notes=self.corr_note(rep)))
+                    self.schedules.append(dict(plan=p, date=d, status='overdue', report=rep, catatan=self.corr_note(rep)))
                     active_report = rep
                 pending_due = None
                 break
@@ -1216,44 +1223,44 @@ class Command(BaseCommand):
             if nxt_d and res_day >= nxt_d:
                 res_day = nxt_d - timedelta(days=2)
             if p.writeoff and res_day >= end:
-                rep.update(status='resolved', resolved=dt(end, 15), ga_notes='Ditutup karena aset di-write off.', record=None)
-                self.schedules.append(dict(plan=p, date=d, status='skipped', report=rep, notes=self.corr_note(rep)))
+                rep.update(status='resolved', resolved=dt(end, 15), catatan_ga='Ditutup karena aset di-write off.', record=None)
+                self.schedules.append(dict(plan=p, date=d, status='skipped', report=rep, catatan=self.corr_note(rep)))
                 pending_due = None
                 break
             if res_day >= self.today or res_day >= end:
                 age = (self.today - d).days
                 rep['status'] = 'pending' if age <= 2 else 'acknowledged' if age <= 6 else 'in_progress'
-                rep['ga_notes'] = '' if rep['status'] == 'pending' else rng.choice(K.GA_NOTES)
-                self.schedules.append(dict(plan=p, date=d, status='overdue', report=rep, notes=self.corr_note(rep)))
+                rep['catatan_ga'] = '' if rep['status'] == 'pending' else rng.choice(K.GA_NOTES)
+                self.schedules.append(dict(plan=p, date=d, status='overdue', report=rep, catatan=self.corr_note(rep)))
                 active_report = rep
                 pending_due = None
                 break
-            cost = rng.uniform(lo, hi)
+            biaya = rng.uniform(lo, hi)
             if p.lemon:
-                cost *= rng.uniform(1.4, 2.4)
-                room = max(cap - spent, cost)
+                biaya *= rng.uniform(1.4, 2.4)
+                room = max(cap - spent, biaya)
             else:
                 room = cap - spent
-            if cost > room:
-                cost = max(room, lo * 0.35)
-            if not p.lemon and spent + cost > cap * 1.08:
-                cost = max(0.0, cap - spent) if cap - spent > 50_000 else rng.uniform(50_000, 150_000)
-            cost = int(cost / 5000) * 5000
-            spent += cost
+            if biaya > room:
+                biaya = max(room, lo * 0.35)
+            if not p.lemon and spent + biaya > cap * 1.08:
+                biaya = max(0.0, cap - spent) if cap - spent > 50_000 else rng.uniform(50_000, 150_000)
+            biaya = int(biaya / 5000) * 5000
+            spent += biaya
             who, vendor = self.tech(p, res_day)
             replaced = part in comps if part else False
-            rec = dict(plan=p, type='corrective', date=res_day, hasil='replaced_component' if replaced else 'ok', cost=cost,
+            rec = dict(plan=p, type='corrective', date=res_day, hasil='replaced_component' if replaced else 'ok', biaya=biaya,
                        by=who, vendor=vendor, report=rep, text=fix, temuan='')
             self.records.append(rec)
             if replaced:
                 c = comps[part]
-                self.replacements.append(dict(comp=c, date=res_day, reason=title, cost=min(cost, int(c.estimated_price * c.quantity)),
-                                              by=who, old=c.part_number))
-                c.last_replaced = res_day
+                self.replacements.append(dict(comp=c, date=res_day, alasan=judul, biaya=min(biaya, int(c.harga_estimasi * c.jumlah)),
+                                              by=who, old=c.nomor_part))
+                c.penggantian_terakhir = res_day
             rep.update(record=rec, resolved=dt(res_day, rng.randint(13, 17), rng.randint(0, 59)),
-                       ga_notes=rng.choice(['Sudah diperbaiki, unit normal kembali.', 'Perbaikan selesai dan sudah dicoba bersama pelapor.',
+                       catatan_ga=rng.choice(['Sudah diperbaiki, unit normal kembali.', 'Perbaikan selesai dan sudah dicoba bersama pelapor.',
                                             f'Selesai. {fix}.', 'Unit sudah berfungsi normal.']))
-            self.schedules.append(dict(plan=p, date=d, status='done', report=rep, record=rec, notes=self.corr_note(rep)))
+            self.schedules.append(dict(plan=p, date=d, status='done', report=rep, record=rec, catatan=self.corr_note(rep)))
             base = res_day
             if interval:
                 pending_due = base + timedelta(days=interval)
@@ -1261,18 +1268,18 @@ class Command(BaseCommand):
         if p.writeoff:
             if interval and pending_due and pending_due <= p.writeoff['date'] + timedelta(days=interval):
                 self.schedules.append(dict(plan=p, date=pending_due, status='skipped',
-                                           notes=f"Dihentikan: aset di-write off {p.writeoff['date']:%d %b %Y}"))
+                                           catatan=f"Dihentikan: aset di-write off {p.writeoff['date']:%d %b %Y}"))
             return
         if interval and pending_due:
             status = 'upcoming' if pending_due >= self.today else 'overdue'
-            self.schedules.append(dict(plan=p, date=pending_due, status='skipped' if active_report else status, notes=''))
+            self.schedules.append(dict(plan=p, date=pending_due, status='skipped' if active_report else status, catatan=''))
         p.active_report = active_report
 
     def corr_note(self, rep):
         return '__CORR__'
 
     def pick_template(self, p, last, r):
-        pool = K.CATEGORY_DAMAGE.get(p.cat.name) if p.fam not in ('kulkas', 'gym', 'meja') else None
+        pool = K.CATEGORY_DAMAGE.get(p.cat.nama) if p.fam not in ('kulkas', 'gym', 'meja') else None
         pool = pool or K.DAMAGE.get(p.fam) or K.DAMAGE['office']
         if r['kind'] == 'final':
             heavy = [t for t in pool if t[2] in ('high', 'critical')] or pool
@@ -1285,7 +1292,7 @@ class Command(BaseCommand):
         typ = 'inspection' if meta['kind'] == 'insp' else 'preventive'
         hasil = rng.choices(['ok', 'minor_issue', 'major_issue'], [91, 8, 1])[0]
         lo, hi = K.PM_COST.get(p.fam, (100_000, 400_000))
-        cost = int(rng.uniform(lo, hi) / 5000) * 5000
+        biaya = int(rng.uniform(lo, hi) / 5000) * 5000
         who, vendor = self.tech(p, d)
         temuan = ''
         if hasil != 'ok':
@@ -1299,16 +1306,16 @@ class Command(BaseCommand):
             hasil = 'replaced_component'
             for k in due_parts:
                 c = periodic[k]
-                part_cost = int(c.estimated_price * c.quantity)
-                cost += part_cost
-                self.replacements.append(dict(comp=c, date=d, reason='Penggantian berkala sesuai umur pakai', cost=part_cost,
-                                              by=who, old=c.part_number))
-                c.last_replaced = d
+                part_cost = int(c.harga_estimasi * c.jumlah)
+                biaya += part_cost
+                self.replacements.append(dict(comp=c, date=d, alasan='Penggantian berkala sesuai umur pakai', biaya=part_cost,
+                                              by=who, old=c.nomor_part))
+                c.penggantian_terakhir = d
                 next_periodic[k] = d + timedelta(days=int(365 * c.every * rng.uniform(0.9, 1.1)))
         for k in ('oil_filter', 'fuel_filter', 'air_filter'):
             if k in comps and typ == 'preventive':
-                comps[k].last_replaced = d
-        rec = dict(plan=p, type=typ, date=d, hasil=hasil, cost=cost, by=who, vendor=vendor, report=None,
+                comps[k].penggantian_terakhir = d
+        rec = dict(plan=p, type=typ, date=d, hasil=hasil, biaya=biaya, by=who, vendor=vendor, report=None,
                    text=('Inspeksi berkala: ' if typ == 'inspection' else 'Preventive maintenance rutin: ') +
                    (', '.join(l[0].lower() + l[1:] for l in meta['checklist']) or 'pemeriksaan umum dan pembersihan'),
                    temuan=temuan)
@@ -1334,31 +1341,31 @@ class Command(BaseCommand):
             for i, s in enumerate(segs):
                 nxt = segs[i + 1]['t'] if i + 1 < len(segs) else None
                 holder = s['holder'].emp if s['holder'] else None
-                dept = (s['holder'].emp.department if s['holder'] else None) or s['share'] or s['owner']
-                m = AssetMovement(asset=p.asset, held_by=holder, department=dept, location=s['loc'], moved_in=s['t'],
-                                  moved_out=nxt, is_current=nxt is None, notes=s['note'], recorded_by=s['by'], created_at=s['t'])
+                dept = (s['holder'].emp.departemen if s['holder'] else None) or s['share'] or s['owner']
+                m = AssetMovement(aset=p.asset, dipegang_oleh=holder, departemen=dept, lokasi=s['loc'], tanggal_masuk=s['t'],
+                                  tanggal_keluar=nxt, posisi_saat_ini=nxt is None, catatan=s['note'], dicatat_oleh=s['by'], dibuat_pada=s['t'])
                 s['mv'] = m
                 moves.append(m)
                 # serah terima mengikuti penerima pada segmen ini
                 want = ('e', holder.pk) if holder else ('d', s['share'].pk) if s['share'] else None
-                have = (('e', cur.assigned_to_id) if cur.assigned_to_id else ('d', cur.department_id)) if cur else None
+                have = (('e', cur.diserahkan_kepada_id) if cur.diserahkan_kepada_id else ('d', cur.department_id)) if cur else None
                 if want == have:
                     continue
                 d = d_of(s['t'])
                 if cur:
                     cur.status = 'transferred' if want else 'returned'
-                    cur.returned_date = d
+                    cur.tanggal_kembali = d
                     if not want:
-                        cur.return_condition = s['ret'] or 'baik'
+                        cur.kondisi_kembali = s['ret'] or 'baik'
                         if s.get('wo'):
-                            cur.return_condition = ''
+                            cur.kondisi_kembali = ''
                         elif rng.random() < 0.3 and s['ret'] == 'baik':
-                            cur.notes = f"{cur.notes}\n[Dikembalikan: {rng.choice(['Lengkap', 'Kondisi baik dan bersih', 'Lengkap dengan aksesoris'])}]".strip()
+                            cur.catatan = f"{cur.catatan}\n[Dikembalikan: {rng.choice(['Lengkap', 'Kondisi baik dan bersih', 'Lengkap dengan aksesoris'])}]".strip()
                     cur = None
                 if want:
-                    cur = AssetAssignment(asset=p.asset, assigned_to=holder, department=None if holder else s['share'],
-                                          assigned_by=s['by'], assigned_date=d, status='active', notes=s['ho_note'],
-                                          created_at=s['t'])
+                    cur = AssetAssignment(aset=p.asset, diserahkan_kepada=holder, departemen=None if holder else s['share'],
+                                          diserahkan_oleh=s['by'], tanggal_serah=d, status='active', catatan=s['ho_note'],
+                                          dibuat_pada=s['t'])
                     assigns.append(cur)
         AssetMovement.objects.bulk_create(moves, batch_size=500)
         AssetAssignment.objects.bulk_create(assigns, batch_size=500)
@@ -1370,12 +1377,12 @@ class Command(BaseCommand):
         for r in self.mreports:
             p, frm = r['plan'], r['frm']
             seg = r.get('seg')
-            mr = MovementReport(asset=p.asset, reported_by=r['by'].emp, from_location=frm['loc'], from_department=frm['owner'],
-                                from_holder=frm['holder'].emp if frm['holder'] else None, to_location=r['to_loc'],
-                                to_department=r['to_dept'], to_holder=r['to_holder'].emp if r['to_holder'] else None,
-                                notes=r['notes'], reasons=r['reasons'], status=r['status'],
-                                reviewed_by=r.get('reviewer'), reviewed_at=r.get('reviewed'), review_notes=r.get('review_notes', ''),
-                                movement=seg['mv'] if seg else None, created_at=r['created'])
+            mr = MovementReport(aset=p.asset, dilaporkan_oleh=r['by'].emp, lokasi_asal=frm['loc'], departemen_asal=frm['owner'],
+                                pemegang_asal=frm['holder'].emp if frm['holder'] else None, lokasi_tujuan=r['to_loc'],
+                                departemen_tujuan=r['to_dept'], pemegang_tujuan=r['pemegang_tujuan'].emp if r['pemegang_tujuan'] else None,
+                                catatan=r['catatan'], alasan=r['alasan'], status=r['status'],
+                                ditinjau_oleh=r.get('reviewer'), ditinjau_pada=r.get('reviewed'), catatan_tinjauan=r.get('catatan_tinjauan', ''),
+                                perpindahan=seg['mv'] if seg else None, dibuat_pada=r['created'])
             reports.append(mr)
         MovementReport.objects.bulk_create(reports, batch_size=500)
         self.stats['laporan pindah karyawan'] = len(reports)
@@ -1385,11 +1392,11 @@ class Command(BaseCommand):
         rng = self.rng
         objs = []
         for r in self.reports:
-            dr = DamageReport(asset=r['plan'].asset, reported_by=r['by'], title=r['title'], description=r['desc'], severity=r['sev'],
-                              report_status=r['status'], handled_by=r.get('handler') if r['status'] != 'pending' else None,
-                              ga_notes=r.get('ga_notes', ''), reported_at=r['at'],
-                              resolved_at=r.get('resolved') if r['status'] == 'resolved' else None,
-                              updated_at=r.get('resolved') or r.get('updated') or r['at'] + timedelta(hours=rng.randint(1, 30)))
+            dr = DamageReport(aset=r['plan'].asset, dilaporkan_oleh=r['by'], judul=r['judul'], deskripsi=r['desc'], tingkat_keparahan=r['sev'],
+                              status_laporan=r['status'], ditangani_oleh=r.get('handler') if r['status'] != 'pending' else None,
+                              catatan_ga=r.get('catatan_ga', ''), dilaporkan_pada=r['at'],
+                              diselesaikan_pada=r.get('resolved') if r['status'] == 'resolved' else None,
+                              diperbarui_pada=r.get('resolved') or r.get('updated') or r['at'] + timedelta(hours=rng.randint(1, 30)))
             r['obj'] = dr
             objs.append(dr)
         DamageReport.objects.bulk_create(objs, batch_size=500)
@@ -1400,45 +1407,45 @@ class Command(BaseCommand):
             desc = rec['text']
             if rec['report']:
                 rep = rec['report']
-                desc = (f"[Dari Laporan Kerusakan #{rep['obj'].pk}]\nJudul: {rep['title']}\nDeskripsi awal: {rep['desc']}\n\n"
+                desc = (f"[Dari Laporan Kerusakan #{rep['obj'].pk}]\nJudul: {rep['judul']}\nDeskripsi awal: {rep['desc']}\n\n"
                         f"Tindakan perbaikan: {rec['text']}")
             note = f"Dikerjakan vendor: {rec['vendor']}. " if rec['vendor'] else ''
             if rec['temuan']:
                 note += rec['temuan'][0].upper() + rec['temuan'][1:] + '.'
-            mr = MaintenanceRecord(asset=p.asset, maintenance_type=rec['type'], tanggal_pelaksanaan=rec['date'],
-                                   deskripsi_pekerjaan=desc, hasil=rec['hasil'], biaya=Decimal(rec['cost']),
-                                   catatan_tambahan=note.strip(), performed_by=rec['by'],
-                                   created_at=dt(rec['date'], rng.randint(14, 17), rng.randint(0, 59)))
+            mr = MaintenanceRecord(aset=p.asset, jenis_maintenance=rec['type'], tanggal_pelaksanaan=rec['date'],
+                                   deskripsi_pekerjaan=desc, hasil=rec['hasil'], biaya=Decimal(rec['biaya']),
+                                   catatan=note.strip(), dilaksanakan_oleh=rec['by'],
+                                   dibuat_pada=dt(rec['date'], rng.randint(14, 17), rng.randint(0, 59)))
             rec['obj'] = mr
             recs.append(mr)
         MaintenanceRecord.objects.bulk_create(recs, batch_size=500)
         for r in self.reports:
             if r.get('record'):
-                r['obj'].resolved_maintenance = r['record']['obj']
-        DamageReport.objects.bulk_update([r['obj'] for r in self.reports if r.get('record')], ['resolved_maintenance'], batch_size=500)
+                r['obj'].maintenance_penyelesai = r['record']['obj']
+        DamageReport.objects.bulk_update([r['obj'] for r in self.reports if r.get('record')], ['maintenance_penyelesai'], batch_size=500)
 
         sch = []
         for s in self.schedules:
             rep = s.get('report')
-            notes = s.get('notes', '')
-            if notes == '__CORR__':
-                notes = (f"[CORRECTIVE - Laporan Kerusakan #{rep['obj'].pk}] {rep['title']} "
+            catatan = s.get('catatan', '')
+            if catatan == '__CORR__':
+                catatan = (f"[CORRECTIVE - Laporan Kerusakan #{rep['obj'].pk}] {rep['judul']} "
                          f"(Dilaporkan oleh: {rep['by'].nama}, Severity: {SEVERITY_LABEL[rep['sev']]})")
             created = dt(rep['at'].astimezone(TZ).date(), 12) if rep else dt(s['date'] - timedelta(days=self.interval_days(s['plan']) or 30), 16)
-            sch.append(MaintenanceSchedule(asset=s['plan'].asset, scheduled_date=s['date'], status=s['status'],
-                                           maintenance_record=s['record']['obj'] if s.get('record') else None,
-                                           damage_report=rep['obj'] if rep else None, notes=notes, created_at=created))
+            sch.append(MaintenanceSchedule(aset=s['plan'].asset, tanggal_jadwal=s['date'], status=s['status'],
+                                           catatan_maintenance=s['record']['obj'] if s.get('record') else None,
+                                           laporan_kerusakan=rep['obj'] if rep else None, catatan=catatan, dibuat_pada=created))
         MaintenanceSchedule.objects.bulk_create(sch, batch_size=500)
 
         reps = []
         for r in self.replacements:
-            reps.append(ComponentReplacement(component=r['comp'], replaced_date=r['date'], reason=r['reason'], cost=Decimal(r['cost']),
-                                             old_part_number=r['old'], performed_by=r['by'], created_at=dt(r['date'], 16)))
+            reps.append(ComponentReplacement(component=r['comp'], tanggal_penggantian=r['date'], alasan=r['alasan'], biaya=Decimal(r['biaya']),
+                                             nomor_part_lama=r['old'], dilaksanakan_oleh=r['by'], dibuat_pada=dt(r['date'], 16)))
         ComponentReplacement.objects.bulk_create(reps, batch_size=500)
-        comps = [c for d in self.comp_of.values() for c in d.values() if c.last_replaced]
+        comps = [c for d in self.comp_of.values() for c in d.values() if c.penggantian_terakhir]
         for c in comps:
-            c.updated_at = dt(c.last_replaced, 16)
-        AssetComponent.objects.bulk_update(comps, ['last_replaced', 'updated_at'], batch_size=500)
+            c.diperbarui_pada = dt(c.penggantian_terakhir, 16)
+        AssetComponent.objects.bulk_update(comps, ['penggantian_terakhir', 'diperbarui_pada'], batch_size=500)
 
     # ── 12. Write off & Berita Acara ────────────────────────────────────
     def save_writeoffs_and_ba(self):
@@ -1459,7 +1466,7 @@ class Command(BaseCommand):
             fs.sort(key=lambda f: f['date'])
             dept = next(f['dept'] for f in fs)
             cal = [b for y in range(2020, self.today.year + 1) for b in self.ba_calendar(y)]
-            if dept.name == 'HRGA':
+            if dept.nama == 'HRGA':
                 cal.append(extra)
             prev = date(2000, 1, 1)
             for b in cal:
@@ -1474,15 +1481,15 @@ class Command(BaseCommand):
                 prev = b - timedelta(days=4)
                 signed = b + timedelta(days=rng.randint(4, 9))
                 status = 'ditandatangani' if signed < self.today and b != extra else 'terbit'
-                ba = BeritaAcara(jenis='kerusakan', status=status, department=dept, tanggal=b,
+                ba = BeritaAcara(jenis='kerusakan', status=status, departemen=dept, tanggal=b,
                                  dibuat_oleh=self.ga(items[0]['date']), diterbitkan_oleh=self.ga(b),
-                                 diterbitkan_at=dt(b, 10), ditandatangani_at=dt(signed, 14) if status == 'ditandatangani' else None,
-                                 penanda_tangan=signers, created_at=dt(items[0]['date'], 12), updated_at=dt(signed if status == 'ditandatangani' else b, 14))
+                                 diterbitkan_pada=dt(b, 10), ditandatangani_pada=dt(signed, 14) if status == 'ditandatangani' else None,
+                                 penanda_tangan=signers, dibuat_pada=dt(items[0]['date'], 12), diperbarui_pada=dt(signed if status == 'ditandatangani' else b, 14))
                 bas.append((ba, items))
             rest = [f for f in fs if f['date'] > prev]
             if rest:
-                ba = BeritaAcara(jenis='kerusakan', status='draft', department=dept, dibuat_oleh=self.ga(rest[0]['date']),
-                                 created_at=dt(rest[0]['date'], 12), updated_at=dt(rest[-1]['date'], 12))
+                ba = BeritaAcara(jenis='kerusakan', status='draft', departemen=dept, dibuat_oleh=self.ga(rest[0]['date']),
+                                 dibuat_pada=dt(rest[0]['date'], 12), diperbarui_pada=dt(rest[-1]['date'], 12))
                 drafts.append((ba, rest))
 
         # Write off → BA Penghapusan per (tanggal, alasan, BA rujukan)
@@ -1502,10 +1509,10 @@ class Command(BaseCommand):
             depts = {p.segs[-1]['owner'].pk for p in plans}
             status = 'ditandatangani' if d + timedelta(days=8) < self.today else 'terbit'
             signed = d + timedelta(days=rng.randint(3, 7))
-            ba = BeritaAcara(jenis='penghapusan', status=status, department=plans[0].segs[-1]['owner'] if len(depts) == 1 else None,
-                             tanggal=d, rujukan=ref, dibuat_oleh=self.ga(d), diterbitkan_oleh=self.ga(d), diterbitkan_at=dt(d, 15),
-                             ditandatangani_at=dt(signed, 14) if status == 'ditandatangani' else None, penanda_tangan=signers,
-                             created_at=dt(d, 14), updated_at=dt(signed, 14))
+            ba = BeritaAcara(jenis='penghapusan', status=status, departemen=plans[0].segs[-1]['owner'] if len(depts) == 1 else None,
+                             tanggal=d, rujukan=ref, dibuat_oleh=self.ga(d), diterbitkan_oleh=self.ga(d), diterbitkan_pada=dt(d, 15),
+                             ditandatangani_pada=dt(signed, 14) if status == 'ditandatangani' else None, penanda_tangan=signers,
+                             dibuat_pada=dt(d, 14), diperbarui_pada=dt(signed, 14))
             ba.ref = ref
             hapus.append((ba, plans))
 
@@ -1530,16 +1537,16 @@ class Command(BaseCommand):
             for f in fs:
                 it = merged.get(f['plan'].key)
                 if it is None:
-                    it = BeritaAcaraItem(ba=ba, asset=f['plan'].asset, sumber=f['sumber'], kerusakan=f['text'],
-                                         damage_report=f['report']['obj'] if f['report'] else None,
-                                         maintenance_record=f['record']['obj'] if f['record'] else None,
-                                         rekomendasi=f['rekom'], created_at=dt(f['date'], 13))
+                    it = BeritaAcaraItem(ba=ba, aset=f['plan'].asset, sumber=f['sumber'], kerusakan=f['text'],
+                                         laporan_kerusakan=f['report']['obj'] if f['report'] else None,
+                                         catatan_maintenance=f['record']['obj'] if f['record'] else None,
+                                         rekomendasi=f['rekom'], dibuat_pada=dt(f['date'], 13))
                     merged[f['plan'].key] = it
                 else:
                     if f['text'] not in it.kerusakan:
                         it.kerusakan = f"{it.kerusakan}; {f['text']}"
-                    it.damage_report = it.damage_report or (f['report']['obj'] if f['report'] else None)
-                    it.maintenance_record = it.maintenance_record or (f['record']['obj'] if f['record'] else None)
+                    it.laporan_kerusakan = it.laporan_kerusakan or (f['report']['obj'] if f['report'] else None)
+                    it.catatan_maintenance = it.catatan_maintenance or (f['record']['obj'] if f['record'] else None)
                     if f['rekom'] == 'hapus':
                         it.rekomendasi = 'hapus'
             for key, it in merged.items():
@@ -1550,18 +1557,18 @@ class Command(BaseCommand):
         for ba, plans in hapus:
             for p in plans:
                 src = src_item.get((id(ba.ref), p.key)) if ba.ref is not None else None
-                items.append(BeritaAcaraItem(ba=ba, asset=p.asset, sumber='manual', rekomendasi='hapus',
+                items.append(BeritaAcaraItem(ba=ba, aset=p.asset, sumber='manual', rekomendasi='hapus',
                                              kerusakan=src.kerusakan if src else p.writeoff['keterangan'],
-                                             damage_report=src.damage_report if src else None, created_at=dt(ba.tanggal, 15)))
+                                             laporan_kerusakan=src.laporan_kerusakan if src else None, dibuat_pada=dt(ba.tanggal, 15)))
                 fin = self.fin_of.get(p.asset.pk)
                 if fin:
                     fin.asset = p.asset
                 nb = fin.book_value(p.writeoff['date']) if fin else None
-                wos.append(AssetWriteOff(asset=p.asset, tanggal=p.writeoff['date'], alasan=p.writeoff['alasan'],
-                                         keterangan=p.writeoff['keterangan'], nilai_perolehan=fin.nilai_awal_aset if fin else None,
+                wos.append(AssetWriteOff(aset=p.asset, tanggal=p.writeoff['date'], alasan=p.writeoff['alasan'],
+                                         keterangan=p.writeoff['keterangan'], nilai_perolehan=fin.nilai_awal if fin else None,
                                          nilai_buku=nb.quantize(Decimal('0.01')) if nb is not None else None,
-                                         nilai_jual=p.writeoff['nilai_jual'], created_by=self.ga(p.writeoff['date']),
-                                         created_at=dt(p.writeoff['date'], 15)))
+                                         nilai_jual=p.writeoff['nilai_jual'], dibuat_oleh=self.ga(p.writeoff['date']),
+                                         dibuat_pada=dt(p.writeoff['date'], 15)))
         BeritaAcaraItem.objects.bulk_create(items, batch_size=500)
         AssetWriteOff.objects.bulk_create(wos, batch_size=500)
 
@@ -1583,40 +1590,40 @@ class Command(BaseCommand):
             elif getattr(p, 'active_report', None):
                 status[p.asset.pk] = 'maintenance'
         for s in ('writeoff', 'maintenance'):
-            Asset.objects.filter(pk__in=[k for k, v in status.items() if v == s]).update(lifecycle_status=s)
+            Asset.objects.filter(pk__in=[k for k, v in status.items() if v == s]).update(status_siklus_hidup=s)
         for p in self.plans:
             last = p.segs[-1]
-            Asset.objects.filter(pk=p.asset.pk).update(lokasi_asset=last['loc'], owned_by_department=last['owner'])
+            Asset.objects.filter(pk=p.asset.pk).update(lokasi=last['loc'], departemen_pemilik=last['owner'])
         self.stats['aset maintenance (laporan aktif)'] = sum(1 for v in status.values() if v == 'maintenance')
 
     def verify(self):
         problems = []
-        cur = AssetMovement.objects.filter(is_current=True)
+        cur = AssetMovement.objects.filter(posisi_saat_ini=True)
         if cur.count() != Asset.objects.count():
             problems.append(f'movement aktif {cur.count()} ≠ aset {Asset.objects.count()}')
-        loc = dict(cur.values_list('asset_id', 'location_id'))
-        for a in Asset.objects.only('id', 'lokasi_asset_id'):
-            if loc.get(a.pk) != a.lokasi_asset_id:
+        loc = dict(cur.values_list('aset_id', 'lokasi_id'))
+        for a in Asset.objects.only('id', 'lokasi_aset_id'):
+            if loc.get(a.pk) != a.lokasi_aset_id:
                 problems.append(f'lokasi aset {a.pk} tidak sama dengan movement aktif')
                 break
-        held = dict(cur.values_list('asset_id', 'held_by_id'))
+        held = dict(cur.values_list('aset_id', 'dipegang_oleh_id'))
         for asg in AssetAssignment.objects.filter(status='active'):
-            if asg.assigned_to_id and held.get(asg.asset_id) != asg.assigned_to_id:
+            if asg.diserahkan_kepada_id and held.get(asg.aset_id) != asg.diserahkan_kepada_id:
                 problems.append(f'serah terima {asg.pk} tidak cocok dengan pemegang movement')
                 break
-        active_rep = set(DamageReport.objects.filter(report_status__in=DamageReport.ACTIVE_STATUS).values_list('asset_id', flat=True))
-        maint = set(Asset.objects.filter(lifecycle_status='maintenance').values_list('id', flat=True))
+        active_rep = set(DamageReport.objects.filter(report_status__in=DamageReport.ACTIVE_STATUS).values_list('aset_id', flat=True))
+        maint = set(Asset.objects.filter(status_siklus_hidup='maintenance').values_list('id', flat=True))
         if active_rep != maint:
             problems.append(f'aset maintenance {len(maint)} ≠ aset dengan laporan aktif {len(active_rep)}')
-        for a in Asset.objects.exclude(lifecycle_status='writeoff').select_related('asset_category', 'maintenance_config'):
-            if a.get_effective_interval_days() and a.lifecycle_status == 'active':
-                n = MaintenanceSchedule.objects.filter(asset=a, status__in=('upcoming', 'overdue'), damage_report__isnull=True).count()
+        for a in Asset.objects.exclude(status_siklus_hidup='writeoff').select_related('kategori_aset', 'maintenance_config'):
+            if a.get_effective_interval_days() and a.status_siklus_hidup == 'active':
+                n = MaintenanceSchedule.objects.filter(aset=a, status__in=('upcoming', 'overdue'), damage_report__isnull=True).count()
                 if n != 1:
-                    problems.append(f'aset {a.asset_number}: {n} jadwal preventive aktif')
+                    problems.append(f'aset {a.nomor_aset}: {n} jadwal preventive aktif')
                     break
         if MaintenanceSchedule.objects.filter(status='upcoming', scheduled_date__lt=self.today).exists():
             problems.append('ada jadwal upcoming yang tanggalnya sudah lewat')
-        if Asset.objects.filter(lifecycle_status='writeoff', assignments__status='active').exists():
+        if Asset.objects.filter(status_siklus_hidup='writeoff', assignments__status='active').exists():
             problems.append('aset write off masih punya serah terima aktif')
         if problems:
             raise CommandError('Pemeriksaan gagal:\n- ' + '\n- '.join(problems))

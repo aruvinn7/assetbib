@@ -1,23 +1,23 @@
 {% extends "base.html" %}
 {% load static rupiah math_filter waktu %}
-{% block title %}{{ asset.nama_asset }} · {{ asset.asset_number }}{% endblock %}
+{% block title %}{{ asset.nama_aset }} · {{ asset.nomor_aset }}{% endblock %}
 {% block nav_assets %}active{% endblock %}
 {% block extra_head %}<link rel="stylesheet" href="{% static 'css/pages/asset_detail.css' %}?v=6">{% endblock %}
 
 {% block content %}
 {% with emp=request.user.employee %}
 <div class="page">
-  <span hidden id="recentAsset" data-id="{{ asset.id }}" data-name="{{ asset.nama_asset }}" data-number="{{ asset.asset_number }}" data-url="{% url 'asset_detail' asset.id %}"></span>
+  <span hidden id="recentAsset" data-id="{{ asset.id }}" data-name="{{ asset.nama_aset }}" data-number="{{ asset.nomor_aset }}" data-url="{% url 'asset_detail' asset.id %}"></span>
 
-  <div class="crumbs"><a href="{% url 'asset_list' %}">Daftar aset</a><i class="fa-solid fa-chevron-right" aria-hidden="true" style="font-size:10px"></i>{{ asset.asset_number }}</div>
+  <div class="crumbs"><a href="{% url 'asset_list' %}">Daftar aset</a><i class="fa-solid fa-chevron-right" aria-hidden="true" style="font-size:10px"></i>{{ asset.nomor_aset }}</div>
 
   <div class="page-head detail-head">
     <div class="title-block">
       <div>
-        <h1>{{ asset.nama_asset }}</h1>
-        <div class="sub">{{ asset.asset_number }}{% if asset.asset_category %} · {{ asset.asset_category.name }}{% endif %}{% if asset.asset_category %} · {{ asset.asset_category.group.name }}{% endif %}</div>
+        <h1>{{ asset.nama_aset }}</h1>
+        <div class="sub">{{ asset.nomor_aset }}{% if asset.kategori_aset %} · {{ asset.kategori_aset.nama }}{% endif %}{% if asset.kategori_aset %} · {{ asset.kategori_aset.grup.nama }}{% endif %}</div>
         <div class="head-tags">
-          {% include "components/_lifecycle.html" with status=asset.lifecycle_status %}
+          {% include "components/_lifecycle.html" with status=asset.status_siklus_hidup %}
           {% include "components/_health.html" with health=health_status %}
           {% if next_schedule.status == 'overdue' %}{% include "components/_status.html" with kind="warning" label="Maintenance terlambat" %}{% endif %}
         </div>
@@ -26,7 +26,7 @@
     {% if emp.ga_profile %}
     <div class="page-actions">
       <a href="{% url 'asset_update' asset.id %}" class="btn outline">Edit aset</a>
-      {% if asset.lifecycle_status != 'writeoff' %}
+      {% if asset.status_siklus_hidup != 'writeoff' %}
       <a href="{% url 'asset_write_off' asset.id %}" class="btn danger"><i class="fa-solid fa-box-archive" aria-hidden="true"></i>Write off</a>
       <a href="{% url 'maintenance_create' asset.id %}" class="btn" data-quick-maint><i class="fa-solid fa-plus" aria-hidden="true"></i>Catat maintenance</a>
       {% endif %}
@@ -36,7 +36,7 @@
     {% endif %}
   </div>
 
-  {% if asset.lifecycle_status == 'writeoff' %}
+  {% if asset.status_siklus_hidup == 'writeoff' %}
   <section class="panel wo-banner" aria-labelledby="woTitle">
     <div class="wo-banner-main">
       {% include "components/_status.html" with kind="off" label="Write off" %}
@@ -44,7 +44,7 @@
         {% if wo %}
         <h2 id="woTitle">Di-write off {{ wo.tanggal|date:"d M Y" }} · {{ wo.get_alasan_display }}</h2>
         <p>{{ wo.keterangan }}</p>
-        <p class="wo-meta">Dicatat oleh {{ wo.created_by.nama|default:"sistem" }}{% if wo.nilai_buku is not None %} · nilai buku dihapus {{ wo.nilai_buku|rupiah }}{% endif %}{% if wo.nilai_jual is not None %} · hasil penjualan {{ wo.nilai_jual|rupiah }}{% endif %}</p>
+        <p class="wo-meta">Dicatat oleh {{ wo.dibuat_oleh.nama|default:"sistem" }}{% if wo.nilai_buku is not None %} · nilai buku dihapus {{ wo.nilai_buku|rupiah }}{% endif %}{% if wo.nilai_jual is not None %} · hasil penjualan {{ wo.nilai_jual|rupiah }}{% endif %}</p>
         {% else %}
         <h2 id="woTitle">Aset ini berstatus write off</h2>
         <p>Belum ada catatan write off resmi (tanggal & alasan).</p>
@@ -64,15 +64,15 @@
     {# ── Foto utama + galeri ringkas ── #}
     <section class="panel photo-hero" aria-label="Foto aset">
       {% if primary_photo %}
-      <button type="button" class="hero-main photo-open" data-index="0" aria-label="Perbesar foto utama">
-        <img src="{{ primary_photo.photo.url }}" alt="{{ primary_photo.caption|default:asset.nama_asset }}">
+      <button type="button" class="hero-main photo-open" data-index="0" aria-label="Perbesar foto utama, {{ photos|length }} foto">
+        <img src="{{ primary_photo.foto.url }}" alt="{{ primary_photo.keterangan|default:asset.nama_aset }}">
         <span class="hero-zoom"><i class="fa-solid fa-magnifying-glass-plus" aria-hidden="true"></i>{{ photos|length }} foto</span>
       </button>
       {% if photos|length > 1 %}
       <div class="hero-thumbs">
         {% for photo in photos %}{% if forloop.counter0 > 0 and forloop.counter0 < 5 %}
         <button type="button" class="photo-open" data-index="{{ forloop.counter0 }}" aria-label="Lihat foto {{ forloop.counter }}">
-          <img src="{{ photo.photo.url }}" alt="" loading="lazy">
+          <img src="{{ photo.foto.url }}" alt="" loading="lazy">
           {% if forloop.counter0 == 4 and photos|length > 5 %}<span class="more">+{{ photos|length|add:"-5" }}</span>{% endif %}
         </button>
         {% endif %}{% endfor %}
@@ -91,13 +91,13 @@
     </section>
 
     <dl class="facts panel">
-      <div><dt><i class="fa-solid fa-location-dot" aria-hidden="true"></i>Lokasi</dt><dd>{{ asset.lokasi_asset|default:"Belum ditempatkan" }}</dd></div>
-      <div><dt><i class="fa-solid fa-building" aria-hidden="true"></i>Departemen</dt><dd>{{ asset.owned_by_department|default:"—" }}</dd></div>
+      <div><dt><i class="fa-solid fa-location-dot" aria-hidden="true"></i>Lokasi</dt><dd>{{ asset.lokasi|default:"Belum ditempatkan" }}</dd></div>
+      <div><dt><i class="fa-solid fa-building" aria-hidden="true"></i>Departemen</dt><dd>{{ asset.departemen_pemilik|default:"—" }}</dd></div>
       <div><dt><i class="fa-solid fa-handshake" aria-hidden="true"></i>Pemegang</dt><dd>{% include "components/_custody.html" %}</dd></div>
-      <div><dt><i class="fa-solid fa-receipt" aria-hidden="true"></i>No. PO</dt><dd>{{ asset.no_po|default:"—" }}</dd></div>
+      <div><dt><i class="fa-solid fa-receipt" aria-hidden="true"></i>No. PO</dt><dd>{{ asset.nomor_po|default:"—" }}</dd></div>
       <div><dt><i class="fa-solid fa-calendar" aria-hidden="true"></i>Tanggal beli</dt><dd>{{ asset.tanggal_pembelian|date:"d M Y" }}</dd></div>
       <div><dt><i class="fa-solid fa-hourglass-half" aria-hidden="true"></i>Umur</dt><dd>{{ asset.umur_asset_detail|umur }}</dd></div>
-      <div><dt><i class="fa-solid fa-user-pen" aria-hidden="true"></i>Dicatat oleh</dt><dd>{{ asset.created_by.nama|default:"—" }}<span class="dd-sub">{{ asset.created_at|date:"d M Y" }}</span></dd></div>
+      <div><dt><i class="fa-solid fa-user-pen" aria-hidden="true"></i>Dicatat oleh</dt><dd>{{ asset.dibuat_oleh.nama|default:"—" }}<span class="dd-sub">{{ asset.dibuat_pada|date:"d M Y" }}</span></dd></div>
       <div><dt><i class="fa-solid fa-gears" aria-hidden="true"></i>Komponen</dt><dd>{{ components|length }} part</dd></div>
       <div><dt><i class="fa-solid fa-coins" aria-hidden="true"></i>Nilai buku</dt><dd>{% if asset.has_financial %}{{ book_value|rupiah }}{% else %}Belum dinilai{% endif %}</dd></div>
     </dl>
@@ -203,12 +203,12 @@
             <thead><tr><th>Tanggal</th><th>Jenis</th><th>Hasil</th><th>Pekerjaan</th><th>Oleh</th><th class="num">Biaya</th></tr></thead>
             <tbody>
             {% for r in maintenance_records %}
-              <tr data-type="{{ r.maintenance_type }}" {% if forloop.counter > 10 %}class="more" hidden{% endif %}>
+              <tr data-type="{{ r.jenis_maintenance }}" {% if forloop.counter > 10 %}class="more" hidden{% endif %}>
                 <td class="nowrap">{{ r.tanggal_pelaksanaan|date:"d M Y" }}</td>
-                <td>{% if r.maintenance_type == 'corrective' %}Kerusakan{% elif r.maintenance_type == 'preventive' %}Preventive{% else %}Inspeksi{% endif %}</td>
+                <td>{% if r.jenis_maintenance == 'corrective' %}Kerusakan{% elif r.jenis_maintenance == 'preventive' %}Preventive{% else %}Inspeksi{% endif %}</td>
                 <td>{% if r.hasil == 'major_issue' %}{% include "components/_status.html" with kind="danger" label="Major issue" %}{% elif r.hasil == 'minor_issue' %}{% include "components/_status.html" with kind="warning" label="Minor issue" %}{% elif r.hasil == 'replaced_component' %}{% include "components/_status.html" with kind="mandatory" label="Komponen diganti" %}{% else %}{% include "components/_status.html" with kind="safe" label="Baik" %}{% endif %}</td>
-                <td class="work">{{ r.deskripsi_pekerjaan|truncatechars:120 }}{% if r.catatan_tambahan %}<div class="cell-sub">{{ r.catatan_tambahan|truncatechars:90 }}</div>{% endif %}</td>
-                <td>{{ r.performed_by.nama|default:"—" }}</td>
+                <td class="work">{{ r.deskripsi_pekerjaan|truncatechars:120 }}{% if r.catatan %}<div class="cell-sub">{{ r.catatan|truncatechars:90 }}</div>{% endif %}</td>
+                <td>{{ r.dilaksanakan_oleh.nama|default:"—" }}</td>
                 <td class="num">{{ r.biaya|rupiah }}</td>
               </tr>
             {% endfor %}
@@ -219,7 +219,7 @@
         <div class="more-row"><button type="button" class="btn sm outline" id="showMore">Tampilkan semua {{ maintenance_records|length }} pekerjaan</button></div>
         {% endif %}
         {% else %}
-        <div class="empty"><strong>Belum ada riwayat maintenance</strong>{% if emp.ga_profile and asset.lifecycle_status != 'writeoff' %}<a href="{% url 'maintenance_create' asset.id %}" data-quick-maint>Catat maintenance pertama</a>{% endif %}</div>
+        <div class="empty"><strong>Belum ada riwayat maintenance</strong>{% if emp.ga_profile and asset.status_siklus_hidup != 'writeoff' %}<a href="{% url 'maintenance_create' asset.id %}" data-quick-maint>Catat maintenance pertama</a>{% endif %}</div>
         {% endif %}
       </section>
 
@@ -232,15 +232,15 @@
         {% if photos %}
         <ul class="photos">
           {% for photo in photos %}
-          <li class="{% if photo.is_primary %}is-primary{% endif %}">
+          <li class="{% if photo.foto_utama %}is-primary{% endif %}">
             <button type="button" class="photo-open" data-index="{{ forloop.counter0 }}" aria-label="Lihat foto {{ forloop.counter }}">
-              <img src="{{ photo.photo.url }}" alt="{{ photo.caption|default:asset.nama_asset }}" loading="lazy">
+              <img src="{{ photo.foto.url }}" alt="{{ photo.keterangan|default:asset.nama_aset }}" loading="lazy">
             </button>
             <div class="photo-meta">
-              <span>{% if photo.is_primary %}<strong>Utama</strong> · {% endif %}{% if photo.photo_type == 'unit' %}Unit{% elif photo.photo_type == 'location' %}Lokasi{% elif photo.photo_type == 'damage' %}Kerusakan{% else %}Lainnya{% endif %}</span>
+              <span>{% if photo.foto_utama %}<strong>Utama</strong> · {% endif %}{% if photo.jenis_foto == 'unit' %}Unit{% elif photo.jenis_foto == 'location' %}Lokasi{% elif photo.jenis_foto == 'damage' %}Kerusakan{% else %}Lainnya{% endif %}</span>
               {% if emp.ga_profile %}
               <span class="photo-actions">
-                {% if not photo.is_primary %}
+                {% if not photo.foto_utama %}
                 <form method="post" action="{% url 'photo_set_primary' photo.id %}">{% csrf_token %}<button type="submit">Jadikan utama</button></form>
                 {% endif %}
                 <form method="post" action="{% url 'photo_delete' photo.id %}" onsubmit="return confirm('Hapus foto ini?')">{% csrf_token %}<button type="submit" class="del">Hapus</button></form>
@@ -267,7 +267,7 @@
               <svg class="sign" aria-hidden="true"><use href="#sign-{% if next_schedule.status == 'overdue' %}warning{% else %}mandatory{% endif %}"/></svg>
               <div>
                 <span class="sched-label">{% if next_schedule.status == 'overdue' %}Terlambat{% else %}Berikutnya{% endif %}</span>
-                <strong>{{ next_schedule.scheduled_date|date:"d M Y" }}</strong>
+                <strong>{{ next_schedule.tanggal_jadwal|date:"d M Y" }}</strong>
                 <span>{% if d < 0 %}{{ d|abs_value }} hari lewat{% elif d == 0 %}hari ini{% else %}{{ d }} hari lagi{% endif %}</span>
               </div>
             </div>
@@ -277,14 +277,14 @@
           {% endif %}
           <dl class="kv">
             <div><dt>Interval</dt><dd>{% if effective_interval %}{{ effective_interval }} hari{% else %}belum diatur{% endif %}</dd></div>
-            <div><dt>Sumber</dt><dd>{% if asset.maintenance_config %}custom aset ini{% elif asset.asset_category %}kategori {{ asset.asset_category.name }}{% else %}—{% endif %}</dd></div>
+            <div><dt>Sumber</dt><dd>{% if asset.maintenance_config %}custom aset ini{% elif asset.kategori_aset %}kategori {{ asset.kategori_aset.nama }}{% else %}—{% endif %}</dd></div>
             <div><dt>Terakhir</dt><dd>{{ last_maintenance.tanggal_pelaksanaan|date:"d M Y"|default:"—" }}</dd></div>
           </dl>
           {% if emp.ga_profile %}
             {% if asset.maintenance_config %}
-              <a class="btn sm outline full" href="{% url 'maintenance_config_update' asset_id=asset.id %}">Ubah interval</a>
+              <a class="btn sm outline full" href="{% url 'maintenance_config_update' aset_id=asset.id %}">Ubah interval</a>
             {% else %}
-              <a class="btn sm outline full" href="{% url 'maintenance_config_create' asset_id=asset.id %}">Atur interval khusus</a>
+              <a class="btn sm outline full" href="{% url 'maintenance_config_create' aset_id=asset.id %}">Atur interval khusus</a>
             {% endif %}
           {% endif %}
         </div>
@@ -299,7 +299,7 @@
         <div class="panel-body">
           {% if asset.has_financial %}
           <dl class="kv money-kv">
-            <div><dt>Nilai awal</dt><dd>{{ asset.financial.nilai_awal_aset|rupiah }}</dd></div>
+            <div><dt>Nilai awal</dt><dd>{{ asset.financial.nilai_awal|rupiah }}</dd></div>
             <div><dt>Nilai buku</dt><dd><strong>{{ book_value|rupiah }}</strong></dd></div>
             <div><dt>Nilai residual</dt><dd>{{ asset.financial.nilai_residual|rupiah }}</dd></div>
             <div><dt>Depresiasi / tahun</dt><dd>{{ asset.financial.depresiasi_tahunan|rupiah }}</dd></div>
@@ -321,7 +321,7 @@
       <section class="panel">
         <ul class="links">
           <li><a href="{% url 'component_list' asset.id %}">Komponen (BOM)<span>{{ components|length }} part</span></a></li>
-          <li><a href="{% url 'movement_dashboard' %}?q={{ asset.asset_number|urlencode }}">Histori movement<span>lihat</span></a></li>
+          <li><a href="{% url 'movement_dashboard' %}?q={{ asset.nomor_aset|urlencode }}">Histori movement<span>lihat</span></a></li>
           <li><a href="{% url 'assignment_create_for_asset' asset.id %}">Serahkan ke karyawan<span>assignment</span></a></li>
         </ul>
       </section>
@@ -337,19 +337,19 @@
     <div class="panel-head"><h2 id="uploadTitle">Tambah foto aset</h2><button type="button" class="icon-btn" data-close aria-label="Tutup"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button></div>
     <div class="panel-body sheet-body">
       <label class="drop" id="dropZone">
-        <input type="file" name="photo" id="photoInput" accept="image/*" required>
+        <input type="file" name="foto" id="photoInput" accept="image/*" required>
         <span id="dropText"><strong>Pilih atau seret foto ke sini</strong>JPG atau PNG, maksimal 5 MB</span>
       </label>
       <div class="field"><label for="photoType">Jenis foto</label>
-        <select class="select" name="photo_type" id="photoType">
+        <select class="select" name="jenis_foto" id="photoType">
           <option value="unit">Unit — tampilan fisik aset</option>
-          <option value="location">Lokasi — posisi penempatan</option>
+          <option value="lokasi">Lokasi — posisi penempatan</option>
           <option value="damage">Kerusakan — dokumentasi masalah</option>
           <option value="other">Lainnya</option>
         </select>
       </div>
-      <div class="field"><label for="photoCaption">Keterangan (opsional)</label><input class="input" type="text" name="caption" id="photoCaption" placeholder="mis. tampak depan, nomor seri"></div>
-      <label class="check"><input type="checkbox" name="is_primary" {% if not photos %}checked{% endif %}> Jadikan foto utama</label>
+      <div class="field"><label for="photoCaption">Keterangan (opsional)</label><input class="input" type="text" name="keterangan" id="photoCaption" placeholder="mis. tampak depan, nomor seri"></div>
+      <label class="check"><input type="checkbox" name="foto_utama" {% if not photos %}checked{% endif %}> Jadikan foto utama</label>
     </div>
     <div class="sheet-foot"><button type="button" class="btn outline" data-close>Batal</button><button type="submit" class="btn" id="uploadBtn" disabled>Unggah foto</button></div>
   </form>
@@ -369,7 +369,7 @@
 {% endif %}
 {% endwith %}
 
-<script id="photo-data" type="application/json">[{% for p in photos %}{"url": "{{ p.photo.url|escapejs }}", "info": "{{ p.get_photo_type_display|escapejs }}{% if p.caption %} · {{ p.caption|escapejs }}{% endif %} · {{ p.uploaded_at|date:'d M Y' }}{% if p.uploaded_by %} · {{ p.uploaded_by.nama|escapejs }}{% endif %}"}{% if not forloop.last %},{% endif %}{% endfor %}]</script>
+<script id="photo-data" type="application/json">[{% for p in photos %}{"url": "{{ p.foto.url|escapejs }}", "info": "{{ p.get_jenis_foto_display|escapejs }}{% if p.keterangan %} · {{ p.keterangan|escapejs }}{% endif %} · {{ p.diunggah_pada|date:'d M Y' }}{% if p.diunggah_oleh %} · {{ p.diunggah_oleh.nama|escapejs }}{% endif %}"}{% if not forloop.last %},{% endif %}{% endfor %}]</script>
 {% endblock %}
 
 {% block extra_scripts %}

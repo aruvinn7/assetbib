@@ -22,18 +22,18 @@ from ..roles import is_ga
 
 
 def _ba(pk):
-    return get_object_or_404(BeritaAcara.objects.select_related('department', 'rujukan'), pk=pk)
+    return get_object_or_404(BeritaAcara.objects.select_related('departemen', 'rujukan'), pk=pk)
 
 
 @role_required(is_ga)
 def ba_list(request):
     tab = request.GET.get('tab', 'draf')
     drafts = (BeritaAcara.objects.filter(jenis='kerusakan', status='draft')
-              .annotate(n=Count('items'), terakhir=Max('items__created_at'),
+              .annotate(n=Count('items'), terakhir=Max('items__dibuat_pada'),
                         n_hapus=Count('items', filter=Q(items__rekomendasi='hapus')))
-              .filter(n__gt=0).select_related('department').order_by('-terakhir'))
+              .filter(n__gt=0).select_related('departemen').order_by('-terakhir'))
     issued = (BeritaAcara.objects.exclude(status='draft').annotate(n=Count('items'))
-              .select_related('department', 'rujukan').order_by('-tanggal', '-urutan'))
+              .select_related('departemen', 'rujukan').order_by('-tanggal', '-urutan'))
     counts = {
         'draf': sum(1 for _ in drafts),
         'kerusakan': issued.filter(jenis='kerusakan').count(),
@@ -59,13 +59,13 @@ def ba_detail(request, pk):
         'foto': ba.lampiran_foto(),
         'turunan': ba.turunan.order_by('tanggal'),
         'bisa_hapus': ba.jenis == 'kerusakan' and ba.items.filter(
-            rekomendasi='hapus').exclude(asset__lifecycle_status='writeoff').exists(),
+            rekomendasi='hapus').exclude(aset__status_siklus_hidup='writeoff').exists(),
         'is_ga': is_ga(request.user),
     })
 
 
 def _draft_editor(request, ba):
-    items = ba.items.select_related('asset', 'asset__lokasi_asset', 'damage_report', 'maintenance_record') \
+    items = ba.items.select_related('aset', 'aset__lokasi', 'laporan_kerusakan', 'catatan_maintenance') \
                     .prefetch_related('foto')
     if request.method == 'POST':
         if not is_ga(request.user):
@@ -78,13 +78,13 @@ def _draft_editor(request, ba):
                     it.rekomendasi = rek
                 it.save(update_fields=['kerusakan', 'rekomendasi'])
             ba.isi = request.POST.get('isi', '').strip()
-            ba.save(update_fields=['isi', 'updated_at'])
+            ba.save(update_fields=['isi', 'diperbarui_pada'])
         if request.POST.get('aksi') == 'terbitkan':
             try:
                 tanggal = date.fromisoformat(request.POST.get('tanggal', ''))
             except ValueError:
                 tanggal = None
-            kosong = [it.asset.nama_asset for it in items if not it.kerusakan]
+            kosong = [it.aset.nama_aset for it in items if not it.kerusakan]
             if not tanggal or tanggal > timezone.localdate():
                 messages.error(request, 'Isi tanggal verifikasi (tidak boleh di masa depan).', extra_tags='field:tanggal|Tanggal verifikasi')
             elif not items:
@@ -99,11 +99,11 @@ def _draft_editor(request, ba):
             messages.success(request, 'Draf disimpan.')
             return redirect('ba_detail', pk=ba.pk)
 
-    taken = set(items.values_list('asset_id', flat=True))
-    kandidat = (Asset.objects.exclude(lifecycle_status='writeoff').exclude(pk__in=taken)
-                .select_related('lokasi_asset').order_by('nama_asset'))
-    if ba.department_id:
-        kandidat = kandidat.filter(owned_by_department_id=ba.department_id)
+    taken = set(items.values_list('aset_id', flat=True))
+    kandidat = (Asset.objects.exclude(status_siklus_hidup='writeoff').exclude(pk__in=taken)
+                .select_related('lokasi').order_by('nama_aset'))
+    if ba.departemen_id:
+        kandidat = kandidat.filter(departemen_pemilik_id=ba.departemen_id)
     tanggal = timezone.localdate()
     return render(request, 'berita_acara/draft.html', {
         'ba': ba,
@@ -122,40 +122,40 @@ def _draft_editor(request, ba):
 @require_POST
 def ba_item_add(request, pk):
     ba = _ba(pk)
-    asset = Asset.objects.filter(pk=request.POST.get('asset_id')).exclude(lifecycle_status='writeoff').first()
+    aset = Asset.objects.filter(pk=request.POST.get('aset_id')).exclude(status_siklus_hidup='writeoff').first()
     kerusakan = request.POST.get('kerusakan', '').strip()
-    if ba.status != 'draft' or not asset:
-        messages.error(request, 'Pilih aset yang akan ditambahkan.', extra_tags='field:asset_id|Aset')
-    elif ba.items.filter(asset=asset).exists():
-        messages.warning(request, f'{asset.nama_asset} sudah ada di draf ini.')
+    if ba.status != 'draft' or not aset:
+        messages.error(request, 'Pilih aset yang akan ditambahkan.', extra_tags='field:aset_id|Aset')
+    elif ba.items.filter(aset=aset).exists():
+        messages.warning(request, f'{aset.nama_aset} sudah ada di draf ini.')
     else:
-        BeritaAcaraItem.objects.create(ba=ba, asset=asset, sumber='manual', kerusakan=kerusakan)
-        messages.success(request, f'{asset.nama_asset} ditambahkan ke draf.')
+        BeritaAcaraItem.objects.create(ba=ba, aset=aset, sumber='manual', kerusakan=kerusakan)
+        messages.success(request, f'{aset.nama_aset} ditambahkan ke draf.')
     return redirect(reverse('ba_detail', args=[ba.pk]) + '#items')
 
 
 @role_required(is_ga)
 @require_POST
 def ba_item_delete(request, pk, item_pk):
-    item = get_object_or_404(BeritaAcaraItem.objects.select_related('asset'), pk=item_pk, ba_id=pk, ba__status='draft')
-    item.delete()
-    messages.success(request, f'{item.asset.nama_asset} dikeluarkan dari draf.')
+    butir = get_object_or_404(BeritaAcaraItem.objects.select_related('aset'), pk=item_pk, ba_id=pk, ba__status='draft')
+    butir.delete()
+    messages.success(request, f'{butir.aset.nama_aset} dikeluarkan dari draf.')
     return redirect(reverse('ba_detail', args=[pk]) + '#items')
 
 
 @role_required(is_ga)
 @require_POST
 def ba_item_photo(request, pk, item_pk):
-    item = get_object_or_404(BeritaAcaraItem, pk=item_pk, ba_id=pk, ba__status='draft')
+    butir = get_object_or_404(BeritaAcaraItem, pk=item_pk, ba_id=pk, ba__status='draft')
     foto = request.FILES.get('foto')
     if not foto:
         messages.error(request, 'Pilih foto dokumentasi.')
     elif foto.size > MAX_UPLOAD_SIZE:
         messages.error(request, 'Ukuran foto maksimal 5 MB.')
     else:
-        BeritaAcaraFoto.objects.create(item=item, foto=foto, caption=item.asset.nama_asset)
+        BeritaAcaraFoto.objects.create(butir=butir, foto=foto, keterangan=butir.aset.nama_aset)
         messages.success(request, 'Foto dokumentasi ditambahkan.')
-    return redirect(reverse('ba_detail', args=[pk]) + f'#item-{item_pk}')
+    return redirect(reverse('ba_detail', args=[pk]) + f'#butir-{item_pk}')
 
 
 @role_required(is_ga)
@@ -171,7 +171,7 @@ def ba_signed(request, pk):
     if scan:
         ba.scan_ttd = scan
     ba.status = 'ditandatangani'
-    ba.ditandatangani_at = timezone.now()
+    ba.ditandatangani_pada = timezone.now()
     ba.save()
     messages.success(request, f'{ba.nomor} ditandai sudah ditandatangani.')
     return redirect('ba_detail', pk=pk)
@@ -194,11 +194,11 @@ def ba_penghapusan(request, pk):
     if ba.jenis != 'kerusakan' or ba.status != 'ditandatangani':
         messages.warning(request, 'Penghapusan hanya dari BA Kerusakan yang sudah ditandatangani.')
         return redirect('ba_detail', pk=pk)
-    items = list(ba.items.select_related('asset', 'asset__financial').exclude(asset__lifecycle_status='writeoff'))
+    items = list(ba.items.select_related('aset', 'aset__financial').exclude(aset__status_siklus_hidup='writeoff'))
     posted = request.POST if request.method == 'POST' else None
     if posted:
-        pilih = {int(x) for x in posted.getlist('item') if x.isdigit()}
-        assets = [it.asset for it in items if it.pk in pilih]
+        pilih = {int(x) for x in posted.getlist('butir') if x.isdigit()}
+        assets = [it.aset for it in items if it.pk in pilih]
         try:
             tanggal = date.fromisoformat(posted.get('tanggal', ''))
         except ValueError:

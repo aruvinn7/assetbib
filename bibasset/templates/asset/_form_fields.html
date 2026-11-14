@@ -5,16 +5,16 @@
     <div class="fgrid">
       <div class="field">
         <label for="fNumber">Nomor aset <span class="req" aria-hidden="true">*</span></label>
-        <input class="input" type="text" id="fNumber" name="asset_number" value="{{ a.asset_number|default:'' }}" placeholder="mis. ELK-AC-021" required autocomplete="off" data-upper>
+        <input class="input" type="text" id="fNumber" name="nomor_aset" value="{{ a.nomor_aset|default:'' }}" placeholder="mis. ELK-AC-021" required autocomplete="off" data-upper>
         <p class="field-hint">Unik. Huruf otomatis jadi kapital.</p>
       </div>
       <div class="field">
         <label for="fPo">No. PO <span class="req" aria-hidden="true">*</span></label>
-        <input class="input" type="text" id="fPo" name="no_po" value="{{ a.no_po|default:'' }}" placeholder="mis. PO-2026-031" required autocomplete="off">
+        <input class="input" type="text" id="fPo" name="nomor_po" value="{{ a.nomor_po|default:'' }}" placeholder="mis. PO-2026-031" required autocomplete="off">
       </div>
       <div class="field span-all">
         <label for="fName">Nama aset <span class="req" aria-hidden="true">*</span></label>
-        <input class="input" type="text" id="fName" name="nama_asset" value="{{ a.nama_asset|default:'' }}" placeholder="mis. AC Split Daikin 1 PK - Ruang Meeting" required maxlength="200">
+        <input class="input" type="text" id="fName" name="nama_aset" value="{{ a.nama_aset|default:'' }}" placeholder="mis. AC Split Daikin 1 PK - Ruang Meeting" required maxlength="200">
       </div>
       <div class="field">
         <label for="fDate">Tanggal pembelian <span class="req" aria-hidden="true">*</span></label>
@@ -38,15 +38,15 @@
         {# Hanya penyaring daftar kategori — grup aset ikut kategori, tidak disimpan terpisah #}
         <select class="input select" id="fGroup" name="asset_group">
           <option value="">Pilih grup</option>
-          {% for g in asset_groups %}<option value="{{ g.pk }}" {% if a.asset_category.group_id == g.pk %}selected{% endif %}>{{ g.name }}</option>{% endfor %}
+          {% for g in asset_groups %}<option value="{{ g.pk }}" {% if a.kategori_aset.grup_id == g.pk %}selected{% endif %}>{{ g.nama }}</option>{% endfor %}
         </select>
       </div>
       <div class="field">
         <label for="fCategory">Kategori</label>
-        <select class="input select" id="fCategory" name="asset_category">
+        <select class="input select" id="fCategory" name="kategori_aset">
           <option value="">Pilih kategori</option>
           {% for g in asset_groups %}{% for c in g.categories.all %}
-          <option value="{{ c.pk }}" data-group="{{ g.pk }}" data-interval="{{ c.default_interval_in_days|default:'' }}" {% if a.asset_category_id == c.pk %}selected{% endif %}>{{ c.name }}</option>
+          <option value="{{ c.pk }}" data-group="{{ g.pk }}" data-interval="{{ c.default_interval_in_days|default:'' }}" {% if a.kategori_aset_id == c.pk %}selected{% endif %}>{{ c.nama }}</option>
           {% endfor %}{% endfor %}
         </select>
         <p class="field-hint" id="fInterval">Pilih grup dulu untuk menyaring kategori.</p>
@@ -61,16 +61,16 @@
     <div class="fgrid">
       <div class="field">
         <label for="fLoc">Lokasi</label>
-        <select class="input select" id="fLoc" name="lokasi_asset">
+        <select class="input select" id="fLoc" name="lokasi">
           <option value="">Belum ditempatkan</option>
-          {% for loc in locations %}<option value="{{ loc.pk }}" {% if a.lokasi_asset_id == loc.pk %}selected{% endif %}>{{ loc }}</option>{% endfor %}
+          {% for loc in locations %}<option value="{{ loc.pk }}" {% if a.lokasi_id == loc.pk %}selected{% endif %}>{{ loc }}</option>{% endfor %}
         </select>
       </div>
       <div class="field">
         <label for="fDept">Departemen pemilik</label>
-        <select class="input select" id="fDept" name="department">
+        <select class="input select" id="fDept" name="departemen_pemilik">
           <option value="">Pilih departemen</option>
-          {% for d in departments %}<option value="{{ d.pk }}" {% if a.owned_by_department_id == d.pk %}selected{% endif %}>{{ d.name }}</option>{% endfor %}
+          {% for d in departments %}<option value="{{ d.pk }}" {% if a.departemen_pemilik_id == d.pk %}selected{% endif %}>{{ d.nama }}</option>{% endfor %}
         </select>
       </div>
     </div>

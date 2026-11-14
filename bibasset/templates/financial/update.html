@@ -1,21 +1,21 @@
 {% extends "base.html" %}
-{% block title %}Edit finansial · {{ asset.asset_number }}{% endblock %}
+{% block title %}Edit finansial · {{ asset.nomor_aset }}{% endblock %}
 {% block nav_assets %}active{% endblock %}
 
 {% block content %}
 <div class="page">
   <div class="crumbs">
-    <a href="{% url 'asset_detail' asset.id %}">{{ asset.asset_number }}</a><i class="fa-solid fa-chevron-right" aria-hidden="true" style="font-size:10px"></i>
+    <a href="{% url 'asset_detail' asset.id %}">{{ asset.nomor_aset }}</a><i class="fa-solid fa-chevron-right" aria-hidden="true" style="font-size:10px"></i>
     <a href="{% url 'financial_detail' asset.id %}">Finansial</a><i class="fa-solid fa-chevron-right" aria-hidden="true" style="font-size:10px"></i>Edit
   </div>
   <div class="page-head">
-    <div><h1>Edit data finansial</h1><div class="sub">{{ asset.nama_asset }}</div></div>
+    <div><h1>Edit data finansial</h1><div class="sub">{{ asset.nama_aset }}</div></div>
   </div>
 
   <form method="post" class="form-layout">
     {% csrf_token %}
     <div class="form-main">
-      {% if asset.lifecycle_status == 'writeoff' %}
+      {% if asset.status_siklus_hidup == 'writeoff' %}
       <div class="note warn"><i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i><span>Aset sudah di-write off. Nilai buku yang tercatat saat write off tidak ikut berubah bila data ini diedit.</span></div>
       {% endif %}
       {% include "financial/_form.html" with f=financial %}

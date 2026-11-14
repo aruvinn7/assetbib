@@ -16,7 +16,7 @@
   <div class="page-head">
     <div>
       <h1>Proses penghapusan aset</h1>
-      <div class="sub">Berdasarkan {{ ba.nomor }} · {{ ba.department.name|default:"Lintas departemen" }}</div>
+      <div class="sub">Berdasarkan {{ ba.nomor }} · {{ ba.departemen.nama|default:"Lintas departemen" }}</div>
     </div>
   </div>
 
@@ -30,8 +30,8 @@
             {% for it in items %}
             <li><label>
               <input type="checkbox" name="item" value="{{ it.pk }}" {% if it.pk in pilih %}checked{% endif %}>
-              <span><strong>{{ it.asset.nama_asset }}</strong><small>{{ it.asset.asset_number }} · rekomendasi {{ it.get_rekomendasi_display|lower }}</small></span>
-              <span class="num">{% if it.asset.financial %}{{ it.asset.financial.book_value|rupiah }}<small style="display:block">nilai buku</small>{% else %}<small>belum dinilai</small>{% endif %}</span>
+              <span><strong>{{ it.aset.nama_aset }}</strong><small>{{ it.aset.nomor_aset }} · rekomendasi {{ it.get_rekomendasi_display|lower }}</small></span>
+              <span class="num">{% if it.aset.financial %}{{ it.aset.financial.book_value|rupiah }}<small style="display:block">nilai buku</small>{% else %}<small>belum dinilai</small>{% endif %}</span>
             </label></li>
             {% empty %}
             <li class="empty">Semua aset di BA ini sudah di-write off.</li>

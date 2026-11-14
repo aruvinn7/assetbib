@@ -15,7 +15,7 @@
   <div class="toolbar">
     <nav class="filters" aria-label="Saring grup">
       <a class="chip {% if not selected_group %}active{% endif %}" href="{% url 'assetcategory_list' %}">Semua grup</a>
-      {% for g in groups %}<a class="chip {% if selected_group.pk == g.pk %}active{% endif %}" href="?group={{ g.pk }}">{{ g.name }}</a>{% endfor %}
+      {% for g in groups %}<a class="chip {% if selected_group.pk == g.pk %}active{% endif %}" href="?group={{ g.pk }}">{{ g.nama }}</a>{% endfor %}
     </nav>
   </div>
 
@@ -33,24 +33,24 @@
         <thead><tr><th class="no">No</th><th>Kategori</th><th>Grup</th><th>Interval maintenance</th><th class="num">Checklist</th><th class="num">Aset</th><th><span class="visually-hidden">Aksi</span></th></tr></thead>
         <tbody>
         {% for c in categories %}
-          <tr data-name="{{ c.name|lower }} {{ c.group.name|lower }}">
+          <tr data-name="{{ c.nama|lower }} {{ c.grup.nama|lower }}">
             <td class="no"><span class="visually-hidden">Nomor </span>{{ forloop.counter }}</td>
-            <td class="lead">{% if is_ga %}<a class="row-link" href="{% url 'assetcategory_update' c.pk %}">{{ c.name }}</a>{% else %}<span class="row-name">{{ c.name }}</span>{% endif %}{% if c.personal_use %} <span class="kind-pill" title="Bisa diserahkan ke karyawan">pribadi</span>{% endif %}</td>
-            <td data-label="Grup">{{ c.group.name }}</td>
-            <td data-label="Interval maintenance">{% if c.default_interval_value %}Setiap {{ c.default_interval_value }} {{ c.get_default_interval_unit_display|lower }}{% else %}<span class="cell-sub">Tidak terjadwal</span>{% endif %}</td>
-            <td data-label="Checklist" class="num">{% with n=c.maintenance_description.splitlines|length %}{% if c.maintenance_description %}{{ n }} langkah{% else %}<span class="cell-sub">—</span>{% endif %}{% endwith %}</td>
+            <td class="lead">{% if is_ga %}<a class="row-link" href="{% url 'assetcategory_update' c.pk %}">{{ c.nama }}</a>{% else %}<span class="row-name">{{ c.nama }}</span>{% endif %}{% if c.pemakaian_pribadi %} <span class="kind-pill" title="Bisa diserahkan ke karyawan">pribadi</span>{% endif %}</td>
+            <td data-label="Grup">{{ c.grup.nama }}</td>
+            <td data-label="Interval maintenance">{% if c.interval_default %}Setiap {{ c.interval_default }} {{ c.get_satuan_interval_default_display|lower }}{% else %}<span class="cell-sub">Tidak terjadwal</span>{% endif %}</td>
+            <td data-label="Checklist" class="num">{% with n=c.deskripsi_maintenance.splitlines|length %}{% if c.deskripsi_maintenance %}{{ n }} langkah{% else %}<span class="cell-sub">—</span>{% endif %}{% endwith %}</td>
             <td data-label="Aset" class="num">{% if c.asset_count %}<a href="{% url 'asset_list' %}?category={{ c.pk }}">{{ c.asset_count }}</a>{% else %}—{% endif %}</td>
             <td class="row-actions act">{% if is_ga %}
               <a href="{% url 'assetcategory_update' c.pk %}">Edit</a>
                 {% if c.asset_count %}
                 <button type="button" class="del" disabled title="Masih dipakai {{ c.asset_count }} aset" style="opacity:.45;cursor:not-allowed">Hapus</button>
                 {% else %}
-                <form method="post" action="{% url 'assetcategory_delete' c.pk %}" onsubmit="return confirm('Hapus kategori {{ c.name|escapejs }}?')">{% csrf_token %}<button type="submit" class="del">Hapus</button></form>
+                <form method="post" action="{% url 'assetcategory_delete' c.pk %}" onsubmit="return confirm('Hapus kategori {{ c.nama|escapejs }}?')">{% csrf_token %}<button type="submit" class="del">Hapus</button></form>
                 {% endif %}
               {% endif %}</td>
           </tr>
         {% empty %}
-          <tr><td colspan="7"><div class="empty"><strong>Belum ada kategori{% if selected_group %} di grup {{ selected_group.name }}{% endif %}</strong></div></td></tr>
+          <tr><td colspan="7"><div class="empty"><strong>Belum ada kategori{% if selected_group %} di grup {{ selected_group.nama }}{% endif %}</strong></div></td></tr>
         {% endfor %}
         </tbody>
       </table>

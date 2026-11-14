@@ -58,15 +58,15 @@
               <td data-label="Baris" class="num">{{ row.row_num }}</td>
               <td data-label="Status">{% if row.status == 'rejected' %}{% include "components/_status.html" with kind="danger" label="Ditolak" %}{% elif row.warnings %}{% include "components/_status.html" with kind="warning" label="Dikoreksi" %}{% else %}{% include "components/_status.html" with kind="safe" label="Masuk" %}{% endif %}</td>
               <td class="lead">
-                <span class="row-name">{{ row.nama_asset|default:"(nama kosong)" }}</span>
-                <div class="cell-sub">{{ row.asset_number|default:"nomor kosong" }}{% if row.no_po %} · PO {{ row.no_po }}{% endif %}</div>
+                <span class="row-name">{{ row.nama_aset|default:"(nama kosong)" }}</span>
+                <div class="cell-sub">{{ row.nomor_aset|default:"nomor kosong" }}{% if row.nomor_po %} · PO {{ row.nomor_po }}{% endif %}</div>
                 {% if row.status == 'rejected' %}<p class="row-msg danger">{{ row.reject_reason }}</p>{% endif %}
                 {% for w in row.warnings %}<p class="row-msg warn">{{ w }}</p>{% endfor %}
               </td>
               <td data-label="Pembelian" class="nowrap">{% if row.tanggal_pembelian %}{{ row.tanggal_pembelian|date:"d M Y" }}{% else %}<span class="dim">format salah</span>{% endif %}</td>
-              <td data-label="Lokasi">{{ row.lokasi_asset|default:"—" }}</td>
-              <td data-label="Departemen">{{ row.department|default:"—" }}</td>
-              <td data-label="Kategori">{% if row.asset_category %}{{ row.asset_category }}{% if row.asset_group %}<div class="cell-sub">{{ row.asset_group }}</div>{% endif %}{% else %}—{% endif %}</td>
+              <td data-label="Lokasi">{{ row.lokasi|default:"—" }}</td>
+              <td data-label="Departemen">{{ row.departemen|default:"—" }}</td>
+              <td data-label="Kategori">{% if row.kategori_aset %}{{ row.kategori_aset }}{% if row.asset_group %}<div class="cell-sub">{{ row.asset_group }}</div>{% endif %}{% else %}—{% endif %}</td>
             </tr>
           {% endfor %}
           </tbody>

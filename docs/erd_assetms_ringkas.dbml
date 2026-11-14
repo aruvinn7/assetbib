@@ -1,0 +1,179 @@
+// ============================================================
+// ERD AssetMS — MODEL RINGKAS (domain aset & maintenance)
+// PT Borneo Indobara
+//
+// 6 entitas. Seluruh data yang masih menjadi bagian dari satu aset
+// dilebur menjadi atribut entitas aset:
+//   grup_aset              -> grup_aset
+//   kategori_aset          -> kategori_aset, interval_default,
+//                             satuan_interval_default, pemakaian_pribadi
+//   foto_aset              -> foto, jenis_foto
+//   finansial_aset         -> nilai_awal, nilai_residual, umur_ekonomis
+//   penghapusan_aset       -> tanggal_penghapusan, alasan_penghapusan,
+//                             nilai_buku, nilai_jual
+//   konfigurasi_maintenance-> interval_khusus_hari
+//   komponen_aset          -> komponen, komponen_kritis
+//   penggantian_komponen   -> penggantian_terakhir
+//                             (riwayat detail tercatat pada maintenance
+//                              dengan hasil = replaced_component)
+//
+// Entitas maintenance menggabungkan jadwal dan realisasi:
+//   jadwal_maintenance  -> tanggal_jadwal, status
+//   catatan_maintenance -> tanggal_pelaksanaan, hasil, biaya, catatan
+//
+// Tidak dimodelkan: perpindahan aset, berita acara, akun & peran pengguna.
+// Seluruh nama atribut menggunakan bahasa Indonesia.
+//
+// Cara pakai: https://dbdiagram.io -> New Diagram -> paste file ini.
+// ============================================================
+
+Project assetms_ringkas {
+  database_type: 'SQLite'
+  Note: 'ERD ringkas aset & maintenance — 6 entitas, 11 relasi'
+}
+
+// ------------------------------------------------------------
+// MASTER
+// ------------------------------------------------------------
+
+Table departemen {
+  id_departemen int          [pk, increment]
+  nama          varchar(100) [unique, not null]
+}
+
+Table karyawan {
+  id_karyawan   int          [pk, increment]
+  nomor_karyawan varchar(20) [unique, not null]
+  nama          varchar(150) [not null]
+  id_departemen int
+  jabatan       varchar(100) [not null]
+
+  Note: 'Pendaftar aset, pelaksana maintenance, pelapor dan penangan kerusakan.'
+}
+
+Table lokasi {
+  id_lokasi          int          [pk, increment]
+  nama               varchar(100) [not null]
+  id_lokasi_induk    int          [note: 'Relasi diri: site > area > ruang']
+  jalur_lengkap      varchar(500) [note: 'Cache "Induk > Anak"']
+  tempat_penyimpanan boolean      [default: false]
+
+  indexes {
+    (nama, id_lokasi_induk) [unique]
+  }
+}
+
+// ------------------------------------------------------------
+// ASET — memuat klasifikasi, foto, finansial, komponen, penghapusan
+// ------------------------------------------------------------
+
+Table aset {
+  id_aset                int           [pk, increment]
+  nomor_po               varchar(50)   [not null]
+  nomor_aset             varchar(50)   [unique, not null]
+  nama_aset              varchar(200)  [not null]
+  tanggal_pembelian      date          [not null]
+  grup_aset              varchar(100)  [note: 'Pengelompokan tingkat atas']
+  kategori_aset          varchar(100)  [note: 'Jenis aset di dalam grup']
+  id_lokasi              int
+  id_departemen          int
+  foto                   varchar(255)  [note: 'Foto utama aset']
+  jenis_foto             varchar(20)   [default: 'unit']
+  nilai_awal             decimal(15,2)
+  nilai_residual         decimal(15,2)
+  umur_ekonomis          int           [default: 5]
+  interval_default       int           [note: 'Interval maintenance default kategori']
+  satuan_interval_default varchar(10)  [default: 'months']
+  interval_khusus_hari   int           [note: 'Override interval kategori']
+  pemakaian_pribadi      boolean       [default: false]
+  komponen               text          [note: 'Daftar komponen penyusun aset']
+  komponen_kritis        varchar(200)  [note: 'Komponen yang wajib dipantau']
+  penggantian_terakhir   date          [note: 'Tanggal penggantian komponen terakhir']
+  tanggal_penghapusan    date          [note: 'Null = aset masih aktif']
+  alasan_penghapusan     varchar(20)   [note: 'rusak | usang | hilang | dijual']
+  nilai_buku             decimal(15,2) [note: 'Snapshot saat penghapusan']
+  nilai_jual             decimal(15,2)
+  status_siklus_hidup    varchar(20)   [default: 'active', note: 'active | maintenance | writeoff']
+  dibuat_oleh            int
+  dibuat_pada            datetime      [default: `now()`]
+
+  indexes {
+    (grup_aset, kategori_aset)
+    (status_siklus_hidup)
+  }
+
+  Note: 'Entitas inti. Klasifikasi, foto, finansial, komponen, dan penghapusan menjadi atribut aset.'
+}
+
+// ------------------------------------------------------------
+// MAINTENANCE — jadwal sekaligus realisasi
+// ------------------------------------------------------------
+
+Table maintenance {
+  id_maintenance        int           [pk, increment]
+  id_aset               int           [not null]
+  jenis_maintenance     varchar(20)   [not null, note: 'preventive | corrective | inspection']
+  tanggal_jadwal        date          [not null, note: 'Rencana pelaksanaan']
+  status                varchar(10)   [default: 'upcoming', note: 'upcoming | overdue | done | skipped']
+  tanggal_pelaksanaan   date          [note: 'Null sampai jadwal direalisasikan']
+  deskripsi_pekerjaan   text
+  hasil                 varchar(30)   [note: 'ok | minor_issue | major_issue | replaced_component']
+  biaya                 decimal(12,2) [default: 0]
+  catatan               text
+  id_laporan_kerusakan  int           [note: 'Null = preventive; terisi = corrective']
+  dilaksanakan_oleh     int
+  dibuat_pada           datetime      [default: `now()`]
+
+  indexes {
+    (status, tanggal_jadwal)
+    (id_aset, status)
+  }
+
+  Note: 'Satu baris mewakili satu pekerjaan: rencana (jadwal) dan hasil pelaksanaannya.'
+}
+
+// ------------------------------------------------------------
+// LAPORAN KERUSAKAN
+// ------------------------------------------------------------
+
+Table laporan_kerusakan {
+  id_laporan       int          [pk, increment]
+  id_aset          int          [not null]
+  dilaporkan_oleh  int
+  judul            varchar(200) [not null]
+  deskripsi        text         [not null]
+  tingkat_keparahan varchar(10) [default: 'medium', note: 'low | medium | high | critical']
+  foto_bukti       varchar(255)
+  status_laporan   varchar(20)  [default: 'pending', note: 'pending | acknowledged | in_progress | resolved | rejected']
+  ditangani_oleh   int
+  catatan_ga       text
+  dilaporkan_pada  datetime     [default: `now()`]
+  diperbarui_pada  datetime     [default: `now()`]
+  diselesaikan_pada datetime
+
+  indexes {
+    (status_laporan, dilaporkan_pada)
+    (id_aset, status_laporan)
+  }
+
+  Note: 'Pemicu maintenance corrective. Satu aset hanya boleh punya satu laporan aktif.'
+}
+
+// ============================================================
+// RELASI
+// ============================================================
+
+Ref fk_karyawan_departemen:  karyawan.id_departemen            > departemen.id_departemen
+Ref fk_lokasi_induk:         lokasi.id_lokasi_induk            > lokasi.id_lokasi
+
+Ref fk_aset_lokasi:          aset.id_lokasi                    > lokasi.id_lokasi
+Ref fk_aset_departemen:      aset.id_departemen                > departemen.id_departemen
+Ref fk_aset_dibuat_oleh:     aset.dibuat_oleh                  > karyawan.id_karyawan
+
+Ref fk_maint_aset:           maintenance.id_aset               > aset.id_aset
+Ref fk_maint_laporan:        maintenance.id_laporan_kerusakan  > laporan_kerusakan.id_laporan
+Ref fk_maint_dilaksanakan:   maintenance.dilaksanakan_oleh     > karyawan.id_karyawan
+
+Ref fk_laporan_aset:         laporan_kerusakan.id_aset         > aset.id_aset
+Ref fk_laporan_pelapor:      laporan_kerusakan.dilaporkan_oleh > karyawan.id_karyawan
+Ref fk_laporan_penangan:     laporan_kerusakan.ditangani_oleh  > karyawan.id_karyawan

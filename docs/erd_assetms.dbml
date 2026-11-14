@@ -1,0 +1,535 @@
+// ============================================================
+// ERD AssetMS — PT Borneo Indobara
+// Cara pakai:
+//   1. Buka https://dbdiagram.io
+//   2. New Diagram → paste seluruh isi file ini
+//   3. Klik "Export" → PNG/PDF (atau SVG)
+//   4. Rapikan posisi tabel dengan drag, lalu export ulang
+//
+// Notasi:
+//   [pk]  = primary key
+//   [unique] pada FK 1:1 = relasi one-to-one
+//   Ref: anak.fk > induk.pk  = many-to-one (crow's foot di sisi anak)
+// ============================================================
+
+Project assetms {
+  database_type: 'SQLite'
+  Note: 'ERD logis AssetMS: 26 tabel, atribut, PK/FK. Sumber: bibasset/models.py'
+}
+
+// ------------------------------------------------------------
+// ORGANISASI & PENGGUNA
+// ------------------------------------------------------------
+
+Table pengguna {
+  id          int           [pk, increment, note: 'Tabel user bawaan Django']
+  username    varchar(150)  [unique, not null]
+  password    varchar(128)  [not null, note: 'Hash kata sandi']
+  is_active   boolean       [default: true]
+  is_staff    boolean       [default: false]
+  date_joined datetime      [default: `now()`]
+
+  Note: 'Akun autentikasi. Dihubungkan 1:1 ke karyawan.'
+}
+
+Table departemen {
+  id   int          [pk, increment]
+  nama varchar(100) [unique, not null]
+}
+
+Table karyawan {
+  id           int          [pk, increment]
+  pengguna_id  int          [unique, not null, note: 'FK ke pengguna (1:1)']
+  employee_id  varchar(20)  [unique, not null]
+  nama         varchar(150) [not null]
+  departemen_id int
+  jabatan      varchar(100) [not null]
+}
+
+Table profil_ga {
+  id          int [pk, increment]
+  karyawan_id int [unique, not null, note: 'FK 1:1 — karyawan dengan peran GA']
+}
+
+Table profil_finance {
+  id          int [pk, increment]
+  karyawan_id int [unique, not null, note: 'FK 1:1 — karyawan dengan peran Finance']
+}
+
+Table profil_karyawan {
+  id          int [pk, increment]
+  karyawan_id int [unique, not null, note: 'FK 1:1 — karyawan dengan peran User/Karyawan']
+}
+
+// ------------------------------------------------------------
+// LOKASI & KLASIFIKASI ASET
+// ------------------------------------------------------------
+
+Table lokasi {
+  id         int          [pk, increment]
+  nama       varchar(100) [not null]
+  parent_id  int          [note: 'FK self-reference — hierarki site > area > ruang']
+  full_path  varchar(500) [note: 'Cache "Induk > Anak" untuk tampilan']
+  is_storage boolean      [default: false, note: 'Tempat titip GA / aset tersedia']
+
+  indexes {
+    (nama, parent_id) [unique]
+  }
+
+  Note: 'Lokasi hierarkis. Nama unik dalam satu induk.'
+}
+
+Table grup_aset {
+  id   int          [pk, increment]
+  nama varchar(100) [unique, not null]
+}
+
+Table kategori_aset {
+  id                     int          [pk, increment]
+  grup_id                int          [not null]
+  nama                   varchar(100) [not null]
+  default_interval_value int          [note: 'Interval maintenance default']
+  default_interval_unit  varchar(10)  [default: 'months', note: 'days | months']
+  maintenance_description text
+  personal_use           boolean      [default: false, note: 'true = aset dipakai pribadi (laptop, kursi)']
+
+  indexes {
+    (grup_id, nama) [unique]
+  }
+}
+
+// ------------------------------------------------------------
+// ASET & DATA PENDUKUNG
+// ------------------------------------------------------------
+
+Table aset {
+  id                   int          [pk, increment]
+  no_po                varchar(50)  [not null]
+  asset_number         varchar(50)  [unique, not null]
+  nama_asset           varchar(200) [not null]
+  tanggal_pembelian    date         [not null]
+  lokasi_id            int
+  departemen_id        int          [note: 'Departemen pemilik aset']
+  kategori_id          int
+  lifecycle_status     varchar(20)  [default: 'active', note: 'active | maintenance | writeoff']
+  created_by           int          [note: 'FK karyawan yang mendaftarkan']
+  created_at           datetime     [default: `now()`]
+
+  indexes {
+    (lifecycle_status, kategori_id)
+  }
+
+  Note: 'Entitas inti. Nomor aset unik dan menjadi identitas aset di lapangan.'
+}
+
+Table foto_aset {
+  id          int          [pk, increment]
+  aset_id     int          [not null]
+  photo       varchar(255) [not null, note: 'Path file gambar']
+  photo_type  varchar(20)  [default: 'unit', note: 'unit | location | damage | other']
+  caption     varchar(200)
+  is_primary  boolean      [default: false]
+  uploaded_by int
+  uploaded_at datetime     [default: `now()`]
+
+  indexes {
+    (aset_id, is_primary)
+  }
+}
+
+Table finansial_aset {
+  id              int           [pk, increment]
+  aset_id         int           [unique, not null, note: 'FK 1:1 ke aset']
+  nilai_awal_aset decimal(15,2) [not null]
+  nilai_residual  decimal(15,2) [not null]
+  umur_ekonomis   int           [default: 5, note: 'Tahun']
+  created_by      int
+  created_at      datetime      [default: `now()`]
+}
+
+Table penghapusan_aset {
+  id              int           [pk, increment]
+  aset_id         int           [unique, not null, note: 'FK 1:1 ke aset']
+  tanggal         date          [not null]
+  alasan          varchar(20)   [not null, note: 'rusak | usang | hilang | dijual | dihibahkan | lainnya']
+  keterangan      text          [not null]
+  nilai_perolehan decimal(15,2) [note: 'Snapshot saat write off']
+  nilai_buku      decimal(15,2) [note: 'Snapshot saat write off']
+  nilai_jual      decimal(15,2)
+  created_by      int
+  created_at      datetime      [default: `now()`]
+}
+
+Table komponen_aset {
+  id              int           [pk, increment]
+  aset_id         int           [not null]
+  part_number     varchar(100)  [not null]
+  component_name  varchar(200)  [not null]
+  description     text
+  quantity        int           [default: 1]
+  is_critical     boolean       [default: false]
+  supplier_name   varchar(200)
+  estimated_price decimal(12,2)
+  last_replaced   date
+  notes           text
+  created_by      int
+  created_at      datetime      [default: `now()`]
+  updated_at      datetime      [default: `now()`]
+
+  indexes {
+    (aset_id, part_number) [unique]
+  }
+}
+
+Table penggantian_komponen {
+  id              int           [pk, increment]
+  komponen_id     int           [not null]
+  replaced_date   date          [not null]
+  reason          text          [not null]
+  cost            decimal(12,2) [not null]
+  old_part_number varchar(100)
+  performed_by    int
+  created_at      datetime      [default: `now()`]
+}
+
+// ------------------------------------------------------------
+// MAINTENANCE
+// ------------------------------------------------------------
+
+Table konfigurasi_maintenance {
+  id                    int  [pk, increment]
+  aset_id               int  [unique, not null, note: 'FK 1:1 ke aset']
+  custom_interval_days  int  [not null]
+  reason                text [not null]
+  set_by                int
+  created_at            datetime [default: `now()`]
+}
+
+Table catatan_maintenance {
+  id                   int           [pk, increment]
+  aset_id              int           [not null]
+  maintenance_type     varchar(20)   [not null, note: 'preventive | corrective | inspection']
+  tanggal_pelaksanaan  date          [not null]
+  deskripsi_pekerjaan  text          [not null]
+  hasil                varchar(30)   [default: 'ok', note: 'ok | minor_issue | major_issue | replaced_component']
+  biaya                decimal(12,2) [default: 0]
+  catatan_tambahan     text
+  performed_by         int
+  created_at           datetime      [default: `now()`]
+
+  indexes {
+    (aset_id, maintenance_type)
+    (aset_id, tanggal_pelaksanaan)
+  }
+}
+
+Table jadwal_maintenance {
+  id                     int          [pk, increment]
+  aset_id                int          [not null]
+  scheduled_date         date         [not null]
+  status                 varchar(10)  [default: 'upcoming', note: 'upcoming | overdue | done | skipped']
+  catatan_maintenance_id int          [unique, note: 'FK 1:0..1 — realisasi jadwal']
+  laporan_kerusakan_id   int          [note: 'FK 0..1 — null = jadwal preventive; terisi = corrective']
+  notes                  text
+  created_at             datetime     [default: `now()`]
+
+  indexes {
+    (status, scheduled_date)
+    (aset_id, status)
+  }
+}
+
+// ------------------------------------------------------------
+// PEMEGANG & PERPINDAHAN ASET
+// ------------------------------------------------------------
+
+Table serah_terima_aset {
+  id               int          [pk, increment]
+  aset_id          int          [not null]
+  assigned_to      int          [note: 'FK karyawan penerima (pemakaian pribadi)']
+  departemen_id    int          [note: 'FK departemen penerima (pemakaian bersama)']
+  assigned_by      int
+  assigned_date    date         [not null]
+  returned_date    date
+  status           varchar(20)  [default: 'active', note: 'active | returned | transferred']
+  return_condition varchar(15)  [note: 'baik | rusak_ringan | rusak_berat']
+  notes            text
+  created_at       datetime     [default: `now()`]
+
+  indexes {
+    (aset_id, status)
+    (assigned_to, status)
+  }
+
+  Note: 'Penerima = karyawan ATAU departemen (check constraint). Satu aset hanya punya satu serah terima aktif.'
+}
+
+Table riwayat_perpindahan {
+  id          int      [pk, increment]
+  aset_id     int      [not null]
+  held_by     int      [note: 'FK karyawan pemegang']
+  departemen_id int
+  lokasi_id   int
+  moved_in    datetime [not null]
+  moved_out   datetime
+  is_current  boolean  [default: true]
+  notes       text
+  recorded_by int
+  created_at  datetime [default: `now()`]
+
+  indexes {
+    (aset_id, is_current)
+    (aset_id, moved_in)
+  }
+
+  Note: 'Hanya satu baris is_current=true per aset. Baris lama ditutup dengan moved_out.'
+}
+
+Table laporan_perpindahan {
+  id               int          [pk, increment]
+  aset_id          int          [not null]
+  reported_by      int
+  from_location    int
+  from_department  int
+  from_holder      int
+  to_location      int
+  to_department    int
+  to_holder        int
+  notes            text
+  reasons          varchar(200) [note: 'Alasan butuh persetujuan, mis. "Pindah departemen · Pindah site"']
+  status           varchar(10)  [default: 'recorded', note: 'recorded | pending | approved | rejected']
+  reviewed_by      int
+  reviewed_at      datetime
+  review_notes     text
+  perpindahan_id   int          [unique, note: 'FK 0..1 ke riwayat perpindahan setelah disetujui']
+  created_at       datetime     [default: `now()`]
+
+  Note: 'Satu aset hanya boleh punya satu laporan berstatus pending.'
+}
+
+// ------------------------------------------------------------
+// KERUSAKAN, BERITA ACARA, DOKUMEN
+// ------------------------------------------------------------
+
+Table laporan_kerusakan {
+  id                      int          [pk, increment]
+  aset_id                 int          [not null]
+  reported_by             int
+  title                   varchar(200) [not null]
+  description             text         [not null]
+  severity                varchar(10)  [default: 'medium', note: 'low | medium | high | critical']
+  photo_evidence          varchar(255)
+  report_status           varchar(20)  [default: 'pending', note: 'pending | acknowledged | in_progress | resolved | rejected']
+  handled_by              int
+  ga_notes                text
+  resolved_maintenance_id int          [unique, note: 'FK 0..1 ke catatan maintenance penyelesaian']
+  reported_at             datetime     [default: `now()`]
+  updated_at              datetime     [default: `now()`]
+  resolved_at             datetime
+
+  indexes {
+    (report_status, reported_at)
+    (aset_id, report_status)
+  }
+
+  Note: 'Satu aset hanya boleh punya satu laporan aktif (pending/acknowledged/in_progress).'
+}
+
+Table berita_acara {
+  id                  int          [pk, increment]
+  jenis               varchar(12)  [not null, note: 'kerusakan | penghapusan']
+  status              varchar(15)  [default: 'draft', note: 'draft | terbit | ditandatangani']
+  departemen_id       int
+  nomor               varchar(60)  [unique, note: 'Format: 001/BIB/-HRGA/BA/II/2026']
+  urutan              int          [note: 'Urutan per tahun']
+  tanggal             date
+  isi                 text         [note: 'Paragraf pembuka; kosong = teks baku']
+  rujukan_id          int          [note: 'FK self — BA Penghapusan merujuk BA Kerusakan']
+  penanda_tangan      json         [note: 'Snapshot lembar pengesahan saat terbit']
+  scan_ttd            varchar(255)
+  catatan             text
+  dibuat_oleh         int
+  diterbitkan_oleh    int
+  diterbitkan_at      datetime
+  ditandatangani_at   datetime
+  created_at          datetime     [default: `now()`]
+  updated_at          datetime     [default: `now()`]
+
+  indexes {
+    (jenis, status)
+  }
+}
+
+Table item_berita_acara {
+  id                      int         [pk, increment]
+  berita_acara_id         int         [not null]
+  aset_id                 int         [not null]
+  sumber                  varchar(10) [default: 'manual', note: 'laporan | inspeksi | manual']
+  laporan_kerusakan_id    int
+  catatan_maintenance_id  int
+  kerusakan               text
+  rekomendasi             varchar(10) [default: 'perbaiki', note: 'perbaiki | hapus']
+  created_at              datetime    [default: `now()`]
+
+  indexes {
+    (berita_acara_id, aset_id) [unique]
+  }
+
+  Note: 'Entitas asosiatif yang menyelesaikan relasi many-to-many Berita Acara ↔ Aset.'
+}
+
+Table foto_berita_acara {
+  id                    int          [pk, increment]
+  item_berita_acara_id  int          [not null]
+  foto                  varchar(255) [not null]
+  caption               varchar(200)
+  created_at            datetime     [default: `now()`]
+}
+
+Table penanda_tangan_ba {
+  id      int          [pk, increment]
+  urutan  int          [default: 0]
+  peran   varchar(50)  [not null, note: 'Dibuat oleh | Disetujui oleh | ...']
+  nama    varchar(100) [not null]
+  jabatan varchar(100) [not null]
+
+  Note: 'Lembar pengesahan; disalin sebagai JSON ke berita_acara.penanda_tangan saat terbit.'
+}
+
+// ============================================================
+// PENGELOMPOKAN DOMAIN (membuat warna grup di dbdiagram.io)
+// ============================================================
+
+TableGroup organisasi_pengguna {
+  pengguna
+  departemen
+  karyawan
+  profil_ga
+  profil_finance
+  profil_karyawan
+}
+
+TableGroup lokasi_klasifikasi {
+  lokasi
+  grup_aset
+  kategori_aset
+}
+
+TableGroup domain_aset {
+  aset
+  foto_aset
+  finansial_aset
+  penghapusan_aset
+  komponen_aset
+  penggantian_komponen
+}
+
+TableGroup maintenance {
+  konfigurasi_maintenance
+  catatan_maintenance
+  jadwal_maintenance
+}
+
+TableGroup pemegang_perpindahan {
+  serah_terima_aset
+  riwayat_perpindahan
+  laporan_perpindahan
+}
+
+TableGroup kerusakan_dokumen {
+  laporan_kerusakan
+  berita_acara
+  item_berita_acara
+  foto_berita_acara
+  penanda_tangan_ba
+}
+
+// ============================================================
+// RELASI (FOREIGN KEY)
+// ============================================================
+
+// Organisasi & pengguna
+Ref fk_karyawan_pengguna:        karyawan.pengguna_id        -  pengguna.id
+Ref fk_karyawan_departemen:      karyawan.departemen_id      >  departemen.id
+Ref fk_profil_ga_karyawan:       profil_ga.karyawan_id       -  karyawan.id
+Ref fk_profil_finance_karyawan:  profil_finance.karyawan_id  -  karyawan.id
+Ref fk_profil_karyawan_karyawan: profil_karyawan.karyawan_id -  karyawan.id
+
+// Lokasi & klasifikasi
+Ref fk_lokasi_parent:       lokasi.parent_id       > lokasi.id
+Ref fk_kategori_grup:       kategori_aset.grup_id > grup_aset.id
+
+// Aset
+Ref fk_aset_lokasi:         aset.lokasi_id         > lokasi.id
+Ref fk_aset_departemen:     aset.departemen_id     > departemen.id
+Ref fk_aset_kategori:       aset.kategori_id       > kategori_aset.id
+Ref fk_aset_created_by:     aset.created_by        > karyawan.id
+
+// Foto & finansial
+Ref fk_foto_aset:           foto_aset.aset_id      > aset.id
+Ref fk_foto_uploaded_by:    foto_aset.uploaded_by  > karyawan.id
+Ref fk_finansial_aset:      finansial_aset.aset_id - aset.id
+Ref fk_finansial_created_by: finansial_aset.created_by > karyawan.id
+
+// Penghapusan
+Ref fk_penghapusan_aset:    penghapusan_aset.aset_id    - aset.id
+Ref fk_penghapusan_created_by: penghapusan_aset.created_by > karyawan.id
+
+// Komponen
+Ref fk_komponen_aset:       komponen_aset.aset_id     > aset.id
+Ref fk_komponen_created_by: komponen_aset.created_by  > karyawan.id
+Ref fk_penggantian_komponen: penggantian_komponen.komponen_id > komponen_aset.id
+Ref fk_penggantian_performed_by: penggantian_komponen.performed_by > karyawan.id
+
+// Maintenance
+Ref fk_konfigurasi_aset:    konfigurasi_maintenance.aset_id  - aset.id
+Ref fk_konfigurasi_set_by:  konfigurasi_maintenance.set_by   > karyawan.id
+Ref fk_catatan_aset:        catatan_maintenance.aset_id      > aset.id
+Ref fk_catatan_performed_by: catatan_maintenance.performed_by > karyawan.id
+Ref fk_jadwal_aset:         jadwal_maintenance.aset_id       > aset.id
+Ref fk_jadwal_catatan:      jadwal_maintenance.catatan_maintenance_id - catatan_maintenance.id
+Ref fk_jadwal_laporan:      jadwal_maintenance.laporan_kerusakan_id   > laporan_kerusakan.id
+
+// Serah terima
+Ref fk_serah_aset:          serah_terima_aset.aset_id       > aset.id
+Ref fk_serah_assigned_to:   serah_terima_aset.assigned_to   > karyawan.id
+Ref fk_serah_departemen:    serah_terima_aset.departemen_id > departemen.id
+Ref fk_serah_assigned_by:   serah_terima_aset.assigned_by   > karyawan.id
+
+// Perpindahan
+Ref fk_pindah_aset:         riwayat_perpindahan.aset_id     > aset.id
+Ref fk_pindah_held_by:      riwayat_perpindahan.held_by     > karyawan.id
+Ref fk_pindah_departemen:   riwayat_perpindahan.departemen_id > departemen.id
+Ref fk_pindah_lokasi:       riwayat_perpindahan.lokasi_id   > lokasi.id
+Ref fk_pindah_recorded_by:  riwayat_perpindahan.recorded_by > karyawan.id
+
+// Laporan perpindahan
+Ref fk_lapindah_aset:           laporan_perpindahan.aset_id         > aset.id
+Ref fk_lapindah_reported_by:    laporan_perpindahan.reported_by    > karyawan.id
+Ref fk_lapindah_from_location:  laporan_perpindahan.from_location  > lokasi.id
+Ref fk_lapindah_from_department: laporan_perpindahan.from_department > departemen.id
+Ref fk_lapindah_from_holder:    laporan_perpindahan.from_holder    > karyawan.id
+Ref fk_lapindah_to_location:    laporan_perpindahan.to_location    > lokasi.id
+Ref fk_lapindah_to_department:  laporan_perpindahan.to_department  > departemen.id
+Ref fk_lapindah_to_holder:      laporan_perpindahan.to_holder      > karyawan.id
+Ref fk_lapindah_reviewed_by:    laporan_perpindahan.reviewed_by    > karyawan.id
+Ref fk_lapindah_perpindahan:    laporan_perpindahan.perpindahan_id - riwayat_perpindahan.id
+
+// Laporan kerusakan
+Ref fk_laporan_aset:            laporan_kerusakan.aset_id         > aset.id
+Ref fk_laporan_reported_by:     laporan_kerusakan.reported_by    > karyawan.id
+Ref fk_laporan_handled_by:      laporan_kerusakan.handled_by     > karyawan.id
+Ref fk_laporan_resolved:        laporan_kerusakan.resolved_maintenance_id - catatan_maintenance.id
+
+// Berita acara
+Ref fk_ba_departemen:       berita_acara.departemen_id   > departemen.id
+Ref fk_ba_rujukan:          berita_acara.rujukan_id      > berita_acara.id
+Ref fk_ba_dibuat_oleh:      berita_acara.dibuat_oleh     > karyawan.id
+Ref fk_ba_diterbitkan_oleh: berita_acara.diterbitkan_oleh > karyawan.id
+
+// Item & foto berita acara
+Ref fk_item_ba:             item_berita_acara.berita_acara_id > berita_acara.id
+Ref fk_item_aset:           item_berita_acara.aset_id         > aset.id
+Ref fk_item_laporan:        item_berita_acara.laporan_kerusakan_id > laporan_kerusakan.id
+Ref fk_item_catatan:        item_berita_acara.catatan_maintenance_id > catatan_maintenance.id
+Ref fk_foto_ba_item:        foto_berita_acara.item_berita_acara_id > item_berita_acara.id

@@ -22,19 +22,19 @@ from ..roles import is_ga, is_user_role
 
 def _reportable_assets(employee):
     """Aset yang boleh dilaporkan pindah oleh karyawan ini: yang ia pegang atau milik departemennya."""
-    allowed = Q(assignments__assigned_to=employee, assignments__status='active')
-    if employee.department_id:
-        allowed |= Q(owned_by_department_id=employee.department_id)
-    return Asset.objects.exclude(lifecycle_status='writeoff').filter(allowed).distinct()
+    allowed = Q(assignments__diserahkan_kepada=employee, assignments__status='active')
+    if employee.departemen_id:
+        allowed |= Q(departemen_pemilik_id=employee.departemen_id)
+    return Asset.objects.exclude(status_siklus_hidup='writeoff').filter(allowed).distinct()
 
 
 def _holders(asset_ids):
-    return dict(AssetAssignment.objects.filter(asset_id__in=asset_ids, status='active')
-                .values_list('asset_id', 'assigned_to_id'))
+    return dict(AssetAssignment.objects.filter(aset_id__in=asset_ids, status='active')
+                .values_list('aset_id', 'diserahkan_kepada_id'))
 
 
 def _block_reason(asset):
-    pending = MovementReport.objects.filter(asset=asset, status='pending').only('id').first()
+    pending = MovementReport.objects.filter(aset=asset, status='pending').only('id').first()
     if pending:
         return f"Sudah ada laporan pindah (#{pending.pk}) yang menunggu persetujuan GA."
     return None
@@ -45,73 +45,73 @@ def _block_reason(asset):
 # ================================================
 
 @role_required(is_user_role)
-def movement_report_create(request, asset_id=None):
+def movement_report_create(request, aset_id=None):
     employee = request.user.employee
     allowed = _reportable_assets(employee)
-    asset_qs = allowed.select_related('lokasi_asset', 'owned_by_department', 'asset_category')
+    asset_qs = allowed.select_related('lokasi', 'departemen_pemilik', 'kategori_aset')
 
-    held_assets = list(asset_qs.filter(assignments__assigned_to=employee, assignments__status='active')
-                       .order_by('nama_asset'))
+    held_assets = list(asset_qs.filter(assignments__diserahkan_kepada=employee, assignments__status='active')
+                       .order_by('nama_aset'))
 
     selected = None
-    if asset_id:
-        selected = asset_qs.filter(pk=asset_id).first()
+    if aset_id:
+        selected = asset_qs.filter(pk=aset_id).first()
         if selected is None:
             messages.error(request, "Aset ini tidak bisa Anda laporkan pindah: bukan aset yang Anda pegang atau milik departemen Anda.")
             return redirect('movement_report_create')
 
     posted = request.POST if request.method == 'POST' else None
     if posted:
-        selected = asset_qs.filter(pk=posted.get('asset_id') or 0).first()
+        selected = asset_qs.filter(pk=posted.get('aset_id') or 0).first()
         if selected is None:
             messages.error(request, "Pilih aset yang Anda pegang atau milik departemen Anda.")
         elif (reason := _block_reason(selected)):
-            messages.warning(request, f"{selected.nama_asset}: {reason}")
+            messages.warning(request, f"{selected.nama_aset}: {reason}")
             return redirect('movement_report_list')
         else:
             # Masuk tempat titip GA = pengembalian; itu lewat GA, bukan laporan pindah
-            to_location   = Location.objects.filter(pk=posted.get('to_location') or 0, is_storage=False).first()
-            to_department = Department.objects.filter(pk=posted.get('to_department') or 0).first()
-            holder_id     = posted.get('to_holder') or ''
-            to_holder     = Employee.objects.filter(pk=holder_id, user_profile__isnull=False).first() if holder_id else None
+            lokasi_tujuan   = Location.objects.filter(pk=posted.get('lokasi_tujuan') or 0, tempat_penyimpanan=False).first()
+            departemen_tujuan = Department.objects.filter(pk=posted.get('departemen_tujuan') or 0).first()
+            holder_id     = posted.get('pemegang_tujuan') or ''
+            pemegang_tujuan     = Employee.objects.filter(pk=holder_id, user_profile__isnull=False).first() if holder_id else None
             current_holder = _holders([selected.pk]).get(selected.pk)
-            notes = posted.get('notes', '').strip()
+            catatan = posted.get('catatan', '').strip()
 
-            if to_location is None:
-                messages.error(request, "Pilih lokasi tujuan.", extra_tags='field:to_location|Lokasi tujuan')
-            elif holder_id and to_holder is None:
-                messages.error(request, "Pemegang baru harus karyawan dengan akses Karyawan.", extra_tags='field:to_holder|Pemegang')
-            elif (to_location.pk == selected.lokasi_asset_id
-                  and (to_department or selected.owned_by_department) == selected.owned_by_department
-                  and getattr(to_holder, 'pk', None) == current_holder):
+            if lokasi_tujuan is None:
+                messages.error(request, "Pilih lokasi tujuan.", extra_tags='field:lokasi_tujuan|Lokasi tujuan')
+            elif holder_id and pemegang_tujuan is None:
+                messages.error(request, "Pemegang baru harus karyawan dengan akses Karyawan.", extra_tags='field:pemegang_tujuan|Pemegang')
+            elif (lokasi_tujuan.pk == selected.lokasi_id
+                  and (departemen_tujuan or selected.departemen_pemilik) == selected.departemen_pemilik
+                  and getattr(pemegang_tujuan, 'pk', None) == current_holder):
                 messages.error(request, "Tidak ada yang berubah: lokasi, departemen, dan pemegangnya masih sama.")
             else:
-                reasons = movement_crucial_reasons(selected, to_department, to_location)
+                reasons = movement_crucial_reasons(selected, departemen_tujuan, lokasi_tujuan)
                 try:
                     with transaction.atomic():
                         report = MovementReport.objects.create(
-                            asset=selected, reported_by=employee,
-                            from_location=selected.lokasi_asset, from_department=selected.owned_by_department,
-                            from_holder_id=current_holder,
-                            to_location=to_location, to_department=to_department or selected.owned_by_department,
-                            to_holder=to_holder, notes=notes,
-                            reasons=' · '.join(reasons), status='pending' if reasons else 'recorded',
+                            aset=selected, dilaporkan_oleh=employee,
+                            lokasi_asal=selected.lokasi, departemen_asal=selected.departemen_pemilik,
+                            pemegang_asal_id=current_holder,
+                            lokasi_tujuan=lokasi_tujuan, departemen_tujuan=departemen_tujuan or selected.departemen_pemilik,
+                            pemegang_tujuan=pemegang_tujuan, catatan=catatan,
+                            alasan=' · '.join(reasons), status='pending' if reasons else 'recorded',
                         )
                         if not reasons:
                             apply_movement_report(report, by=employee)
                 except IntegrityError:
-                    messages.warning(request, f"{selected.nama_asset} sudah punya laporan pindah yang menunggu persetujuan GA.")
+                    messages.warning(request, f"{selected.nama_aset} sudah punya laporan pindah yang menunggu persetujuan GA.")
                     return redirect('movement_report_list')
                 if reasons:
-                    messages.success(request, f"Laporan pindah {selected.nama_asset} terkirim. Menunggu persetujuan GA karena {report.reasons.lower()}.")
+                    messages.success(request, f"Laporan pindah {selected.nama_aset} terkirim. Menunggu persetujuan GA karena {report.alasan.lower()}.")
                 else:
-                    messages.success(request, f"Perpindahan {selected.nama_asset} tercatat. Lokasi aset sudah diperbarui.")
+                    messages.success(request, f"Perpindahan {selected.nama_aset} tercatat. Lokasi aset sudah diperbarui.")
                 return redirect('movement_report_list')
 
     if selected is not None:
         selected.holder_id = _holders([selected.pk]).get(selected.pk)
     holders = _holders([a.pk for a in held_assets])
-    pending = dict(MovementReport.objects.filter(asset__in=held_assets, status='pending').values_list('asset_id', 'id'))
+    pending = dict(MovementReport.objects.filter(aset__in=held_assets, status='pending').values_list('aset_id', 'id'))
     for a in held_assets:
         a.holder_id = holders.get(a.pk)
         a.pending_report = pending.get(a.pk)
@@ -119,10 +119,10 @@ def movement_report_create(request, asset_id=None):
     return render(request, 'user/movement_report_form.html', {
         'held_assets': held_assets,
         'selected':    selected,
-        'locations':   Location.objects.filter(is_storage=False).order_by('full_path'),
-        'departments': Department.objects.order_by('name'),
+        'locations':   Location.objects.filter(tempat_penyimpanan=False).order_by('jalur_lengkap'),
+        'departments': Department.objects.order_by('nama'),
         'recipients':  Employee.objects.filter(user_profile__isnull=False, user__is_active=True)
-                       .select_related('department').order_by('nama'),
+                       .select_related('departemen').order_by('nama'),
         'posted':      posted,
     })
 
@@ -136,33 +136,33 @@ def movement_report_asset_search(request):
     employee = request.user.employee
     qs = _reportable_assets(employee)
     for term in q.split()[:5]:
-        qs = qs.filter(Q(nama_asset__icontains=term) | Q(asset_number__icontains=term) |
-                       Q(lokasi_asset__full_path__icontains=term) | Q(asset_category__name__icontains=term))
-    assets = list(qs.select_related('lokasi_asset', 'owned_by_department', 'asset_category').order_by('nama_asset', 'id')[:10])
-    pending = dict(MovementReport.objects.filter(asset__in=assets, status='pending').values_list('asset_id', 'id'))
+        qs = qs.filter(Q(nama_aset__icontains=term) | Q(nomor_aset__icontains=term) |
+                       Q(lokasi__jalur_lengkap__icontains=term) | Q(kategori_aset__nama__icontains=term))
+    assets = list(qs.select_related('lokasi', 'departemen_pemilik', 'kategori_aset').order_by('nama_aset', 'id')[:10])
+    pending = dict(MovementReport.objects.filter(aset__in=assets, status='pending').values_list('aset_id', 'id'))
     holders = _holders([a.pk for a in assets])
     return JsonResponse({'results': [{
         'id':       a.pk,
-        'name':     a.nama_asset,
-        'number':   a.asset_number,
-        'category': a.owned_by_department.name if a.owned_by_department else '',
-        'location': a.lokasi_asset.full_path if a.lokasi_asset else 'Belum ditempatkan',
+        'name':     a.nama_aset,
+        'number':   a.nomor_aset,
+        'category': a.departemen_pemilik.nama if a.departemen_pemilik else '',
+        'location': a.lokasi.jalur_lengkap if a.lokasi else 'Belum ditempatkan',
         'tag':      'Aset Anda' if holders.get(a.pk) == employee.pk else '',
         'blocked':  f"Menunggu persetujuan GA (#{pending[a.pk]})" if a.pk in pending else '',
         'data': {
-            'dept':     a.owned_by_department_id or '',
+            'dept':     a.departemen_pemilik_id or '',
             'holder':   holders.get(a.pk) or '',
-            'site':     (a.lokasi_asset.full_path or a.lokasi_asset.name).split(' > ')[0] if a.lokasi_asset else '',
-            'location': a.lokasi_asset_id or '',
+            'site':     (a.lokasi.jalur_lengkap or a.lokasi.nama).split(' > ')[0] if a.lokasi else '',
+            'location': a.lokasi_id or '',
         },
     } for a in assets]})
 
 
 @role_required(is_user_role)
 def movement_report_list(request):
-    reports = (MovementReport.objects.filter(reported_by=request.user.employee)
-               .select_related('asset', 'from_location', 'to_location', 'from_department', 'to_department',
-                               'from_holder', 'to_holder', 'reviewed_by'))
+    reports = (MovementReport.objects.filter(dilaporkan_oleh=request.user.employee)
+               .select_related('aset', 'lokasi_asal', 'lokasi_tujuan', 'departemen_asal', 'departemen_tujuan',
+                               'pemegang_asal', 'pemegang_tujuan', 'ditinjau_oleh'))
     page_obj = Paginator(reports, 25).get_page(request.GET.get('page'))
     return render(request, 'user/movement_report_list.html', {'reports': page_obj, 'page_obj': page_obj})
 
@@ -185,10 +185,10 @@ def ga_movement_report_list(request):
         tab = 'pending'
     counts = MovementReport.objects.aggregate(**{key: Count('id', filter=f) for key, f in GA_TABS.items()})
     reports = (MovementReport.objects.filter(GA_TABS[tab])
-               .select_related('asset', 'reported_by__department', 'from_location', 'to_location',
-                               'from_department', 'to_department', 'from_holder', 'to_holder', 'reviewed_by'))
+               .select_related('aset', 'dilaporkan_oleh__departemen', 'lokasi_asal', 'lokasi_tujuan',
+                               'departemen_asal', 'departemen_tujuan', 'pemegang_asal', 'pemegang_tujuan', 'ditinjau_oleh'))
     if tab == 'pending':
-        reports = reports.order_by('created_at')  # yang paling lama menunggu di atas
+        reports = reports.order_by('dibuat_pada')  # yang paling lama menunggu di atas
     page_obj = Paginator(reports, 25).get_page(request.GET.get('page'))
     return render(request, 'ga/movement_report_list.html', {
         'reports': page_obj, 'page_obj': page_obj, 'tab': tab, 'counts': counts,
@@ -196,7 +196,7 @@ def ga_movement_report_list(request):
 
 
 def _review(request, pk):
-    return get_object_or_404(MovementReport.objects.select_related('asset', 'reported_by'), pk=pk)
+    return get_object_or_404(MovementReport.objects.select_related('aset', 'dilaporkan_oleh'), pk=pk)
 
 
 @require_POST
@@ -206,17 +206,17 @@ def ga_movement_report_approve(request, pk):
     if report.status != 'pending':
         messages.info(request, f"Laporan #{report.pk} sudah ditinjau sebelumnya.")
         return redirect('ga_movement_report_list')
-    if report.asset.lifecycle_status == 'writeoff':
-        messages.error(request, f"{report.asset.nama_asset} sudah di-write off; laporan pindah tidak bisa disetujui.")
+    if report.aset.status_siklus_hidup == 'writeoff':
+        messages.error(request, f"{report.aset.nama_aset} sudah di-write off; laporan pindah tidak bisa disetujui.")
         return redirect('ga_movement_report_list')
     with transaction.atomic():
         report.status = 'approved'
-        report.reviewed_by = request.user.employee
-        report.reviewed_at = timezone.now()
-        report.review_notes = request.POST.get('review_notes', '').strip()
-        report.save(update_fields=['status', 'reviewed_by', 'reviewed_at', 'review_notes'])
+        report.ditinjau_oleh = request.user.employee
+        report.ditinjau_pada = timezone.now()
+        report.catatan_tinjauan = request.POST.get('catatan_tinjauan', '').strip()
+        report.save(update_fields=['status', 'ditinjau_oleh', 'ditinjau_pada', 'catatan_tinjauan'])
         apply_movement_report(report, by=request.user.employee)
-    messages.success(request, f"Perpindahan {report.asset.nama_asset} disetujui dan tercatat.")
+    messages.success(request, f"Perpindahan {report.aset.nama_aset} disetujui dan tercatat.")
     return redirect('ga_movement_report_list')
 
 
@@ -227,14 +227,14 @@ def ga_movement_report_reject(request, pk):
     if report.status != 'pending':
         messages.info(request, f"Laporan #{report.pk} sudah ditinjau sebelumnya.")
         return redirect('ga_movement_report_list')
-    note = request.POST.get('review_notes', '').strip()
+    note = request.POST.get('catatan_tinjauan', '').strip()
     if not note:
         messages.error(request, "Tulis alasan penolakan agar pelapor tahu harus bagaimana.")
         return redirect('ga_movement_report_list')
     report.status = 'rejected'
-    report.reviewed_by = request.user.employee
-    report.reviewed_at = timezone.now()
-    report.review_notes = note
-    report.save(update_fields=['status', 'reviewed_by', 'reviewed_at', 'review_notes'])
-    messages.success(request, f"Laporan pindah {report.asset.nama_asset} ditolak. Aset tetap di posisi semula.")
+    report.ditinjau_oleh = request.user.employee
+    report.ditinjau_pada = timezone.now()
+    report.catatan_tinjauan = note
+    report.save(update_fields=['status', 'ditinjau_oleh', 'ditinjau_pada', 'catatan_tinjauan'])
+    messages.success(request, f"Laporan pindah {report.aset.nama_aset} ditolak. Aset tetap di posisi semula.")
     return redirect('ga_movement_report_list')

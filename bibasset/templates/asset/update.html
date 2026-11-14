@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}Edit {{ asset.asset_number }}{% endblock %}
+{% block title %}Edit {{ asset.nomor_aset }}{% endblock %}
 {% block nav_assets %}active{% endblock %}
 
 {% block content %}
@@ -7,12 +7,12 @@
 <div class="page">
   <div class="crumbs">
     <a href="{% url 'asset_list' %}">Daftar aset</a><i class="fa-solid fa-chevron-right" aria-hidden="true" style="font-size:10px"></i>
-    <a href="{% url 'asset_detail' asset.id %}">{{ asset.asset_number }}</a><i class="fa-solid fa-chevron-right" aria-hidden="true" style="font-size:10px"></i>Edit
+    <a href="{% url 'asset_detail' asset.id %}">{{ asset.nomor_aset }}</a><i class="fa-solid fa-chevron-right" aria-hidden="true" style="font-size:10px"></i>Edit
   </div>
   <div class="page-head">
     <div>
       <h1>Edit aset</h1>
-      <div class="sub">{{ asset.nama_asset }}</div>
+      <div class="sub">{{ asset.nama_aset }}</div>
     </div>
   </div>
 
@@ -24,11 +24,11 @@
       <section class="fsec" aria-labelledby="secStatus">
         <div class="fsec-head"><h2 id="secStatus">Status</h2><p>Status tidak diubah dari sini.</p></div>
         <div class="fsec-body">
-          <div class="note {% if asset.lifecycle_status == 'writeoff' %}warn{% endif %}">
-            {% include "components/_lifecycle.html" with status=asset.lifecycle_status %}
+          <div class="note {% if asset.status_siklus_hidup == 'writeoff' %}warn{% endif %}">
+            {% include "components/_lifecycle.html" with status=asset.status_siklus_hidup %}
             <span>
-              {% if asset.lifecycle_status == 'writeoff' %}Aset sudah di-write off. Pembatalan dilakukan dari halaman detail aset.
-              {% elif asset.lifecycle_status == 'maintenance' %}Otomatis kembali aktif setelah laporan kerusakan diselesaikan.
+              {% if asset.status_siklus_hidup == 'writeoff' %}Aset sudah di-write off. Pembatalan dilakukan dari halaman detail aset.
+              {% elif asset.status_siklus_hidup == 'maintenance' %}Otomatis kembali aktif setelah laporan kerusakan diselesaikan.
               {% else %}Berubah otomatis saat ada laporan kerusakan. Untuk menghapus aset dari pembukuan, gunakan write off.{% endif %}
             </span>
           </div>
@@ -50,7 +50,7 @@
           <div><dt>Maintenance</dt><dd>{{ maintenance_records|length }} catatan</dd></div>
           <div><dt>Terakhir</dt><dd>{% if last_maintenance %}{{ last_maintenance.tanggal_pelaksanaan|date:"d M Y" }}{% else %}<span class="dim">Belum pernah</span>{% endif %}</dd></div>
           <div><dt>Jadwal</dt>
-            <dd>{% if next_schedule %}{{ next_schedule.scheduled_date|date:"d M Y" }}{% if next_schedule.status == 'overdue' %}{% include "components/_status.html" with kind="warning" label="Terlambat" %}{% endif %}{% else %}<span class="dim">Belum ada</span>{% endif %}</dd></div>
+            <dd>{% if next_schedule %}{{ next_schedule.tanggal_jadwal|date:"d M Y" }}{% if next_schedule.status == 'overdue' %}{% include "components/_status.html" with kind="warning" label="Terlambat" %}{% endif %}{% else %}<span class="dim">Belum ada</span>{% endif %}</dd></div>
           <div><dt>Interval</dt><dd>{% if effective_interval %}{{ effective_interval }} hari{% if asset.maintenance_config %} <span class="dim">· khusus</span>{% endif %}{% else %}<span class="dim">Belum diatur</span>{% endif %}</dd></div>
         </dl>
       </section>
@@ -59,11 +59,11 @@
           <li><a href="{% url 'asset_detail' asset.id %}"><i class="fa-solid fa-circle-info" aria-hidden="true"></i>Detail aset</a></li>
           <li><a href="{% url 'component_list' asset.id %}"><i class="fa-solid fa-gears" aria-hidden="true"></i>Komponen (BOM)</a></li>
           {% if asset.maintenance_config %}
-          <li><a href="{% url 'maintenance_config_update' asset_id=asset.id %}"><i class="fa-solid fa-clock-rotate-left" aria-hidden="true"></i>Ubah interval khusus</a></li>
+          <li><a href="{% url 'maintenance_config_update' aset_id=asset.id %}"><i class="fa-solid fa-clock-rotate-left" aria-hidden="true"></i>Ubah interval khusus</a></li>
           {% else %}
-          <li><a href="{% url 'maintenance_config_create' asset_id=asset.id %}"><i class="fa-solid fa-clock-rotate-left" aria-hidden="true"></i>Atur interval khusus</a></li>
+          <li><a href="{% url 'maintenance_config_create' aset_id=asset.id %}"><i class="fa-solid fa-clock-rotate-left" aria-hidden="true"></i>Atur interval khusus</a></li>
           {% endif %}
-          {% if asset.lifecycle_status != 'writeoff' and emp.ga_profile %}
+          {% if asset.status_siklus_hidup != 'writeoff' and emp.ga_profile %}
           <li><a href="{% url 'asset_write_off' asset.id %}"><i class="fa-solid fa-box-archive" aria-hidden="true"></i>Proses write off</a></li>
           {% endif %}
         </ul>
@@ -74,7 +74,7 @@
         <div class="panel-head"><h2 id="delTitle">Hapus permanen</h2></div>
         <div class="panel-body">
           <p>Hanya untuk aset yang salah input. Riwayat maintenance, foto, BOM, dan data finansialnya ikut hilang dan tidak bisa dikembalikan.</p>
-          {% if asset.lifecycle_status != 'writeoff' %}<p>Aset yang sudah tidak dipakai sebaiknya <a href="{% url 'asset_write_off' asset.id %}">di-write off</a>, supaya riwayatnya tetap tersimpan.</p>{% endif %}
+          {% if asset.status_siklus_hidup != 'writeoff' %}<p>Aset yang sudah tidak dipakai sebaiknya <a href="{% url 'asset_write_off' asset.id %}">di-write off</a>, supaya riwayatnya tetap tersimpan.</p>{% endif %}
           <button type="submit" form="assetDeleteForm" class="btn danger full"><i class="fa-regular fa-trash-can" aria-hidden="true"></i>Hapus aset ini</button>
         </div>
       </section>
@@ -85,7 +85,7 @@
   {% if emp.ga_profile %}
   {# Form terpisah (bukan di dalam form edit) supaya Hapus tidak ikut menyimpan perubahan #}
   <form id="assetDeleteForm" method="post" action="{% url 'asset_delete' asset.id %}" hidden
-        onsubmit="return confirm('Hapus permanen {{ asset.nama_asset|escapejs }} ({{ asset.asset_number|escapejs }})? Semua riwayat maintenance, foto, BOM, dan data finansialnya ikut terhapus dan tidak bisa dikembalikan.')">
+        onsubmit="return confirm('Hapus permanen {{ asset.nama_aset|escapejs }} ({{ asset.nomor_aset|escapejs }})? Semua riwayat maintenance, foto, BOM, dan data finansialnya ikut terhapus dan tidak bisa dikembalikan.')">
     {% csrf_token %}
   </form>
   {% endif %}

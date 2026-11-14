@@ -13,7 +13,7 @@
   <div class="page-head">
     <div>
       <h1>{{ ba.get_jenis_display }}</h1>
-      <div class="sub">No {{ ba.nomor }} · {{ ba.department.name|default:"Lintas departemen" }} · {{ ba.tanggal|date:"d M Y" }}</div>
+      <div class="sub">No {{ ba.nomor }} · {{ ba.departemen.nama|default:"Lintas departemen" }} · {{ ba.tanggal|date:"d M Y" }}</div>
       <div class="head-tags" style="display:flex;gap:6px;margin-top:10px">
         {% if ba.status == 'ditandatangani' %}{% include "components/_status.html" with kind="safe" label="Ditandatangani" %}{% else %}{% include "components/_status.html" with kind="mandatory" label="Menunggu tanda tangan" %}{% endif %}
       </div>
@@ -56,8 +56,8 @@
       <section class="panel" aria-labelledby="infoTitle">
         <div class="panel-head"><h2 id="infoTitle">Riwayat dokumen</h2></div>
         <dl class="kv">
-          <div><dt>Diterbitkan</dt><dd>{{ ba.diterbitkan_at|date:"d M Y, H:i" }}{% if ba.diterbitkan_oleh %} <span class="dim">· {{ ba.diterbitkan_oleh.nama }}</span>{% endif %}</dd></div>
-          {% if ba.ditandatangani_at %}<div><dt>Ditandatangani</dt><dd>{{ ba.ditandatangani_at|date:"d M Y, H:i" }}</dd></div>{% endif %}
+          <div><dt>Diterbitkan</dt><dd>{{ ba.diterbitkan_pada|date:"d M Y, H:i" }}{% if ba.diterbitkan_oleh %} <span class="dim">· {{ ba.diterbitkan_oleh.nama }}</span>{% endif %}</dd></div>
+          {% if ba.ditandatangani_pada %}<div><dt>Ditandatangani</dt><dd>{{ ba.ditandatangani_pada|date:"d M Y, H:i" }}</dd></div>{% endif %}
           {% if ba.scan_ttd %}<div><dt>Scan</dt><dd><a href="{{ ba.scan_ttd.url }}" target="_blank" rel="noopener">Lihat dokumen bertanda tangan</a></dd></div>{% endif %}
           {% if ba.rujukan %}<div><dt>Dasar</dt><dd><a href="{% url 'ba_detail' ba.rujukan.pk %}">{{ ba.rujukan.nomor }}</a></dd></div>{% endif %}
           {% for t in turunan %}<div><dt>Penghapusan</dt><dd><a href="{% url 'ba_detail' t.pk %}">{{ t.nomor }}</a> <span class="dim">· {{ t.tanggal|date:"d M Y" }}</span></dd></div>{% endfor %}
@@ -69,7 +69,7 @@
         <div class="panel-head"><h2 id="asetTitle">Aset</h2><span class="meta">{{ ba.items.count }}</span></div>
         <ul class="side-links">
           {% for it in ba.items.all %}
-          <li><a href="{% url 'asset_detail' it.asset.pk %}"><i class="fa-solid fa-box-archive" aria-hidden="true"></i><span>{{ it.asset.nama_asset|truncatechars:34 }}<span class="cell-sub" style="display:block">{{ it.asset.asset_number }} · {{ it.get_rekomendasi_display }}{% if it.asset.lifecycle_status == 'writeoff' %} · sudah write off{% endif %}</span></span></a></li>
+          <li><a href="{% url 'asset_detail' it.aset.pk %}"><i class="fa-solid fa-box-archive" aria-hidden="true"></i><span>{{ it.aset.nama_aset|truncatechars:34 }}<span class="cell-sub" style="display:block">{{ it.aset.nomor_aset }} · {{ it.get_rekomendasi_display }}{% if it.aset.status_siklus_hidup == 'writeoff' %} · sudah write off{% endif %}</span></span></a></li>
           {% endfor %}
         </ul>
       </section>

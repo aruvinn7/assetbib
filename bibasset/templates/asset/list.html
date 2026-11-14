@@ -79,16 +79,16 @@
               <div class="asset-cell-wrap">
                 {% if asset.photo_path %}<img class="thumb" src="{% get_media_prefix %}{{ asset.photo_path }}" alt="" loading="lazy">{% else %}<span class="thumb" aria-hidden="true"><i class="fa-solid fa-box"></i></span>{% endif %}
                 <div>
-                  <a class="row-link" href="{% url 'asset_detail' asset.id %}">{{ asset.nama_asset }}</a>
-                  <div class="cell-sub">{{ asset.asset_number }}{% if asset.no_po %} · PO {{ asset.no_po }}{% endif %}</div>
+                  <a class="row-link" href="{% url 'asset_detail' asset.id %}">{{ asset.nama_aset }}</a>
+                  <div class="cell-sub">{{ asset.nomor_aset }}{% if asset.nomor_po %} · PO {{ asset.nomor_po }}{% endif %}</div>
                 </div>
               </div>
             </td>
-            <td data-label="Kategori">{{ asset.asset_category.name|default:"—" }}<div class="cell-sub">{{ asset.asset_category.group.name|default:"" }}</div></td>
-            <td data-label="Lokasi" class="loc">{% include "components/_location.html" with loc=asset.lokasi_asset %}</td>
-            <td data-label="Departemen">{{ asset.owned_by_department|default:"—" }}</td>
+            <td data-label="Kategori">{{ asset.kategori_aset.nama|default:"—" }}<div class="cell-sub">{{ asset.kategori_aset.grup.nama|default:"" }}</div></td>
+            <td data-label="Lokasi" class="loc">{% include "components/_location.html" with loc=asset.lokasi %}</td>
+            <td data-label="Departemen">{{ asset.departemen_pemilik|default:"—" }}</td>
             <td data-label="Umur" class="num">{{ asset.umur_asset_detail|umur_singkat }}<div class="cell-sub">{{ asset.tanggal_pembelian|date:"M Y" }}</div></td>
-            <td data-label="Status">{% include "components/_lifecycle.html" with status=asset.lifecycle_status %}</td>
+            <td data-label="Status">{% include "components/_lifecycle.html" with status=asset.status_siklus_hidup %}</td>
             <td data-label="Kesehatan">
               {% include "components/_health.html" with health=asset.health %}
               {% if asset.ratio is not None %}<div class="cell-sub">{{ asset.ratio|floatformat:0 }}% biaya{% if asset.jumlah_corrective %} · {{ asset.jumlah_corrective }}× rusak{% endif %}</div>
@@ -96,7 +96,7 @@
             </td>
             <td data-label="BOM" class="num">{% if asset.component_count %}{{ asset.component_count }}{% else %}<span class="dim">—</span>{% endif %}</td>
             <td class="actions">
-              <button type="button" class="act-quick" data-qv-open aria-label="Lihat ringkas {{ asset.nama_asset }}"><i class="fa-regular fa-eye" aria-hidden="true"></i>Ringkas</button>
+              <button type="button" class="act-quick" data-qv-open aria-label="Lihat ringkas {{ asset.nama_aset }}"><i class="fa-regular fa-eye" aria-hidden="true"></i>Ringkas</button>
               {% if emp.ga_profile %}
                 <a href="{% url 'asset_update' asset.id %}">Edit</a>
                 <a href="{% url 'component_list' asset.id %}">BOM</a>

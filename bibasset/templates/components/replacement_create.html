@@ -1,15 +1,15 @@
 {% extends "base.html" %}
 {% load rupiah %}
-{% block title %}Catat penggantian · {{ component.component_name }}{% endblock %}
+{% block title %}Catat penggantian · {{ component.nama_komponen }}{% endblock %}
 {% block nav_assets %}active{% endblock %}
 
 {% block content %}
 <div class="page">
   <div class="crumbs">
     <a href="{% url 'component_list' asset.id %}">Komponen</a><i class="fa-solid fa-chevron-right" aria-hidden="true" style="font-size:10px"></i>
-    <a href="{% url 'component_detail' component.pk %}">{{ component.part_number }}</a><i class="fa-solid fa-chevron-right" aria-hidden="true" style="font-size:10px"></i>Catat penggantian
+    <a href="{% url 'component_detail' component.pk %}">{{ component.nomor_part }}</a><i class="fa-solid fa-chevron-right" aria-hidden="true" style="font-size:10px"></i>Catat penggantian
   </div>
-  <div class="page-head"><div><h1>Catat penggantian</h1><div class="sub">{{ component.component_name }} · {{ asset.nama_asset }}</div></div></div>
+  <div class="page-head"><div><h1>Catat penggantian</h1><div class="sub">{{ component.nama_komponen }} · {{ asset.nama_aset }}</div></div></div>
 
   <form method="post" class="form-layout single">
     {% csrf_token %}
@@ -20,22 +20,22 @@
           <div class="fgrid">
             <div class="field">
               <label for="rDate">Tanggal ganti <span class="req" aria-hidden="true">*</span></label>
-              <input class="input" type="date" id="rDate" name="replaced_date" value="{% now 'Y-m-d' %}" max="{% now 'Y-m-d' %}" required>
+              <input class="input" type="date" id="rDate" name="tanggal_penggantian" value="{% now 'Y-m-d' %}" max="{% now 'Y-m-d' %}" required>
             </div>
             <div class="field">
               <label for="rCost">Biaya part <span class="req" aria-hidden="true">*</span></label>
               <div class="input-affix"><span aria-hidden="true">Rp</span>
-                <input class="input" type="number" id="rCost" name="cost" min="0" step="1000" inputmode="numeric" required value="{% if component.estimated_price %}{{ component.estimated_price|floatformat:0 }}{% endif %}">
+                <input class="input" type="number" id="rCost" name="biaya" min="0" step="1000" inputmode="numeric" required value="{% if component.harga_estimasi %}{{ component.harga_estimasi|floatformat:0 }}{% endif %}">
               </div>
-              {% if component.estimated_price %}<p class="field-hint">Terisi dari harga perkiraan {{ component.estimated_price|rupiah }}.</p>{% endif %}
+              {% if component.harga_estimasi %}<p class="field-hint">Terisi dari harga perkiraan {{ component.harga_estimasi|rupiah }}.</p>{% endif %}
             </div>
             <div class="field span-all">
               <label for="rReason">Alasan penggantian <span class="req" aria-hidden="true">*</span></label>
-              <textarea class="textarea" id="rReason" name="reason" rows="3" required placeholder="mis. Kompresor tidak mau start, ditemukan terbakar saat dibongkar"></textarea>
+              <textarea class="textarea" id="rReason" name="alasan" rows="3" required placeholder="mis. Kompresor tidak mau start, ditemukan terbakar saat dibongkar"></textarea>
             </div>
             <div class="field">
               <label for="rOld">Part number lama <span class="opt">opsional</span></label>
-              <input class="input" type="text" id="rOld" name="old_part_number" value="{{ component.part_number }}">
+              <input class="input" type="text" id="rOld" name="nomor_part_lama" value="{{ component.nomor_part }}">
             </div>
           </div>
         </div>

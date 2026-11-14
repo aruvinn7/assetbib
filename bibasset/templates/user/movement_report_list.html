@@ -23,17 +23,17 @@
       <div class="mvr-head">
         <span class="mvr-no">#{{ page_obj.start_index|add:forloop.counter0 }}</span>
         <div class="mvr-title">
-          <strong>{{ r.asset.nama_asset }}</strong>
-          <span>{{ r.asset.asset_number }} · dilaporkan {{ r.created_at|sejak }}</span>
+          <strong>{{ r.aset.nama_aset }}</strong>
+          <span>{{ r.aset.nomor_aset }} · dilaporkan {{ r.dibuat_pada|sejak }}</span>
         </div>
         {% include "components/_move_status.html" with status=r.status %}
       </div>
       {% include "components/_move_route.html" with r=r %}
-      {% if r.notes %}<p class="mvr-note"><i class="fa-regular fa-comment" aria-hidden="true"></i>{{ r.notes }}</p>{% endif %}
+      {% if r.catatan %}<p class="mvr-note"><i class="fa-regular fa-comment" aria-hidden="true"></i>{{ r.catatan }}</p>{% endif %}
       {% if r.status == 'pending' %}
-      <p class="mvr-why">Menunggu GA karena {{ r.reasons|lower }}. Aset tetap tercatat di posisi lama sampai disetujui.</p>
-      {% elif r.reviewed_by %}
-      <p class="mvr-review"><strong>{{ r.reviewed_by.nama }}</strong> · {{ r.reviewed_at|date:"d M Y, H:i" }}{% if r.review_notes %} — {{ r.review_notes }}{% endif %}</p>
+      <p class="mvr-why">Menunggu GA karena {{ r.alasan|lower }}. Aset tetap tercatat di posisi lama sampai disetujui.</p>
+      {% elif r.ditinjau_oleh %}
+      <p class="mvr-review"><strong>{{ r.ditinjau_oleh.nama }}</strong> · {{ r.ditinjau_pada|date:"d M Y, H:i" }}{% if r.catatan_tinjauan %} — {{ r.catatan_tinjauan }}{% endif %}</p>
       {% endif %}
     </li>
     {% endfor %}

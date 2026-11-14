@@ -1,12 +1,12 @@
 {% extends "base.html" %}
-{% block title %}Edit kategori · {{ category.name }}{% endblock %}
+{% block title %}Edit kategori · {{ category.nama }}{% endblock %}
 {% block nav_master %}active{% endblock %}
 
 {% block content %}
 <div class="page">
   {% include "components/_master_tabs.html" with current="category" %}
   <div class="page-head">
-    <div><h1>Edit kategori</h1><div class="sub">{{ category.group.name }} · {{ category.name }} · dipakai {{ category.assets.count }} aset</div></div>
+    <div><h1>Edit kategori</h1><div class="sub">{{ category.grup.nama }} · {{ category.nama }} · dipakai {{ category.assets.count }} aset</div></div>
   </div>
   <form method="post" class="form-layout single">
     {% csrf_token %}

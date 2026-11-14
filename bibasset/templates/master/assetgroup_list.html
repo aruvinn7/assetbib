@@ -19,10 +19,10 @@
           {% for g in groups %}
             <tr>
               <td class="no"><span class="visually-hidden">Nomor </span>{{ forloop.counter }}</td>
-              <td class="lead"><strong class="row-name">{{ g.name }}</strong></td>
+              <td class="lead"><strong class="row-name">{{ g.nama }}</strong></td>
               <td data-label="Kategori" class="wide">
                 <div class="chip-list">
-                  {% for c in g.categories.all|slice:":6" %}<a class="mini-chip" href="{% if is_ga %}{% url 'assetcategory_update' c.pk %}{% else %}{% url 'asset_list' %}?category={{ c.pk }}{% endif %}">{{ c.name }}</a>{% endfor %}
+                  {% for c in g.categories.all|slice:":6" %}<a class="mini-chip" href="{% if is_ga %}{% url 'assetcategory_update' c.pk %}{% else %}{% url 'asset_list' %}?category={{ c.pk }}{% endif %}">{{ c.nama }}</a>{% endfor %}
                   {% if g.categories.all|length > 6 %}<a class="mini-chip more" href="{% url 'assetcategory_list' %}?group={{ g.pk }}">+{{ g.categories.all|length|add:"-6" }} lagi</a>{% endif %}
                   {% if not g.categories.all %}<span class="cell-sub">Belum ada kategori</span>{% endif %}
                 </div>
@@ -33,7 +33,7 @@
                 {% if is_ga %}
                 <a href="{% url 'assetgroup_update' g.pk %}">Edit</a>
                 <form method="post" action="{% url 'assetgroup_delete' g.pk %}"
-                      onsubmit="return confirm('Hapus grup {{ g.name|escapejs }}?{% if g.categories.all %} {{ g.categories.all|length }} kategori di dalamnya ikut terhapus{% if g.asset_count %} dan {{ g.asset_count }} aset kehilangan grup & kategorinya{% endif %}.{% endif %}')">
+                      onsubmit="return confirm('Hapus grup {{ g.nama|escapejs }}?{% if g.categories.all %} {{ g.categories.all|length }} kategori di dalamnya ikut terhapus{% if g.asset_count %} dan {{ g.asset_count }} aset kehilangan grup & kategorinya{% endif %}.{% endif %}')">
                   {% csrf_token %}<button type="submit" class="del">Hapus</button>
                 </form>
                 {% endif %}

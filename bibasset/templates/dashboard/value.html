@@ -68,7 +68,7 @@
       <div class="panel-head sub-head"><h2>Aset bernilai buku terbesar</h2></div>
       <ul class="rank">
         {% for r in top_book %}
-        <li><a href="{% url 'asset_detail' r.asset.pk %}"><span><strong>{{ r.asset.nama_asset }}</strong><small>{{ r.asset.asset_number }} · sisa {{ r.sisa }} tahun</small></span><b>{{ r.book|rupiah }}</b></a></li>
+        <li><a href="{% url 'asset_detail' r.asset.pk %}"><span><strong>{{ r.asset.nama_aset }}</strong><small>{{ r.asset.nomor_aset }} · sisa {{ r.sisa }} tahun</small></span><b>{{ r.book|rupiah }}</b></a></li>
         {% endfor %}
       </ul>
     </section>
@@ -83,7 +83,7 @@
           <thead><tr><th>Aset</th><th class="num">Umur ekonomis</th><th class="num">Berakhir</th><th class="num">Perolehan</th></tr></thead>
           <tbody>
           {% for r in expired %}
-            <tr><td><a class="row-link" href="{% url 'asset_detail' r.asset.pk %}">{{ r.asset.nama_asset }}</a><div class="cell-sub">{{ r.asset.asset_number }} · {{ r.asset.asset_category.name|default:"—" }}</div></td>
+            <tr><td><a class="row-link" href="{% url 'asset_detail' r.asset.pk %}">{{ r.asset.nama_aset }}</a><div class="cell-sub">{{ r.asset.nomor_aset }} · {{ r.asset.kategori_aset.nama|default:"—" }}</div></td>
                 <td class="num">{{ r.umur }} tahun</td><td class="num">{{ r.end|date:"M Y" }}</td><td class="num">{{ r.cost|rupiah }}</td></tr>
           {% endfor %}
           </tbody>
@@ -101,7 +101,7 @@
           <thead><tr><th>Aset</th><th class="num">Berakhir</th><th class="num">Nilai buku</th></tr></thead>
           <tbody>
           {% for r in expiring %}
-            <tr><td><a class="row-link" href="{% url 'asset_detail' r.asset.pk %}">{{ r.asset.nama_asset }}</a><div class="cell-sub">{{ r.asset.asset_number }} · sisa {{ r.sisa }} tahun</div></td>
+            <tr><td><a class="row-link" href="{% url 'asset_detail' r.asset.pk %}">{{ r.asset.nama_aset }}</a><div class="cell-sub">{{ r.asset.nomor_aset }} · sisa {{ r.sisa }} tahun</div></td>
                 <td class="num">{{ r.end|date:"M Y" }}</td><td class="num">{{ r.book|rupiah }}</td></tr>
           {% endfor %}
           </tbody>
@@ -139,7 +139,7 @@
         {% for w in write_offs %}
           <tr>
             <td class="nowrap">{{ w.tanggal|date:"d M Y" }}</td>
-            <td><a class="row-link" href="{% url 'asset_detail' w.asset.pk %}">{{ w.asset.nama_asset }}</a><div class="cell-sub">{{ w.asset.asset_number }}{% if w.created_by %} · oleh {{ w.created_by.nama }}{% endif %}</div></td>
+            <td><a class="row-link" href="{% url 'asset_detail' w.aset.pk %}">{{ w.aset.nama_aset }}</a><div class="cell-sub">{{ w.aset.nomor_aset }}{% if w.dibuat_oleh %} · oleh {{ w.dibuat_oleh.nama }}{% endif %}</div></td>
             <td>{{ w.get_alasan_display }}</td>
             <td class="num">{% if w.nilai_perolehan is not None %}{{ w.nilai_perolehan|rupiah }}{% else %}—{% endif %}</td>
             <td class="num">{% if w.nilai_buku is not None %}{{ w.nilai_buku|rupiah }}{% else %}—{% endif %}</td>
@@ -161,5 +161,5 @@
 {% block extra_scripts %}
 {{ chart_groups|json_script:"chart-groups" }}
 {{ chart_years|json_script:"chart-years" }}
-<script src="{% static 'js/analytics.js' %}?v=2"></script>
+<script src="{% static 'js/analytics.js' %}?v=2" defer></script>
 {% endblock %}

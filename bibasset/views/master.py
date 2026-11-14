@@ -35,7 +35,7 @@ def department_list(request):
     return render(request, "master/department_list.html", {
         "departments": Department.objects.annotate(
             emp_count=Count('employee', distinct=True), asset_count=Count('asset', distinct=True),
-        ).order_by('name')
+        ).order_by('nama')
     })
 
 
@@ -50,7 +50,7 @@ def department_create(request):
 def department_delete(request, pk):
     dept = get_object_or_404(Department, pk=pk)
     if dept.held_assets.exists():
-        messages.error(request, f"Departemen '{dept.name}' tidak bisa dihapus karena punya riwayat serah terima aset.")
+        messages.error(request, f"Departemen '{dept.nama}' tidak bisa dihapus karena punya riwayat serah terima aset.")
         return redirect("department_list")
     dept.delete()
     return redirect("department_list")
@@ -76,9 +76,9 @@ def build_location_tree(locations):
 
     roots = []
     for loc in locations:
-        if loc.parent_id and loc.parent_id in node_map:
-            node_map[loc.parent_id]['children'].append(node_map[loc.pk])
-        elif not loc.parent_id:
+        if loc.induk_id and loc.induk_id in node_map:
+            node_map[loc.induk_id]['children'].append(node_map[loc.pk])
+        elif not loc.induk_id:
             roots.append(node_map[loc.pk])
 
     return roots
@@ -89,7 +89,7 @@ def build_location_tree(locations):
 @role_required(is_ga)
 def location_list(request):
     # select_related parent supaya __str__ tidak N+1
-    locations = Location.objects.select_related('parent').annotate(asset_count=Count('asset')).order_by('full_path')
+    locations = Location.objects.select_related('induk').annotate(asset_count=Count('asset')).order_by('jalur_lengkap')
     tree      = build_location_tree(locations)
     # Jumlah aset termasuk semua sub-lokasi
     def _total(node):
@@ -105,7 +105,7 @@ def location_list(request):
 
 @role_required(is_ga)
 def location_create(request):
-    parents = Location.objects.order_by('full_path')
+    parents = Location.objects.order_by('jalur_lengkap')
     preset_parent = request.GET.get('parent', '')
     if request.method == "POST" and _save_form(request, LocationForm(request.POST)):
         return redirect("location_list")
@@ -118,10 +118,10 @@ def location_create(request):
 @role_required(is_ga)
 def location_update(request, pk):
     loc     = get_object_or_404(Location, pk=pk)
-    parents = Location.objects.exclude(pk=pk).order_by('full_path')
+    parents = Location.objects.exclude(pk=pk).order_by('jalur_lengkap')
     if request.method == "POST":
         if _save_form(request, LocationForm(request.POST, instance=loc),
-                      "Lokasi '{obj.name}' berhasil diperbarui."):
+                      "Lokasi '{obj.nama}' berhasil diperbarui."):
             return redirect("location_list")
         loc.refresh_from_db()
     return render(request, "master/location_update.html", {"loc": loc, "parents": parents, "posted": _posted(request)})
@@ -154,7 +154,7 @@ def assetgroup_list(request):
         # Aset terhubung ke grup lewat kategorinya
         "groups": AssetGroup.objects.prefetch_related('categories').annotate(
             asset_count=Count('categories__assets', distinct=True),
-        ).order_by('name')
+        ).order_by('nama')
     })
 
 
@@ -172,7 +172,7 @@ def assetgroup_update(request, pk):
     )
     if request.method == "POST":
         if _save_form(request, AssetGroupForm(request.POST, instance=group),
-                      "Asset Group '{obj.name}' berhasil diperbarui."):
+                      "Asset Group '{obj.nama}' berhasil diperbarui."):
             return redirect("assetgroup_list")
         group.refresh_from_db()
     return render(request, "master/assetgroup_update.html", {"group": group, "posted": _posted(request)})
@@ -190,15 +190,15 @@ def assetgroup_delete(request, pk):
 
 @role_required(is_ga)
 def assetcategory_list(request):
-    group_id = request.GET.get('group')
-    categories = AssetCategory.objects.select_related('group').annotate(
+    grup_id = request.GET.get('group')
+    categories = AssetCategory.objects.select_related('grup').annotate(
         asset_count=Count('assets')
-    ).order_by('group', 'name')
+    ).order_by('grup', 'nama')
 
     selected_group = None
-    if group_id:
-        categories = categories.filter(group_id=group_id)
-        selected_group = get_object_or_404(AssetGroup, pk=group_id)
+    if grup_id:
+        categories = categories.filter(grup_id=grup_id)
+        selected_group = get_object_or_404(AssetGroup, pk=grup_id)
 
     return render(request, "master/assetcategory_list.html", {
         "categories":     categories,
@@ -238,9 +238,9 @@ def assetcategory_delete(request, pk):
     if count > 0:
         messages.error(
             request,
-            f"Kategori '{category.name}' tidak bisa dihapus karena masih ada {count} aset terdaftar."
+            f"Kategori '{category.nama}' tidak bisa dihapus karena masih ada {count} aset terdaftar."
         )
         return redirect("assetcategory_list")
     category.delete()
-    messages.success(request, f"Kategori '{category.name}' berhasil dihapus.")
+    messages.success(request, f"Kategori '{category.nama}' berhasil dihapus.")
     return redirect("assetcategory_list")

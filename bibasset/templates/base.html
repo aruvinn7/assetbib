@@ -5,13 +5,14 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>{% block title %}Asset Management{% endblock %} · AssetMS</title>
+  <meta name="description" content="AssetMS — sistem manajemen aset PT Borneo Indobara: daftar aset, maintenance, laporan kerusakan, dan nilai buku.">
+  <link rel="icon" href="{% static 'img/favicon.svg' %}" type="image/svg+xml">
 
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300..700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
-
-  <link rel="stylesheet" href="{% static 'css/base.css' %}?v=24">
+  {# Font & ikon di-host sendiri (tanpa CDN pihak ketiga yang memblokir render); ikon = subset dari scripts/build_icons.py #}
+  <link rel="preload" href="{% static 'vendor/outfit/outfit-latin.woff2' %}" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="{% static 'vendor/fontawesome/fa-solid-900.woff2' %}" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="{% static 'vendor/fontawesome/icons.css' %}">
+  <link rel="stylesheet" href="{% static 'css/base.css' %}?v=25">
 
   {# Pulihkan sidebar ringkas sebelum render supaya tidak berkedip #}
   <script>try { if (localStorage.getItem('sbMini') === '1') document.documentElement.classList.add('sb-mini-pending'); } catch (e) {}</script>
@@ -138,7 +139,7 @@
       <i class="fa-solid fa-bars" aria-hidden="true"></i>
     </button>
 
-    <a class="brand topbar-brand" href="{{ home_url }}">
+    <a class="brand topbar-brand" href="{{ home_url }}" aria-label="AssetMS, ke beranda">
       <span class="brand-mark" aria-hidden="true"><i class="fa-solid fa-cubes"></i></span>
       <span class="brand-text">AssetMS</span>
     </a>
@@ -187,7 +188,7 @@
         <div class="dd-menu" id="userMenu" hidden>
           <div class="user-menu-head">
             <strong>{{ emp.nama|default:request.user.username }}</strong>
-            <span>{{ request.user.username }}{% if emp.department %} · {{ emp.department.name }}{% endif %}</span>
+            <span>{{ request.user.username }}{% if emp.departemen %} · {{ emp.departemen.nama }}{% endif %}</span>
             <div><span class="role-badge">{% if emp.ga_profile %}General Affairs{% elif emp.finance_profile %}Finance{% else %}Karyawan{% endif %}</span></div>
           </div>
           {% if emp.ga_profile %}
@@ -421,7 +422,7 @@
 </dialog>
 {% endif %}
 <div class="toasts" id="toasts" aria-live="polite" aria-atomic="false"></div>
-<script src="{% static 'js/app.js' %}?v=4"></script>
+<script src="{% static 'js/app.js' %}?v=5" defer></script>
 {% endif %}
 {% endwith %}
 

@@ -5,7 +5,7 @@
 {% block extra_head %}<link rel="stylesheet" href="{% static 'css/pages/damage_report.css' %}?v=5">{% endblock %}
 
 {% block content %}
-{% firstof posted.severity "medium" as cur_sev %}
+{% firstof posted.tingkat_keparahan "medium" as cur_sev %}
 <div class="page">
   <div class="crumbs">
     <a href="{% url 'user_damage_report_list' %}">Laporan saya</a><i class="fa-solid fa-chevron-right" aria-hidden="true" style="font-size:10px"></i>Lapor kerusakan
@@ -29,8 +29,8 @@
             <div class="picked-asset">
               <i class="fa-solid fa-box-archive" aria-hidden="true"></i>
               <div>
-                <strong>{{ selected_asset.nama_asset }}</strong>
-                <span>{{ selected_asset.asset_number }}{% if selected_asset.asset_category %} · {{ selected_asset.asset_category.name }}{% endif %} · {% if selected_asset.lokasi_asset %}{{ selected_asset.lokasi_asset.full_path }}{% else %}Belum ditempatkan{% endif %}</span>
+                <strong>{{ selected_asset.nama_aset }}</strong>
+                <span>{{ selected_asset.nomor_aset }}{% if selected_asset.kategori_aset %} · {{ selected_asset.kategori_aset.nama }}{% endif %} · {% if selected_asset.lokasi %}{{ selected_asset.lokasi.jalur_lengkap }}{% else %}Belum ditempatkan{% endif %}</span>
               </div>
               <a class="picked-change" href="{% url 'damage_report_create' %}">Ganti aset</a>
             </div>
@@ -53,8 +53,8 @@
               <div class="asset-pick" role="radiogroup" aria-label="Aset yang Anda pegang">
                 {% for a in held_assets %}
                 <label class="ap-opt">
-                  <input type="radio" name="asset_id" value="{{ a.id }}" {% if posted.asset_id == a.id|stringformat:"s" %}checked{% endif %}>
-                  <span><strong>{{ a.nama_asset }}</strong><small>{{ a.asset_number }} · {% if a.lokasi_asset %}{{ a.lokasi_asset.full_path }}{% else %}Belum ditempatkan{% endif %}</small></span>
+                  <input type="radio" name="asset_id" value="{{ a.id }}" {% if posted.aset_id == a.id|stringformat:"s" %}checked{% endif %}>
+                  <span><strong>{{ a.nama_aset }}</strong><small>{{ a.nomor_aset }} · {% if a.lokasi %}{{ a.lokasi.jalur_lengkap }}{% else %}Belum ditempatkan{% endif %}</small></span>
                 </label>
                 {% endfor %}
               </div>
@@ -70,9 +70,9 @@
         <div class="fsec-body">
           <div class="field">
             <label for="rpTitle">Masalahnya apa? <span class="req" aria-hidden="true">*</span></label>
-            <input class="input" type="text" id="rpTitle" name="title" maxlength="200" required value="{{ posted.title|default:'' }}"
-                   placeholder="Mis. AC tidak dingin, printer sering macet" {% if form.title.errors %}aria-invalid="true" aria-describedby="rpTitleErr"{% endif %}>
-            {% if form.title.errors %}<p class="field-error" id="rpTitleErr">Tulis ringkasan masalahnya.</p>{% endif %}
+            <input class="input" type="text" id="rpTitle" name="title" maxlength="200" required value="{{ posted.judul|default:'' }}"
+                   placeholder="Mis. AC tidak dingin, printer sering macet" {% if form.judul.errors %}aria-invalid="true" aria-describedby="rpTitleErr"{% endif %}>
+            {% if form.judul.errors %}<p class="field-error" id="rpTitleErr">Tulis ringkasan masalahnya.</p>{% endif %}
           </div>
 
           <fieldset class="qm-field">
@@ -90,8 +90,8 @@
             <label for="rpDesc">Ceritakan detailnya <span class="req" aria-hidden="true">*</span></label>
             <textarea class="textarea" id="rpDesc" name="description" rows="4" required
                       placeholder="Kapan mulai terjadi? Apa yang terlihat atau terdengar? Sudah pernah terjadi sebelumnya?"
-                      {% if form.description.errors %}aria-invalid="true" aria-describedby="rpDescErr"{% endif %}>{{ posted.description|default:'' }}</textarea>
-            {% if form.description.errors %}<p class="field-error" id="rpDescErr">Jelaskan kondisi kerusakannya.</p>{% endif %}
+                      {% if form.deskripsi.errors %}aria-invalid="true" aria-describedby="rpDescErr"{% endif %}>{{ posted.deskripsi|default:'' }}</textarea>
+            {% if form.deskripsi.errors %}<p class="field-error" id="rpDescErr">Jelaskan kondisi kerusakannya.</p>{% endif %}
           </div>
 
           <div class="field">
@@ -99,8 +99,8 @@
             <label class="photo-drop" for="rpPhoto" id="rpDrop">
               <span class="photo-drop-text" id="rpPhotoText"><i class="fa-solid fa-camera" aria-hidden="true"></i><strong>Ambil atau pilih foto</strong><small>JPG/PNG, maksimal 5 MB</small></span>
             </label>
-            <input class="visually-hidden" type="file" id="rpPhoto" name="photo_evidence" accept="image/*" {% if form.photo_evidence.errors %}aria-invalid="true" aria-describedby="rpPhotoErr"{% endif %}>
-            {% if form.photo_evidence.errors %}<p class="field-error" id="rpPhotoErr">{{ form.photo_evidence.errors.0 }}</p>{% endif %}
+            <input class="visually-hidden" type="file" id="rpPhoto" name="photo_evidence" accept="image/*" {% if form.foto_bukti.errors %}aria-invalid="true" aria-describedby="rpPhotoErr"{% endif %}>
+            {% if form.foto_bukti.errors %}<p class="field-error" id="rpPhotoErr">{{ form.foto_bukti.errors.0 }}</p>{% endif %}
             <p class="field-error" id="rpPhotoSize" hidden>Foto lebih dari 5 MB. Pilih foto lain atau kecilkan dulu.</p>
           </div>
         </div>

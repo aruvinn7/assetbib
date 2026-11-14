@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% load rupiah %}
-{% block title %}Finansial · {{ asset.asset_number }}{% endblock %}
+{% block title %}Finansial · {{ asset.nomor_aset }}{% endblock %}
 {% block nav_assets %}active{% endblock %}
 
 {% block content %}
@@ -8,24 +8,24 @@
 <div class="page">
   <div class="crumbs">
     <a href="{% url 'asset_list' %}">Daftar aset</a><i class="fa-solid fa-chevron-right" aria-hidden="true" style="font-size:10px"></i>
-    <a href="{% url 'asset_detail' asset.id %}">{{ asset.asset_number }}</a><i class="fa-solid fa-chevron-right" aria-hidden="true" style="font-size:10px"></i>Finansial
+    <a href="{% url 'asset_detail' asset.id %}">{{ asset.nomor_aset }}</a><i class="fa-solid fa-chevron-right" aria-hidden="true" style="font-size:10px"></i>Finansial
   </div>
   <div class="page-head">
     <div>
       <h1>Data finansial</h1>
-      <div class="sub">{{ asset.nama_asset }} · beli {{ asset.tanggal_pembelian|date:"d M Y" }}</div>
+      <div class="sub">{{ asset.nama_aset }} · beli {{ asset.tanggal_pembelian|date:"d M Y" }}</div>
     </div>
     {% if emp.finance_profile %}<div class="page-actions"><a href="{% url 'financial_update' asset.id %}" class="btn outline"><i class="fa-regular fa-pen-to-square" aria-hidden="true"></i>Edit</a></div>{% endif %}
   </div>
 
-  {% if asset.lifecycle_status == 'writeoff' and asset.write_off %}
+  {% if asset.status_siklus_hidup == 'writeoff' and asset.write_off %}
   <div class="note warn" style="margin-bottom:20px"><i class="fa-solid fa-box-archive" aria-hidden="true"></i>
     <span>Di-write off {{ asset.write_off.tanggal|date:"d M Y" }}. Nilai buku berhenti menyusut di tanggal itu{% if asset.write_off.nilai_buku is not None %} ({{ asset.write_off.nilai_buku|rupiah }} dihapus dari pembukuan){% endif %}.</span></div>
   {% endif %}
 
   <div class="stats">
-    <div class="stat"><span class="stat-label">Nilai perolehan</span><strong class="stat-value">{{ financial.nilai_awal_aset|rupiah }}</strong><span class="stat-note">residual {{ financial.nilai_residual|rupiah }}</span></div>
-    <div class="stat"><span class="stat-label">Nilai buku {% if asset.lifecycle_status == 'writeoff' %}saat write off{% else %}hari ini{% endif %}</span><strong class="stat-value">{{ book|rupiah }}</strong><span class="stat-note">{{ book_pct }}% dari nilai perolehan</span></div>
+    <div class="stat"><span class="stat-label">Nilai perolehan</span><strong class="stat-value">{{ financial.nilai_awal|rupiah }}</strong><span class="stat-note">residual {{ financial.nilai_residual|rupiah }}</span></div>
+    <div class="stat"><span class="stat-label">Nilai buku {% if asset.status_siklus_hidup == 'writeoff' %}saat write off{% else %}hari ini{% endif %}</span><strong class="stat-value">{{ book|rupiah }}</strong><span class="stat-note">{{ book_pct }}% dari nilai perolehan</span></div>
     <div class="stat"><span class="stat-label">Penyusutan per tahun</span><strong class="stat-value">{{ financial.depresiasi_tahunan|rupiah }}</strong><span class="stat-note">garis lurus · {{ financial.umur_ekonomis }} tahun</span></div>
     <div class="stat"><span class="stat-label">Sisa umur ekonomis</span><strong class="stat-value">{{ financial.sisa_umur_ekonomis }} <small>tahun</small></strong><span class="stat-note">terpakai {{ financial.umur_terpakai }} tahun · berakhir {{ end_date|date:"M Y" }}</span></div>
   </div>
@@ -56,11 +56,11 @@
       <section class="panel">
         <div class="panel-head"><h2>Dicatat</h2></div>
         <dl class="kv">
-          <div><dt>Oleh</dt><dd>{{ financial.created_by.nama|default:"—" }}</dd></div>
-          <div><dt>Tanggal</dt><dd>{{ financial.created_at|date:"d M Y" }}</dd></div>
-          <div><dt>Kategori</dt><dd>{{ asset.asset_category.name|default:"—" }}</dd></div>
-          <div><dt>Lokasi</dt><dd>{{ asset.lokasi_asset|default:"—" }}</dd></div>
-          <div><dt>Status</dt><dd>{% include "components/_lifecycle.html" with status=asset.lifecycle_status %}</dd></div>
+          <div><dt>Oleh</dt><dd>{{ financial.dibuat_oleh.nama|default:"—" }}</dd></div>
+          <div><dt>Tanggal</dt><dd>{{ financial.dibuat_pada|date:"d M Y" }}</dd></div>
+          <div><dt>Kategori</dt><dd>{{ asset.kategori_aset.nama|default:"—" }}</dd></div>
+          <div><dt>Lokasi</dt><dd>{{ asset.lokasi|default:"—" }}</dd></div>
+          <div><dt>Status</dt><dd>{% include "components/_lifecycle.html" with status=asset.status_siklus_hidup %}</dd></div>
         </dl>
       </section>
       <section class="panel">

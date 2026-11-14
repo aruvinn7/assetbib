@@ -10,24 +10,48 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/5.1/ref/settings/
 """
 
+import os
 from pathlib import Path
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+from django.core.exceptions import ImproperlyConfigured
+
+
+def env_list(name, default=()):
+    """Env berisi daftar dipisah koma → list (kosong diabaikan)."""
+    raw = os.environ.get(name)
+    return [x.strip() for x in raw.split(',') if x.strip()] if raw else list(default)
+
+
+# Vercel mengisi VERCEL=1 saat build dan saat berjalan. Semua nilai di bawah dibaca dari env,
+# jadi di laptop (tanpa env) aplikasi tetap jalan seperti biasa: SQLite + folder media/.
+ON_VERCEL = os.environ.get('VERCEL') == '1'
+
+# Lokal tetap True; di Vercel otomatis False kecuali DJANGO_DEBUG=True diset
+DEBUG = os.environ.get('DJANGO_DEBUG', 'False' if ON_VERCEL else 'True') == 'True'
+
+SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY')
+if not SECRET_KEY:
+    if ON_VERCEL:
+        raise ImproperlyConfigured('Set env DJANGO_SECRET_KEY di Vercel (Project Settings → Environment Variables).')
+    SECRET_KEY = 'django-insecure-rkzs)ii$&7hsui8_ftfxjbc-fz15+hf!exy*1v(tv1!0*lb1hh'  # hanya untuk lokal
+
+# Domain yang dilayani. Di Vercel: semua *.vercel.app + domain sendiri lewat DJANGO_ALLOWED_HOSTS
+ALLOWED_HOSTS = env_list('DJANGO_ALLOWED_HOSTS', ['.vercel.app'] if ON_VERCEL else ['*'])
+if ON_VERCEL and '.vercel.app' not in ALLOWED_HOSTS:
+    ALLOWED_HOSTS.append('.vercel.app')
+
 CSRF_TRUSTED_ORIGINS = [
     'https://amari-matter-lopsidedly.ngrok-free.dev',
+    *env_list('DJANGO_CSRF_TRUSTED_ORIGINS'),
 ]
 
-# Quick-start development settings - unsuitable for production
-# See https://docs.djangoproject.com/en/5.1/howto/deployment/checklist/
-
-# SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-rkzs)ii$&7hsui8_ftfxjbc-fz15+hf!exy*1v(tv1!0*lb1hh'
-
-# SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
-
-ALLOWED_HOSTS = ['*']
+if ON_VERCEL:
+    # Vercel meneruskan HTTPS lewat proxy; tanpa ini Django mengira permintaan HTTP biasa
+    SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
 
 
 # Application definition
@@ -45,6 +69,8 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    # Sajikan /static/ dari aplikasi sendiri: terkompres (br/gzip) + cache 1 tahun untuk file ber-hash
+    'whitenoise.middleware.WhiteNoiseMiddleware',
     # Kompres HTML/JSON: halaman daftar 100–200 KB jadi ±20 KB (terasa saat diakses lewat ngrok/ponsel)
     'django.middleware.gzip.GZipMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
@@ -80,18 +106,32 @@ WSGI_APPLICATION = 'assetbib.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/5.1/ref/settings/#databases
 
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
-        'OPTIONS': {
-            # Transaksi tulis langsung mengunci di awal → tidak ada "database is locked"
-            # saat dua orang menyimpan bersamaan; tunggu kunci maksimal 20 detik
-            'transaction_mode': 'IMMEDIATE',
-            'timeout': 20,
-        },
+# Server: PostgreSQL dari env DATABASE_URL (Neon) atau POSTGRES_URL (integrasi Supabase di Vercel).
+# Lokal tanpa env: SQLite seperti biasa. Filesystem Vercel tidak permanen → SQLite tidak bisa dipakai di sana.
+DATABASE_URL = os.environ.get('DATABASE_URL') or os.environ.get('POSTGRES_URL')
+if DATABASE_URL:
+    import dj_database_url
+    DATABASES = {
+        # Koneksi dipakai ulang 60 detik di instance yang sama, dicek dulu sebelum dipakai
+        'default': dj_database_url.parse(DATABASE_URL, conn_max_age=60, conn_health_checks=True),
     }
-}
+    # Aman untuk connection pooler (PgBouncer mode transaksi) yang dipakai Neon/Supabase
+    DATABASES['default']['DISABLE_SERVER_SIDE_CURSORS'] = True
+else:
+    if ON_VERCEL:
+        raise ImproperlyConfigured('Set env DATABASE_URL (PostgreSQL) di Vercel; SQLite tidak bisa dipakai di Vercel.')
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': BASE_DIR / 'db.sqlite3',
+            'OPTIONS': {
+                # Transaksi tulis langsung mengunci di awal → tidak ada "database is locked"
+                # saat dua orang menyimpan bersamaan; tunggu kunci maksimal 20 detik
+                'transaction_mode': 'IMMEDIATE',
+                'timeout': 20,
+            },
+        }
+    }
 
 
 # Password validation
@@ -131,6 +171,43 @@ USE_TZ = True
 STATIC_URL = 'static/'
 STATICFILES_DIRS = [BASE_DIR / 'static']
 STATIC_ROOT = BASE_DIR / 'staticfiles'   # tujuan `collectstatic` saat deploy
+# Produksi: nama file diberi hash isi (style.3f2a1c.css) → aman di-cache selamanya, dan dikompres saat collectstatic.
+# Saat DEBUG pakai penyimpanan biasa supaya tidak perlu collectstatic tiap ubah CSS/JS.
+STORAGES = {
+    'default': {'BACKEND': 'django.core.files.storage.FileSystemStorage'},
+    'staticfiles': {'BACKEND': 'django.contrib.staticfiles.storage.StaticFilesStorage' if DEBUG
+                    else 'whitenoise.storage.CompressedManifestStaticFilesStorage'},
+}
+
+# Foto aset, foto bukti kerusakan, scan & foto berita acara: di Vercel harus di object storage
+# S3-compatible (Supabase Storage, Cloudflare R2, AWS S3), karena file di server Vercel hilang tiap deploy.
+# Bucket dibuat PRIVAT: tautan foto ditandatangani & kedaluwarsa (1 jam), jadi tidak bisa dibuka orang luar.
+if os.environ.get('MEDIA_BUCKET'):
+    STORAGES['default'] = {
+        'BACKEND': 'storages.backends.s3.S3Storage',
+        'OPTIONS': {
+            'bucket_name': os.environ['MEDIA_BUCKET'],
+            'endpoint_url': os.environ.get('MEDIA_ENDPOINT_URL') or None,   # kosong = AWS S3
+            'region_name': os.environ.get('MEDIA_REGION') or None,
+            'access_key': os.environ.get('MEDIA_ACCESS_KEY_ID'),
+            'secret_key': os.environ.get('MEDIA_SECRET_ACCESS_KEY'),
+            'location': os.environ.get('MEDIA_PREFIX', 'media'),
+            'default_acl': None,
+            'querystring_auth': True,
+            'querystring_expire': 3600,
+            'file_overwrite': False,
+            'signature_version': 's3v4',
+            'addressing_style': os.environ.get('MEDIA_ADDRESSING_STYLE') or None,  # Supabase: 'path'
+        },
+    }
+elif ON_VERCEL:
+    raise ImproperlyConfigured('Set env MEDIA_BUCKET dkk. di Vercel; upload foto tidak bisa disimpan di server Vercel.')
+
+LOGGING = {
+    'version': 1, 'disable_existing_loggers': False,
+    'handlers': {'console': {'class': 'logging.StreamHandler'}},
+    'loggers': {'django': {'handlers': ['console'], 'level': os.environ.get('DJANGO_LOG_LEVEL', 'INFO')}},
+}
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
 

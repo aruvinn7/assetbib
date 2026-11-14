@@ -48,13 +48,13 @@ def _build_notifications(role):
         today = timezone.localdate()
         sched = MaintenanceSchedule.objects.aggregate(
             overdue=Count('id', filter=Q(status='overdue')),
-            soon=Count('id', filter=Q(status='upcoming', scheduled_date__range=[today, today + timedelta(days=7)])),
+            soon=Count('id', filter=Q(status='upcoming', tanggal_jadwal__range=[today, today + timedelta(days=7)])),
         )
         damage = DamageReport.objects.aggregate(
-            pending=Count('id', filter=Q(report_status='pending')),
-            critical=Count('id', filter=Q(severity='critical', report_status__in=DamageReport.ACTIVE_STATUS)),
+            pending=Count('id', filter=Q(status_laporan='pending')),
+            critical=Count('id', filter=Q(tingkat_keparahan='critical', status_laporan__in=DamageReport.ACTIVE_STATUS)),
         )
-        no_location = Asset.objects.filter(lokasi_asset__isnull=True).count()
+        no_location = Asset.objects.filter(lokasi__isnull=True).count()
         moves = _pending_movement_reports(role)
         if moves:
             items.append({'kind': 'mandatory', 'text': f"{moves} laporan pindah aset menunggu persetujuan",
@@ -72,9 +72,9 @@ def _build_notifications(role):
                           'sub': 'Siapkan jadwal pengerjaan', 'url': f'{maint_url}?status=upcoming'})
         if no_location:
             items.append({'kind': 'none', 'text': f'{no_location} aset belum punya lokasi',
-                          'sub': 'Tempatkan agar mudah dilacak', 'url': reverse('asset_list') + '?location=none'})
+                          'sub': 'Tempatkan agar mudah dilacak', 'url': reverse('asset_list') + '?lokasi=none'})
         # Berita acara: temuan yang menumpuk ≥ 7 hari di draf, dan BA terbit yang belum ditandatangani
-        draf = BeritaAcaraItem.objects.filter(ba__status='draft', ba__jenis='kerusakan').aggregate(n=Count('id'), awal=Min('created_at'))
+        draf = BeritaAcaraItem.objects.filter(ba__status='draft', ba__jenis='kerusakan').aggregate(n=Count('id'), awal=Min('dibuat_pada'))
         if draf['n'] and (timezone.localdate() - draf['awal'].date()).days >= 7:
             items.append({'kind': 'report', 'text': f"{draf['n']} temuan kerusakan belum dibuatkan berita acara",
                           'sub': 'Tinjau draf lalu terbitkan', 'url': reverse('ba_list')})

@@ -21,8 +21,8 @@
           <div class="return-summary">
             <i class="fa-solid {% if assignment.is_shared %}fa-people-group{% else %}fa-user{% endif %}" aria-hidden="true"></i>
             <div>
-              <strong>{{ asset.nama_asset }}</strong>
-              <span>{{ asset.asset_number }} · dikembalikan {% if assignment.is_shared %}departemen {{ assignment.department.name }}{% else %}{{ assignment.assigned_to.nama }}{% if assignment.assigned_to.department %} ({{ assignment.assigned_to.department.name }}){% endif %}{% endif %} · diserahkan {{ assignment.assigned_date|date:"d M Y" }}</span>
+              <strong>{{ asset.nama_aset }}</strong>
+              <span>{{ asset.nomor_aset }} · dikembalikan {% if assignment.is_shared %}departemen {{ assignment.departemen.nama }}{% else %}{{ assignment.diserahkan_kepada.nama }}{% if assignment.diserahkan_kepada.departemen %} ({{ assignment.diserahkan_kepada.departemen.nama }}){% endif %}{% endif %} · diserahkan {{ assignment.tanggal_serah|date:"d M Y" }}</span>
             </div>
           </div>
         </div>
@@ -32,11 +32,11 @@
         <div class="fsec-head"><h2 id="secPlace">Disimpan di</h2><p>Bawaannya tempat titip GA di site yang sama. Aset di tempat titip berstatus Tersedia dan siap diserahkan lagi.</p></div>
         <div class="fsec-body">
           <div class="field">
-            <label for="location">Lokasi <span class="req" aria-hidden="true">*</span></label>
-            <input class="input select-filter" type="search" placeholder="Saring lokasi…" data-filter-for="location" aria-label="Saring daftar lokasi">
-            <select name="location" id="location" class="select" required>
+            <label for="lokasi">Lokasi <span class="req" aria-hidden="true">*</span></label>
+            <input class="input select-filter" type="search" placeholder="Saring lokasi…" data-filter-for="lokasi" aria-label="Saring daftar lokasi">
+            <select name="lokasi" id="lokasi" class="select" required>
               <option value="">Pilih lokasi…</option>
-              {% for l in locations %}<option value="{{ l.pk }}" {% if posted %}{% if posted.location == l.pk|stringformat:'s' %}selected{% endif %}{% elif storage and storage.pk == l.pk %}selected{% endif %}>{% if l.is_storage %}Tempat titip · {% endif %}{{ l.full_path }}</option>{% endfor %}
+              {% for l in locations %}<option value="{{ l.pk }}" {% if posted %}{% if posted.lokasi == l.pk|stringformat:'s' %}selected{% endif %}{% elif storage and storage.pk == l.pk %}selected{% endif %}>{% if l.tempat_penyimpanan %}Tempat titip · {% endif %}{{ l.jalur_lengkap }}</option>{% endfor %}
             </select>
             {% if not storage %}<p class="field-hint">Belum ada tempat titip GA. Tandai lokasi gudang sebagai “Tempat titip GA” di <a href="{% url 'location_list' %}">Master data › Lokasi</a>.</p>{% endif %}
           </div>
@@ -48,17 +48,17 @@
         <div class="fsec-body">
           <div class="cond-list" role="radiogroup" aria-labelledby="secCond">
             {% for value, label in conditions %}
-            <label class="check-row"><input type="radio" name="condition" value="{{ value }}" required {% if posted %}{% if posted.condition == value %}checked{% endif %}{% elif value == 'baik' %}checked{% endif %}><span><strong>{{ label }}</strong>{% if value == 'baik' %} — lengkap dan berfungsi normal.{% elif value == 'rusak_ringan' %} — laporan kerusakan tingkat ringan.{% else %} — laporan kerusakan tingkat parah.{% endif %}</span></label>
+            <label class="check-row"><input type="radio" name="kondisi" value="{{ value }}" required {% if posted %}{% if posted.kondisi == value %}checked{% endif %}{% elif value == 'baik' %}checked{% endif %}><span><strong>{{ label }}</strong>{% if value == 'baik' %} — lengkap dan berfungsi normal.{% elif value == 'rusak_ringan' %} — laporan kerusakan tingkat ringan.{% else %} — laporan kerusakan tingkat parah.{% endif %}</span></label>
             {% endfor %}
           </div>
           <div class="fgrid">
             <div class="field">
-              <label for="returned_date">Tanggal kembali</label>
-              <input type="date" name="returned_date" id="returned_date" class="input" value="{% if posted.returned_date %}{{ posted.returned_date }}{% else %}{% now 'Y-m-d' %}{% endif %}" max="{% now 'Y-m-d' %}">
+              <label for="tanggal_kembali">Tanggal kembali</label>
+              <input type="date" name="tanggal_kembali" id="tanggal_kembali" class="input" value="{% if posted.tanggal_kembali %}{{ posted.tanggal_kembali }}{% else %}{% now 'Y-m-d' %}{% endif %}" max="{% now 'Y-m-d' %}">
             </div>
             <div class="field span-all">
-              <label for="notes">Catatan <span class="opt" id="notesOpt">opsional</span><span class="req" id="notesReq" aria-hidden="true" hidden>*</span></label>
-              <textarea name="notes" id="notes" class="textarea" rows="3" placeholder="Contoh: charger tidak dikembalikan, layar tergores.">{{ posted.notes|default:'' }}</textarea>
+              <label for="catatan">Catatan <span class="opt" id="notesOpt">opsional</span><span class="req" id="notesReq" aria-hidden="true" hidden>*</span></label>
+              <textarea name="catatan" id="catatan" class="textarea" rows="3" placeholder="Contoh: charger tidak dikembalikan, layar tergores.">{{ posted.catatan|default:'' }}</textarea>
             </div>
           </div>
         </div>
@@ -78,16 +78,16 @@
 <script>
   (() => {
     const form = document.getElementById('returnForm');
-    const notes = document.getElementById('notes');
+    const notes = document.getElementByid('catatan');
     // Rusak → catatan wajib karena jadi isi laporan kerusakan
     const sync = () => {
-      const damaged = form.querySelector('input[name=condition]:checked')?.value !== 'baik';
+      const damaged = form.querySelector('input[name=kondisi]:checked')?.value !== 'baik';
       notes.required = damaged;
       document.getElementById('notesOpt').hidden = damaged;
       document.getElementById('notesReq').hidden = !damaged;
       notes.placeholder = damaged ? 'Jelaskan kerusakannya, mis. engsel layar patah, tidak bisa menyala.' : 'Contoh: lengkap dengan charger dan tas.';
     };
-    form.addEventListener('change', e => { if (e.target.name === 'condition') sync(); });
+    form.addEventListener('change', e => { if (e.target.name === 'kondisi') sync(); });
     sync();
   })();
 </script>

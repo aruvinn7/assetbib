@@ -16,6 +16,12 @@
     <div>
       <h1><span id="greet">Halo</span>, {{ request.user.employee.nama|default:request.user.username }}</h1>
       <div class="sub"><span id="todayLabel">Hari ini</span> · {{ total_asset }} aset terdaftar, {{ total_with_location }} sudah berlokasi</div>
+      {# Salam & tanggal pakai jam perangkat (WIB/WITA), diisi tepat di sini supaya tampil sejak render pertama, bukan setelah seluruh halaman diurai #}
+      <script>(() => {
+        const d = new Date(), h = d.getHours();
+        document.getElementById('greet').textContent = h < 11 ? 'Selamat pagi' : h < 15 ? 'Selamat siang' : h < 18 ? 'Selamat sore' : 'Selamat malam';
+        document.getElementById('todayLabel').textContent = d.toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+      })();</script>
     </div>
     {% if is_ga %}
     <div class="page-actions">
@@ -66,10 +72,10 @@
             {% with d=sch.days_remaining %}
             <tr>
               <td class="q-status">{% if sch.status == 'overdue' %}{% include "components/_status.html" with kind="warning" label="Terlambat" %}{% elif d <= 7 %}{% include "components/_status.html" with kind="mandatory" label="Segera" %}{% else %}{% include "components/_status.html" with kind="none" label="Terjadwal" %}{% endif %}</td>
-              <td class="q-asset"><a class="row-link" href="{% url 'asset_detail' sch.asset.id %}">{{ sch.asset.nama_asset }}</a><div class="cell-sub">{{ sch.asset.asset_number }}{% if sch.asset.asset_category %} · {{ sch.asset.asset_category.name }}{% endif %}</div></td>
-              <td class="loc">{% include "components/_location.html" with loc=sch.asset.lokasi_asset %}</td>
-              <td class="num q-when">{{ sch.scheduled_date|date:"d M Y" }}<div class="cell-sub {% if d < 0 %}late{% endif %}">{% if d < 0 %}{{ d|abs_value }} hari terlambat{% elif d == 0 %}hari ini{% else %}{{ d }} hari lagi{% endif %}</div></td>
-              {% if is_ga %}<td class="num q-act"><a class="btn sm outline" href="{% url 'maintenance_create' sch.asset.id %}" data-quick-maint>Catat</a></td>{% endif %}
+              <td class="q-asset"><a class="row-link" href="{% url 'asset_detail' sch.aset.id %}">{{ sch.aset.nama_aset }}</a><div class="cell-sub">{{ sch.aset.nomor_aset }}{% if sch.aset.kategori_aset %} · {{ sch.aset.kategori_aset.nama }}{% endif %}</div></td>
+              <td class="loc">{% include "components/_location.html" with loc=sch.aset.lokasi %}</td>
+              <td class="num q-when">{{ sch.tanggal_jadwal|date:"d M Y" }}<div class="cell-sub {% if d < 0 %}late{% endif %}">{% if d < 0 %}{{ d|abs_value }} hari terlambat{% elif d == 0 %}hari ini{% else %}{{ d }} hari lagi{% endif %}</div></td>
+              {% if is_ga %}<td class="num q-act"><a class="btn sm outline" href="{% url 'maintenance_create' sch.aset.id %}" data-quick-maint>Catat</a></td>{% endif %}
             </tr>
             {% endwith %}
           {% endfor %}
@@ -92,11 +98,11 @@
             <tbody>
             {% for report in pending_damage_reports %}
               <tr>
-                <td class="r-sev">{% include "components/_severity.html" with severity=report.severity %}</td>
-                <td class="r-asset">{% if is_ga %}<a class="row-link" href="{% url 'ga_damage_report_detail' report.pk %}">{{ report.asset.nama_asset }}</a>{% else %}{{ report.asset.nama_asset }}{% endif %}<div class="cell-sub">{{ report.asset.asset_number }}</div></td>
-                <td class="r-title">{{ report.title|truncatechars:48 }}</td>
-                <td class="r-who">{{ report.reported_by.nama|default:"—" }}</td>
-                <td class="num r-when">{{ report.reported_at|date:"d M Y" }}</td>
+                <td class="r-sev">{% include "components/_severity.html" with severity=report.tingkat_keparahan %}</td>
+                <td class="r-asset">{% if is_ga %}<a class="row-link" href="{% url 'ga_damage_report_detail' report.pk %}">{{ report.aset.nama_aset }}</a>{% else %}{{ report.aset.nama_aset }}{% endif %}<div class="cell-sub">{{ report.aset.nomor_aset }}</div></td>
+                <td class="r-title">{{ report.judul|truncatechars:48 }}</td>
+                <td class="r-who">{{ report.dilaporkan_oleh.nama|default:"—" }}</td>
+                <td class="num r-when">{{ report.dilaporkan_pada|date:"d M Y" }}</td>
               </tr>
             {% endfor %}
             </tbody>
@@ -118,7 +124,7 @@
         {% for loc in roots %}{% if loc.total_assets > 0 %}
         <li>
           <a href="{% if is_ga %}{% url 'location_dashboard' %}?location={{ loc.pk }}{% else %}{% url 'asset_list' %}?location={{ loc.pk }}{% endif %}">
-            <span class="loc-name">{{ loc.name }}</span>
+            <span class="loc-name">{{ loc.nama }}</span>
             <span class="loc-total">{{ loc.total_assets }}</span>
             <span class="loc-bar" aria-hidden="true">
               <i class="s" style="width:{% widthratio loc.total_active loc.total_assets 100 %}%"></i><i class="m" style="width:{% widthratio loc.total_maint loc.total_assets 100 %}%"></i><i class="o" style="width:{% widthratio loc.total_writeoff loc.total_assets 100 %}%"></i>
@@ -184,15 +190,15 @@
         <tbody class="group" id="grp-{{ group.pk }}">
           <tr class="group-row">
             <td>
-              <button type="button" class="expand" aria-expanded="false" aria-controls="grp-{{ group.pk }}" aria-label="Tampilkan kategori {{ group.name }}"><i class="fa-solid fa-chevron-right" aria-hidden="true"></i></button>
-              <a class="row-link" href="{% url 'asset_list' %}?group={{ group.pk }}">{{ group.name }}</a>
+              <button type="button" class="expand" aria-expanded="false" aria-controls="grp-{{ group.pk }}" aria-label="Tampilkan kategori {{ group.nama }}"><i class="fa-solid fa-chevron-right" aria-hidden="true"></i></button>
+              <a class="row-link" href="{% url 'asset_list' %}?group={{ group.pk }}">{{ group.nama }}</a>
               <span class="cell-sub">{{ group.categories_with_stats|length }} kategori</span>
             </td>
             <td class="num"><strong>{{ group.total }}</strong></td><td class="num">{{ group.active }}</td><td class="num">{{ group.maintenance|default:"—" }}</td><td class="num">{{ group.writeoff|default:"—" }}</td>
           </tr>
           {% for cat in group.categories_with_stats %}{% if cat.total > 0 %}
           <tr class="cat-row">
-            <td><a href="{% url 'asset_list' %}?group={{ group.pk }}&category={{ cat.pk }}">{{ cat.name }}</a></td>
+            <td><a href="{% url 'asset_list' %}?group={{ group.pk }}&category={{ cat.pk }}">{{ cat.nama }}</a></td>
             <td class="num">{{ cat.total }}</td><td class="num">{{ cat.active }}</td><td class="num">{{ cat.maintenance|default:"—" }}</td><td class="num">{{ cat.writeoff|default:"—" }}</td>
           </tr>
           {% endif %}{% endfor %}
@@ -213,10 +219,10 @@
         <tbody>
         {% for asset in recent_assets %}
           <tr>
-            <td><a class="row-link" href="{% url 'asset_detail' asset.pk %}">{{ asset.nama_asset }}</a><div class="cell-sub">{{ asset.asset_number }} · PO {{ asset.no_po|default:"—" }}</div></td>
-            <td>{{ asset.asset_category.name|default:"—" }}<div class="cell-sub">{{ asset.asset_category.group.name|default:"" }}</div></td>
-            <td class="loc">{% include "components/_location.html" with loc=asset.lokasi_asset %}</td>
-            <td>{% include "components/_lifecycle.html" with status=asset.lifecycle_status %}</td>
+            <td><a class="row-link" href="{% url 'asset_detail' asset.pk %}">{{ asset.nama_aset }}</a><div class="cell-sub">{{ asset.nomor_aset }} · PO {{ asset.nomor_po|default:"—" }}</div></td>
+            <td>{{ asset.kategori_aset.nama|default:"—" }}<div class="cell-sub">{{ asset.kategori_aset.grup.nama|default:"" }}</div></td>
+            <td class="loc">{% include "components/_location.html" with loc=asset.lokasi %}</td>
+            <td>{% include "components/_lifecycle.html" with status=asset.status_siklus_hidup %}</td>
             <td>{% with ms=asset.maintenance_status %}{% if ms == 'overdue' %}{% include "components/_status.html" with kind="warning" label="Terlambat" %}{% elif ms == 'upcoming_soon' %}{% include "components/_status.html" with kind="mandatory" label="Segera" %}{% elif ms == 'on_track' %}{% include "components/_status.html" with kind="safe" label="Sesuai jadwal" %}{% else %}{% include "components/_status.html" with kind="none" label="Belum diatur" %}{% endif %}{% endwith %}</td>
           </tr>
         {% endfor %}
@@ -239,11 +245,6 @@
 {{ new_asset_data|json_script:"new-asset-data" }}
 {{ status_counts|json_script:"status-counts" }}
 <script>
-  const h = new Date().getHours();
-  document.getElementById('greet').textContent = h < 11 ? 'Selamat pagi' : h < 15 ? 'Selamat siang' : h < 18 ? 'Selamat sore' : 'Selamat malam';
-  document.getElementById('todayLabel').textContent =
-    new Date().toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
-
   // Grup aset: buka/tutup daftar kategori
   document.querySelectorAll('.groups .expand').forEach(btn => {
     btn.addEventListener('click', () => {

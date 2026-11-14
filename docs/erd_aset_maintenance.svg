@@ -1,0 +1,340 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="2320" height="1436" viewBox="0 0 1160 718">
+  <rect width="1160" height="718" fill="#ffffff"/>
+  <text x="68" y="32" font-size="15" font-weight="700" fill="#0f172a"
+      font-family="Arial">ERD Logis AssetMS — Domain Aset &amp; Maintenance</text>
+    <text x="68" y="50" font-size="9.6" fill="#64748b" font-family="Arial">
+      PT Borneo Indobara · 6 entitas · 11 relasi · data bagian aset dan jadwal maintenance dilebur ke entitasnya</text>
+  <g>
+    <rect x="68" y="70" width="248" height="219" rx="10"
+      fill="#fbfdff" stroke="#cbd5e1" stroke-width="0.9" stroke-dasharray="5 4"/>
+    <text x="78" y="85" font-size="9" font-weight="700"
+      letter-spacing="0.6" fill="#94a3b8" font-family="Arial">MASTER PENDUKUNG</text>
+  </g>
+  <g>
+    <rect x="462" y="70" width="248" height="135" rx="10"
+      fill="#fbfdff" stroke="#cbd5e1" stroke-width="0.9" stroke-dasharray="5 4"/>
+    <text x="472" y="85" font-size="9" font-weight="700"
+      letter-spacing="0.6" fill="#94a3b8" font-family="Arial">PELAKU / REFERENSI AUDIT</text>
+  </g>
+  <g>
+    <rect x="462" y="212" width="248" height="478" rx="10"
+      fill="#fbfdff" stroke="#cbd5e1" stroke-width="0.9" stroke-dasharray="5 4"/>
+    <text x="472" y="227" font-size="9" font-weight="700"
+      letter-spacing="0.6" fill="#94a3b8" font-family="Arial">ASET</text>
+  </g>
+  <g>
+    <rect x="880" y="212" width="248" height="490" rx="10"
+      fill="#fbfdff" stroke="#cbd5e1" stroke-width="0.9" stroke-dasharray="5 4"/>
+    <text x="890" y="227" font-size="9" font-weight="700"
+      letter-spacing="0.6" fill="#94a3b8" font-family="Arial">MAINTENANCE &amp; LAPORAN KERUSAKAN</text>
+  </g>
+  <g><path d="M 470 170.5 L 359.20 170.50 Q 353.2 170.5 353.20 164.50 L 353.20 127.00 Q 353.2 121 347.20 121.00 L 308 121" fill="none" stroke="#5b6b80" stroke-width="1.1" stroke-linejoin="round"/><path d="M 462 170.5 L 470 166.5 M 462 170.5 L 470 170.5 M 462 170.5 L 470 174.5"
+    stroke="#5b6b80" stroke-width="1" fill="none"/><line x1="303" y1="116.5" x2="303" y2="125.5" stroke="#5b6b80" stroke-width="1"/><path d="M 76 239.5 L 36.00 239.50 Q 30 239.5 30.00 233.50 L 30.00 215.50 Q 30 209.5 36.00 209.50 L 76 209.5" fill="none" stroke="#5b6b80" stroke-width="1.1" stroke-linejoin="round"/><path d="M 68 239.5 L 76 235.5 M 68 239.5 L 76 239.5 M 68 239.5 L 76 243.5"
+    stroke="#5b6b80" stroke-width="1" fill="none"/><line x1="81" y1="205" x2="81" y2="214" stroke="#5b6b80" stroke-width="1"/><path d="M 470 370.5 L 386.40 370.50 Q 380.4 370.5 380.40 364.50 L 380.40 215.50 Q 380.4 209.5 374.40 209.50 L 308 209.5" fill="none" stroke="#5b6b80" stroke-width="1.1" stroke-linejoin="round"/><path d="M 462 370.5 L 470 366.5 M 462 370.5 L 470 370.5 M 462 370.5 L 470 374.5"
+    stroke="#5b6b80" stroke-width="1" fill="none"/><line x1="303" y1="205" x2="303" y2="214" stroke="#5b6b80" stroke-width="1"/><path d="M 470 385.5 L 413.60 385.50 Q 407.6 385.5 407.60 379.50 L 407.60 136.00 Q 407.6 130 401.60 130.00 L 308 130" fill="none" stroke="#5b6b80" stroke-width="1.1" stroke-linejoin="round"/><path d="M 462 385.5 L 470 381.5 M 462 385.5 L 470 385.5 M 462 385.5 L 470 389.5"
+    stroke="#5b6b80" stroke-width="1" fill="none"/><line x1="303" y1="125.5" x2="303" y2="134.5" stroke="#5b6b80" stroke-width="1"/><path d="M 888 280.5 L 751.00 280.50 Q 745 280.5 745.00 274.50 L 745.00 267.00 Q 745 261 739.00 261.00 L 702 261" fill="none" stroke="#5b6b80" stroke-width="1.1" stroke-linejoin="round"/><path d="M 880 280.5 L 888 276.5 M 880 280.5 L 888 280.5 M 880 280.5 L 888 284.5"
+    stroke="#5b6b80" stroke-width="1" fill="none"/><line x1="697" y1="256.5" x2="697" y2="265.5" stroke="#5b6b80" stroke-width="1"/><path d="M 888 517.5 L 805.00 517.50 Q 799 517.5 799.00 511.50 L 799.00 276.00 Q 799 270 793.00 270.00 L 702 270" fill="none" stroke="#5b6b80" stroke-width="1.1" stroke-linejoin="round"/><path d="M 880 517.5 L 888 513.5 M 880 517.5 L 888 517.5 M 880 517.5 L 888 521.5"
+    stroke="#5b6b80" stroke-width="1" fill="none"/><line x1="697" y1="265.5" x2="697" y2="274.5" stroke="#5b6b80" stroke-width="1"/><path d="M 1120 415.5 L 1138.00 415.50 Q 1144 415.5 1144.00 421.50 L 1144.00 496.50 Q 1144 502.5 1138.00 502.50 L 1120 502.5" fill="none" stroke="#5b6b80" stroke-width="1.1" stroke-linejoin="round"/><path d="M 1128 415.5 L 1120 411.5 M 1128 415.5 L 1120 415.5 M 1128 415.5 L 1120 419.5"
+    stroke="#5b6b80" stroke-width="1" fill="none"/><line x1="1115" y1="498" x2="1115" y2="507" stroke="#5b6b80" stroke-width="1"/><path d="M 470 655.5 L 440.80 655.50 Q 434.8 655.5 434.80 649.50 L 434.80 131.50 Q 434.8 125.5 440.80 125.50 L 470 125.5" fill="none" stroke="#9aa8b8" stroke-width="1" stroke-dasharray="4 3" stroke-linejoin="round"/><path d="M 888 430.5 L 778.00 430.50 Q 772 430.5 772.00 424.50 L 772.00 122.50 Q 772 116.5 766.00 116.50 L 702 116.5" fill="none" stroke="#9aa8b8" stroke-width="1" stroke-dasharray="4 3" stroke-linejoin="round"/><path d="M 888 532.5 L 832.00 532.50 Q 826 532.5 826.00 526.50 L 826.00 131.50 Q 826 125.5 820.00 125.50 L 702 125.5" fill="none" stroke="#9aa8b8" stroke-width="1" stroke-dasharray="4 3" stroke-linejoin="round"/><path d="M 888 622.5 L 859.00 622.50 Q 853 622.5 853.00 616.50 L 853.00 140.50 Q 853 134.5 847.00 134.50 L 702 134.5" fill="none" stroke="#9aa8b8" stroke-width="1" stroke-dasharray="4 3" stroke-linejoin="round"/></g>
+  <g>
+    <rect x="76" y="96" width="232" height="52" rx="7" fill="#ffffff"
+      stroke="#b9c5d4" stroke-width="0.9"/>
+    <path d="M 76 118 L 76 103 Q 76 96 83 96
+    L 301 96 Q 308 96 308 103 L 308 118 Z" fill="#0f766e"/>
+    <text x="85" y="110.6" font-size="9.6" font-weight="700"
+      fill="#ffffff" font-family="Arial">departemen</text>
+    <line x1="76" y1="118" x2="308" y2="118"
+      stroke="#0f766e" stroke-width="1.2"/>
+    <text x="85" y="128.7" font-size="9" fill="#0f172a"
+      font-family="Arial">id_departemen</text><text x="208" y="128.7" font-size="8.2" fill="#64748b"
+      font-family="Arial">int</text><g>
+    <rect x="278" y="120" width="22" height="11" rx="3" fill="#fee2e2"/>
+    <text x="289" y="128.4" font-size="7" font-weight="700"
+      text-anchor="middle" fill="#b91c1c" font-family="Arial">PK</text>
+  </g><text x="85" y="143.7" font-size="9" fill="#0f172a"
+      font-family="Arial">nama</text><text x="208" y="143.7" font-size="8.2" fill="#64748b"
+      font-family="Arial">varchar(100)</text><g>
+    <rect x="278" y="135" width="22" height="11" rx="3" fill="#ede9fe"/>
+    <text x="289" y="143.4" font-size="7" font-weight="700"
+      text-anchor="middle" fill="#6d28d9" font-family="Arial">U</text>
+  </g>
+  </g>
+  <g>
+    <rect x="470" y="96" width="232" height="97" rx="7" fill="#ffffff"
+      stroke="#b9c5d4" stroke-width="0.9"/>
+    <path d="M 470 118 L 470 103 Q 470 96 477 96
+    L 695 96 Q 702 96 702 103 L 702 118 Z" fill="#0f766e"/>
+    <text x="479" y="110.6" font-size="9.6" font-weight="700"
+      fill="#ffffff" font-family="Arial">karyawan</text>
+    <line x1="470" y1="118" x2="702" y2="118"
+      stroke="#0f766e" stroke-width="1.2"/>
+    <text x="479" y="128.7" font-size="9" fill="#0f172a"
+      font-family="Arial">id_karyawan</text><text x="602" y="128.7" font-size="8.2" fill="#64748b"
+      font-family="Arial">int</text><g>
+    <rect x="672" y="120" width="22" height="11" rx="3" fill="#fee2e2"/>
+    <text x="683" y="128.4" font-size="7" font-weight="700"
+      text-anchor="middle" fill="#b91c1c" font-family="Arial">PK</text>
+  </g><text x="479" y="143.7" font-size="9" fill="#0f172a"
+      font-family="Arial">nomor_karyawan</text><text x="602" y="143.7" font-size="8.2" fill="#64748b"
+      font-family="Arial">varchar(20)</text><g>
+    <rect x="672" y="135" width="22" height="11" rx="3" fill="#ede9fe"/>
+    <text x="683" y="143.4" font-size="7" font-weight="700"
+      text-anchor="middle" fill="#6d28d9" font-family="Arial">U</text>
+  </g><text x="479" y="158.7" font-size="9" fill="#0f172a"
+      font-family="Arial">nama</text><text x="602" y="158.7" font-size="8.2" fill="#64748b"
+      font-family="Arial">varchar(150)</text><text x="479" y="173.7" font-size="9" fill="#0f172a"
+      font-family="Arial">id_departemen</text><text x="602" y="173.7" font-size="8.2" fill="#64748b"
+      font-family="Arial">int</text><g>
+    <rect x="672" y="165" width="22" height="11" rx="3" fill="#e0f2fe"/>
+    <text x="683" y="173.4" font-size="7" font-weight="700"
+      text-anchor="middle" fill="#0369a1" font-family="Arial">FK</text>
+  </g><text x="479" y="188.7" font-size="9" fill="#0f172a"
+      font-family="Arial">jabatan</text><text x="602" y="188.7" font-size="8.2" fill="#64748b"
+      font-family="Arial">varchar(100)</text>
+  </g>
+  <g>
+    <rect x="76" y="180" width="232" height="97" rx="7" fill="#ffffff"
+      stroke="#b9c5d4" stroke-width="0.9"/>
+    <path d="M 76 202 L 76 187 Q 76 180 83 180
+    L 301 180 Q 308 180 308 187 L 308 202 Z" fill="#0f766e"/>
+    <text x="85" y="194.6" font-size="9.6" font-weight="700"
+      fill="#ffffff" font-family="Arial">lokasi</text>
+    <line x1="76" y1="202" x2="308" y2="202"
+      stroke="#0f766e" stroke-width="1.2"/>
+    <text x="85" y="212.7" font-size="9" fill="#0f172a"
+      font-family="Arial">id_lokasi</text><text x="208" y="212.7" font-size="8.2" fill="#64748b"
+      font-family="Arial">int</text><g>
+    <rect x="278" y="204" width="22" height="11" rx="3" fill="#fee2e2"/>
+    <text x="289" y="212.4" font-size="7" font-weight="700"
+      text-anchor="middle" fill="#b91c1c" font-family="Arial">PK</text>
+  </g><text x="85" y="227.7" font-size="9" fill="#0f172a"
+      font-family="Arial">nama</text><text x="208" y="227.7" font-size="8.2" fill="#64748b"
+      font-family="Arial">varchar(100)</text><text x="85" y="242.7" font-size="9" fill="#0f172a"
+      font-family="Arial">id_lokasi_induk</text><text x="208" y="242.7" font-size="8.2" fill="#64748b"
+      font-family="Arial">int</text><g>
+    <rect x="278" y="234" width="22" height="11" rx="3" fill="#e0f2fe"/>
+    <text x="289" y="242.4" font-size="7" font-weight="700"
+      text-anchor="middle" fill="#0369a1" font-family="Arial">FK</text>
+  </g><text x="85" y="257.7" font-size="9" fill="#0f172a"
+      font-family="Arial">jalur_lengkap</text><text x="208" y="257.7" font-size="8.2" fill="#64748b"
+      font-family="Arial">varchar(500)</text><text x="85" y="272.7" font-size="9" fill="#0f172a"
+      font-family="Arial">tempat_penyimpanan</text><text x="208" y="272.7" font-size="8.2" fill="#64748b"
+      font-family="Arial">boolean</text>
+  </g>
+  <g>
+    <rect x="470" y="236" width="232" height="442" rx="7" fill="#ffffff"
+      stroke="#b9c5d4" stroke-width="0.9"/>
+    <path d="M 470 258 L 470 243 Q 470 236 477 236
+    L 695 236 Q 702 236 702 243 L 702 258 Z" fill="#1d4ed8"/>
+    <text x="479" y="250.6" font-size="9.6" font-weight="700"
+      fill="#ffffff" font-family="Arial">aset</text>
+    <line x1="470" y1="258" x2="702" y2="258"
+      stroke="#1d4ed8" stroke-width="1.2"/>
+    <text x="479" y="268.7" font-size="9" fill="#0f172a"
+      font-family="Arial">id_aset</text><text x="602" y="268.7" font-size="8.2" fill="#64748b"
+      font-family="Arial">int</text><g>
+    <rect x="672" y="260" width="22" height="11" rx="3" fill="#fee2e2"/>
+    <text x="683" y="268.4" font-size="7" font-weight="700"
+      text-anchor="middle" fill="#b91c1c" font-family="Arial">PK</text>
+  </g><text x="479" y="283.7" font-size="9" fill="#0f172a"
+      font-family="Arial">nomor_po</text><text x="602" y="283.7" font-size="8.2" fill="#64748b"
+      font-family="Arial">varchar(50)</text><text x="479" y="298.7" font-size="9" fill="#0f172a"
+      font-family="Arial">nomor_aset</text><text x="602" y="298.7" font-size="8.2" fill="#64748b"
+      font-family="Arial">varchar(50)</text><g>
+    <rect x="672" y="290" width="22" height="11" rx="3" fill="#ede9fe"/>
+    <text x="683" y="298.4" font-size="7" font-weight="700"
+      text-anchor="middle" fill="#6d28d9" font-family="Arial">U</text>
+  </g><text x="479" y="313.7" font-size="9" fill="#0f172a"
+      font-family="Arial">nama_aset</text><text x="602" y="313.7" font-size="8.2" fill="#64748b"
+      font-family="Arial">varchar(200)</text><text x="479" y="328.7" font-size="9" fill="#0f172a"
+      font-family="Arial">tanggal_pembelian</text><text x="602" y="328.7" font-size="8.2" fill="#64748b"
+      font-family="Arial">date</text><text x="479" y="343.7" font-size="9" fill="#0f172a"
+      font-family="Arial">grup_aset</text><text x="602" y="343.7" font-size="8.2" fill="#64748b"
+      font-family="Arial">varchar(100)</text><text x="479" y="358.7" font-size="9" fill="#0f172a"
+      font-family="Arial">kategori_aset</text><text x="602" y="358.7" font-size="8.2" fill="#64748b"
+      font-family="Arial">varchar(100)</text><text x="479" y="373.7" font-size="9" fill="#0f172a"
+      font-family="Arial">id_lokasi</text><text x="602" y="373.7" font-size="8.2" fill="#64748b"
+      font-family="Arial">int</text><g>
+    <rect x="672" y="365" width="22" height="11" rx="3" fill="#e0f2fe"/>
+    <text x="683" y="373.4" font-size="7" font-weight="700"
+      text-anchor="middle" fill="#0369a1" font-family="Arial">FK</text>
+  </g><text x="479" y="388.7" font-size="9" fill="#0f172a"
+      font-family="Arial">id_departemen</text><text x="602" y="388.7" font-size="8.2" fill="#64748b"
+      font-family="Arial">int</text><g>
+    <rect x="672" y="380" width="22" height="11" rx="3" fill="#e0f2fe"/>
+    <text x="683" y="388.4" font-size="7" font-weight="700"
+      text-anchor="middle" fill="#0369a1" font-family="Arial">FK</text>
+  </g><text x="479" y="403.7" font-size="9" fill="#0f172a"
+      font-family="Arial">foto</text><text x="602" y="403.7" font-size="8.2" fill="#64748b"
+      font-family="Arial">varchar(255)</text><text x="479" y="418.7" font-size="9" fill="#0f172a"
+      font-family="Arial">jenis_foto</text><text x="602" y="418.7" font-size="8.2" fill="#64748b"
+      font-family="Arial">varchar(20)</text><text x="479" y="433.7" font-size="9" fill="#0f172a"
+      font-family="Arial">nilai_awal</text><text x="602" y="433.7" font-size="8.2" fill="#64748b"
+      font-family="Arial">decimal(15,2)</text><text x="479" y="448.7" font-size="9" fill="#0f172a"
+      font-family="Arial">nilai_residual</text><text x="602" y="448.7" font-size="8.2" fill="#64748b"
+      font-family="Arial">decimal(15,2)</text><text x="479" y="463.7" font-size="9" fill="#0f172a"
+      font-family="Arial">umur_ekonomis</text><text x="602" y="463.7" font-size="8.2" fill="#64748b"
+      font-family="Arial">int</text><text x="479" y="478.7" font-size="9" fill="#0f172a"
+      font-family="Arial">interval_default</text><text x="602" y="478.7" font-size="8.2" fill="#64748b"
+      font-family="Arial">int</text><text x="479" y="493.7" font-size="9" fill="#0f172a"
+      font-family="Arial">satuan_interval_default</text><text x="602" y="493.7" font-size="8.2" fill="#64748b"
+      font-family="Arial">varchar(10)</text><text x="479" y="508.7" font-size="9" fill="#0f172a"
+      font-family="Arial">interval_khusus_hari</text><text x="602" y="508.7" font-size="8.2" fill="#64748b"
+      font-family="Arial">int</text><text x="479" y="523.7" font-size="9" fill="#0f172a"
+      font-family="Arial">pemakaian_pribadi</text><text x="602" y="523.7" font-size="8.2" fill="#64748b"
+      font-family="Arial">boolean</text><text x="479" y="538.7" font-size="9" fill="#0f172a"
+      font-family="Arial">komponen</text><text x="602" y="538.7" font-size="8.2" fill="#64748b"
+      font-family="Arial">text</text><text x="479" y="553.7" font-size="9" fill="#0f172a"
+      font-family="Arial">komponen_kritis</text><text x="602" y="553.7" font-size="8.2" fill="#64748b"
+      font-family="Arial">varchar(200)</text><text x="479" y="568.7" font-size="9" fill="#0f172a"
+      font-family="Arial">penggantian_terakhir</text><text x="602" y="568.7" font-size="8.2" fill="#64748b"
+      font-family="Arial">date</text><text x="479" y="583.7" font-size="9" fill="#0f172a"
+      font-family="Arial">tanggal_penghapusan</text><text x="602" y="583.7" font-size="8.2" fill="#64748b"
+      font-family="Arial">date</text><text x="479" y="598.7" font-size="9" fill="#0f172a"
+      font-family="Arial">alasan_penghapusan</text><text x="602" y="598.7" font-size="8.2" fill="#64748b"
+      font-family="Arial">varchar(20)</text><text x="479" y="613.7" font-size="9" fill="#0f172a"
+      font-family="Arial">nilai_buku</text><text x="602" y="613.7" font-size="8.2" fill="#64748b"
+      font-family="Arial">decimal(15,2)</text><text x="479" y="628.7" font-size="9" fill="#0f172a"
+      font-family="Arial">nilai_jual</text><text x="602" y="628.7" font-size="8.2" fill="#64748b"
+      font-family="Arial">decimal(15,2)</text><text x="479" y="643.7" font-size="9" fill="#0f172a"
+      font-family="Arial">status_siklus_hidup</text><text x="602" y="643.7" font-size="8.2" fill="#64748b"
+      font-family="Arial">varchar(20)</text><text x="479" y="658.7" font-size="9" fill="#0f172a"
+      font-family="Arial">dibuat_oleh</text><text x="602" y="658.7" font-size="8.2" fill="#64748b"
+      font-family="Arial">int</text><g>
+    <rect x="672" y="650" width="22" height="11" rx="3" fill="#e0f2fe"/>
+    <text x="683" y="658.4" font-size="7" font-weight="700"
+      text-anchor="middle" fill="#0369a1" font-family="Arial">FK</text>
+  </g><text x="479" y="673.7" font-size="9" fill="#0f172a"
+      font-family="Arial">dibuat_pada</text><text x="602" y="673.7" font-size="8.2" fill="#64748b"
+      font-family="Arial">datetime</text>
+  </g>
+  <g>
+    <rect x="888" y="236" width="232" height="217" rx="7" fill="#ffffff"
+      stroke="#b9c5d4" stroke-width="0.9"/>
+    <path d="M 888 258 L 888 243 Q 888 236 895 236
+    L 1113 236 Q 1120 236 1120 243 L 1120 258 Z" fill="#b45309"/>
+    <text x="897" y="250.6" font-size="9.6" font-weight="700"
+      fill="#ffffff" font-family="Arial">maintenance</text>
+    <line x1="888" y1="258" x2="1120" y2="258"
+      stroke="#b45309" stroke-width="1.2"/>
+    <text x="897" y="268.7" font-size="9" fill="#0f172a"
+      font-family="Arial">id_maintenance</text><text x="1020" y="268.7" font-size="8.2" fill="#64748b"
+      font-family="Arial">int</text><g>
+    <rect x="1090" y="260" width="22" height="11" rx="3" fill="#fee2e2"/>
+    <text x="1101" y="268.4" font-size="7" font-weight="700"
+      text-anchor="middle" fill="#b91c1c" font-family="Arial">PK</text>
+  </g><text x="897" y="283.7" font-size="9" fill="#0f172a"
+      font-family="Arial">id_aset</text><text x="1020" y="283.7" font-size="8.2" fill="#64748b"
+      font-family="Arial">int</text><g>
+    <rect x="1090" y="275" width="22" height="11" rx="3" fill="#e0f2fe"/>
+    <text x="1101" y="283.4" font-size="7" font-weight="700"
+      text-anchor="middle" fill="#0369a1" font-family="Arial">FK</text>
+  </g><text x="897" y="298.7" font-size="9" fill="#0f172a"
+      font-family="Arial">jenis_maintenance</text><text x="1020" y="298.7" font-size="8.2" fill="#64748b"
+      font-family="Arial">varchar(20)</text><text x="897" y="313.7" font-size="9" fill="#0f172a"
+      font-family="Arial">tanggal_jadwal</text><text x="1020" y="313.7" font-size="8.2" fill="#64748b"
+      font-family="Arial">date</text><text x="897" y="328.7" font-size="9" fill="#0f172a"
+      font-family="Arial">status</text><text x="1020" y="328.7" font-size="8.2" fill="#64748b"
+      font-family="Arial">varchar(10)</text><text x="897" y="343.7" font-size="9" fill="#0f172a"
+      font-family="Arial">tanggal_pelaksanaan</text><text x="1020" y="343.7" font-size="8.2" fill="#64748b"
+      font-family="Arial">date</text><text x="897" y="358.7" font-size="9" fill="#0f172a"
+      font-family="Arial">deskripsi_pekerjaan</text><text x="1020" y="358.7" font-size="8.2" fill="#64748b"
+      font-family="Arial">text</text><text x="897" y="373.7" font-size="9" fill="#0f172a"
+      font-family="Arial">hasil</text><text x="1020" y="373.7" font-size="8.2" fill="#64748b"
+      font-family="Arial">varchar(30)</text><text x="897" y="388.7" font-size="9" fill="#0f172a"
+      font-family="Arial">biaya</text><text x="1020" y="388.7" font-size="8.2" fill="#64748b"
+      font-family="Arial">decimal(12,2)</text><text x="897" y="403.7" font-size="9" fill="#0f172a"
+      font-family="Arial">catatan</text><text x="1020" y="403.7" font-size="8.2" fill="#64748b"
+      font-family="Arial">text</text><text x="897" y="418.7" font-size="9" fill="#0f172a"
+      font-family="Arial">id_laporan_kerusakan</text><text x="1020" y="418.7" font-size="8.2" fill="#64748b"
+      font-family="Arial">int</text><g>
+    <rect x="1090" y="410" width="22" height="11" rx="3" fill="#e0f2fe"/>
+    <text x="1101" y="418.4" font-size="7" font-weight="700"
+      text-anchor="middle" fill="#0369a1" font-family="Arial">FK</text>
+  </g><text x="897" y="433.7" font-size="9" fill="#0f172a"
+      font-family="Arial">dilaksanakan_oleh</text><text x="1020" y="433.7" font-size="8.2" fill="#64748b"
+      font-family="Arial">int</text><g>
+    <rect x="1090" y="425" width="22" height="11" rx="3" fill="#e0f2fe"/>
+    <text x="1101" y="433.4" font-size="7" font-weight="700"
+      text-anchor="middle" fill="#0369a1" font-family="Arial">FK</text>
+  </g><text x="897" y="448.7" font-size="9" fill="#0f172a"
+      font-family="Arial">dibuat_pada</text><text x="1020" y="448.7" font-size="8.2" fill="#64748b"
+      font-family="Arial">datetime</text>
+  </g>
+  <g>
+    <rect x="888" y="473" width="232" height="217" rx="7" fill="#ffffff"
+      stroke="#b9c5d4" stroke-width="0.9"/>
+    <path d="M 888 495 L 888 480 Q 888 473 895 473
+    L 1113 473 Q 1120 473 1120 480 L 1120 495 Z" fill="#b91c1c"/>
+    <text x="897" y="487.6" font-size="9.6" font-weight="700"
+      fill="#ffffff" font-family="Arial">laporan_kerusakan</text>
+    <line x1="888" y1="495" x2="1120" y2="495"
+      stroke="#b91c1c" stroke-width="1.2"/>
+    <text x="897" y="505.7" font-size="9" fill="#0f172a"
+      font-family="Arial">id_laporan</text><text x="1020" y="505.7" font-size="8.2" fill="#64748b"
+      font-family="Arial">int</text><g>
+    <rect x="1090" y="497" width="22" height="11" rx="3" fill="#fee2e2"/>
+    <text x="1101" y="505.4" font-size="7" font-weight="700"
+      text-anchor="middle" fill="#b91c1c" font-family="Arial">PK</text>
+  </g><text x="897" y="520.7" font-size="9" fill="#0f172a"
+      font-family="Arial">id_aset</text><text x="1020" y="520.7" font-size="8.2" fill="#64748b"
+      font-family="Arial">int</text><g>
+    <rect x="1090" y="512" width="22" height="11" rx="3" fill="#e0f2fe"/>
+    <text x="1101" y="520.4" font-size="7" font-weight="700"
+      text-anchor="middle" fill="#0369a1" font-family="Arial">FK</text>
+  </g><text x="897" y="535.7" font-size="9" fill="#0f172a"
+      font-family="Arial">dilaporkan_oleh</text><text x="1020" y="535.7" font-size="8.2" fill="#64748b"
+      font-family="Arial">int</text><g>
+    <rect x="1090" y="527" width="22" height="11" rx="3" fill="#e0f2fe"/>
+    <text x="1101" y="535.4" font-size="7" font-weight="700"
+      text-anchor="middle" fill="#0369a1" font-family="Arial">FK</text>
+  </g><text x="897" y="550.7" font-size="9" fill="#0f172a"
+      font-family="Arial">judul</text><text x="1020" y="550.7" font-size="8.2" fill="#64748b"
+      font-family="Arial">varchar(200)</text><text x="897" y="565.7" font-size="9" fill="#0f172a"
+      font-family="Arial">deskripsi</text><text x="1020" y="565.7" font-size="8.2" fill="#64748b"
+      font-family="Arial">text</text><text x="897" y="580.7" font-size="9" fill="#0f172a"
+      font-family="Arial">tingkat_keparahan</text><text x="1020" y="580.7" font-size="8.2" fill="#64748b"
+      font-family="Arial">varchar(10)</text><text x="897" y="595.7" font-size="9" fill="#0f172a"
+      font-family="Arial">foto_bukti</text><text x="1020" y="595.7" font-size="8.2" fill="#64748b"
+      font-family="Arial">varchar(255)</text><text x="897" y="610.7" font-size="9" fill="#0f172a"
+      font-family="Arial">status_laporan</text><text x="1020" y="610.7" font-size="8.2" fill="#64748b"
+      font-family="Arial">varchar(20)</text><text x="897" y="625.7" font-size="9" fill="#0f172a"
+      font-family="Arial">ditangani_oleh</text><text x="1020" y="625.7" font-size="8.2" fill="#64748b"
+      font-family="Arial">int</text><g>
+    <rect x="1090" y="617" width="22" height="11" rx="3" fill="#e0f2fe"/>
+    <text x="1101" y="625.4" font-size="7" font-weight="700"
+      text-anchor="middle" fill="#0369a1" font-family="Arial">FK</text>
+  </g><text x="897" y="640.7" font-size="9" fill="#0f172a"
+      font-family="Arial">catatan_ga</text><text x="1020" y="640.7" font-size="8.2" fill="#64748b"
+      font-family="Arial">text</text><text x="897" y="655.7" font-size="9" fill="#0f172a"
+      font-family="Arial">dilaporkan_pada</text><text x="1020" y="655.7" font-size="8.2" fill="#64748b"
+      font-family="Arial">datetime</text><text x="897" y="670.7" font-size="9" fill="#0f172a"
+      font-family="Arial">diperbarui_pada</text><text x="1020" y="670.7" font-size="8.2" fill="#64748b"
+      font-family="Arial">datetime</text><text x="897" y="685.7" font-size="9" fill="#0f172a"
+      font-family="Arial">diselesaikan_pada</text><text x="1020" y="685.7" font-size="8.2" fill="#64748b"
+      font-family="Arial">datetime</text>
+  </g>
+  <g><rect x="68" y="306" width="248" height="126" rx="10" fill="#fbfdff"
+    stroke="#cbd5e1" stroke-dasharray="5 4" stroke-width="0.9"/><text x="80" y="326" font-size="9" font-weight="700"
+    letter-spacing="0.6" fill="#94a3b8" font-family="Arial">KETERANGAN</text><g>
+    <rect x="80" y="341.5" width="22" height="11" rx="3" fill="#fee2e2"/>
+    <text x="91" y="349.9" font-size="7" font-weight="700"
+      text-anchor="middle" fill="#b91c1c" font-family="Arial">PK</text>
+  </g><text x="108" y="350" font-size="8.6" fill="#0f172a" font-family="Arial">Primary key</text><g>
+    <rect x="194" y="341.5" width="22" height="11" rx="3" fill="#e0f2fe"/>
+    <text x="205" y="349.9" font-size="7" font-weight="700"
+      text-anchor="middle" fill="#0369a1" font-family="Arial">FK</text>
+  </g><text x="222" y="350" font-size="8.6" fill="#0f172a" font-family="Arial">Foreign key</text><g>
+    <rect x="80" y="361.5" width="22" height="11" rx="3" fill="#ede9fe"/>
+    <text x="91" y="369.9" font-size="7" font-weight="700"
+      text-anchor="middle" fill="#6d28d9" font-family="Arial">U</text>
+  </g><text x="108" y="370" font-size="8.6" fill="#0f172a" font-family="Arial">Nilai unik (alternate key)</text><line x1="80" y1="392" x2="104" y2="392" stroke="#5b6b80" stroke-width="1.2"/><text x="112" y="395" font-size="8.6" fill="#0f172a" font-family="Arial">Relasi many-to-one</text><line x1="80" y1="412" x2="104" y2="412" stroke="#9aa8b8" stroke-width="1.2" stroke-dasharray="4 3"/><text x="112" y="415" font-size="8.6" fill="#0f172a" font-family="Arial">Jejak pelaku (audit)</text></g>
+  <g><rect x="68" y="450" width="248" height="112" rx="10" fill="#fbfdff"
+    stroke="#cbd5e1" stroke-dasharray="5 4" stroke-width="0.9"/><text x="80" y="470" font-size="9" font-weight="700"
+    letter-spacing="0.6" fill="#94a3b8" font-family="Arial">CATATAN</text><text x="80" y="490" font-size="8.2"
+        fill="#64748b" font-family="Arial">• Preventif: id_laporan_kerusakan kosong.</text><text x="88" y="502" font-size="8.2"
+        fill="#64748b" font-family="Arial">Korektif: terisi laporan.</text><text x="80" y="516" font-size="8.2"
+        fill="#64748b" font-family="Arial">• Status selesai diisi saat tanggal_pelaksanaan</text><text x="88" y="528" font-size="8.2"
+        fill="#64748b" font-family="Arial">terisi.</text><text x="80" y="542" font-size="8.2"
+        fill="#64748b" font-family="Arial">• Satu aset hanya boleh punya satu laporan aktif.</text></g>
+</svg>

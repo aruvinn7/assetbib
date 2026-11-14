@@ -30,7 +30,7 @@ def _form_context(request, emp=None):
     posted = request.POST if request.method == 'POST' else None
     return {
         'emp_obj':        emp,
-        'departments':    Department.objects.order_by('name'),
+        'departments':    Department.objects.order_by('nama'),
         'access_choices': ACCESS_CHOICES,
         'posted':         posted,
         'checked_access': posted.getlist('access') if posted else (employee_access(emp) if emp else ['user']),
@@ -48,7 +48,7 @@ def employee_list(request):
     search = request.GET.get('q', '').strip()
     access = request.GET.get('akses', '')
 
-    base = Employee.objects.select_related('user', 'department', 'ga_profile', 'finance_profile', 'user_profile')
+    base = Employee.objects.select_related('user', 'departemen', 'ga_profile', 'finance_profile', 'user_profile')
     employees = base.annotate(
         held=Count('held_assets', filter=Q(held_assets__status='active')),
     ).order_by('nama')
@@ -56,8 +56,8 @@ def employee_list(request):
         employees = employees.filter(ACCESS_FILTERS[access])
     if search:
         employees = employees.filter(
-            Q(nama__icontains=search) | Q(employee_id__icontains=search) | Q(user__username__icontains=search) |
-            Q(jabatan__icontains=search) | Q(department__name__icontains=search)
+            Q(nama__icontains=search) | Q(nomor_karyawan__icontains=search) | Q(user__username__icontains=search) |
+            Q(jabatan__icontains=search) | Q(departemen__nama__icontains=search)
         )
 
     # Alias diberi awalan n_ agar tidak bentrok dengan nama field (mis. "user")
@@ -93,7 +93,7 @@ def employee_create(request):
 
 @role_required(is_ga)
 def employee_update(request, pk):
-    emp = get_object_or_404(Employee.objects.select_related('user', 'department'), pk=pk)
+    emp = get_object_or_404(Employee.objects.select_related('user', 'departemen'), pk=pk)
     if request.method == 'POST':
         form = EmployeeForm(request.POST, instance=emp, editor=request.user.employee)
         if form.is_valid():

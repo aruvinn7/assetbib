@@ -8,7 +8,7 @@
         <label for="nilaiAwal">Nilai perolehan <span class="req" aria-hidden="true">*</span></label>
         <div class="input-affix"><span aria-hidden="true">Rp</span>
           <input class="input money" type="text" id="nilaiAwal" name="nilai_awal" inputmode="numeric" autocomplete="off" required
-                 value="{% if f %}{{ f.nilai_awal_aset|floatformat:0 }}{% endif %}" placeholder="0">
+                 value="{% if f %}{{ f.nilai_awal|floatformat:0 }}{% endif %}" placeholder="0">
         </div>
       </div>
       <div class="field">

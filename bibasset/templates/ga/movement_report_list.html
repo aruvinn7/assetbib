@@ -30,16 +30,16 @@
       <div class="mvr-head">
         <span class="mvr-no">#{{ page_obj.start_index|add:forloop.counter0 }}</span>
         <div class="mvr-title">
-          <a class="row-link" href="{% url 'asset_detail' r.asset_id %}">{{ r.asset.nama_asset }}</a>
-          <span>{{ r.asset.asset_number }} · dilaporkan {{ r.reported_by.nama|default:"—" }}{% if r.reported_by.department %} ({{ r.reported_by.department.name }}){% endif %} · {{ r.created_at|sejak }}</span>
+          <a class="row-link" href="{% url 'asset_detail' r.aset_id %}">{{ r.aset.nama_aset }}</a>
+          <span>{{ r.aset.nomor_aset }} · dilaporkan {{ r.dilaporkan_oleh.nama|default:"—" }}{% if r.dilaporkan_oleh.departemen %} ({{ r.dilaporkan_oleh.departemen.nama }}){% endif %} · {{ r.dibuat_pada|sejak }}</span>
         </div>
         {% include "components/_move_status.html" with status=r.status %}
       </div>
       {% include "components/_move_route.html" with r=r %}
-      {% if r.notes %}<p class="mvr-note"><i class="fa-regular fa-comment" aria-hidden="true"></i>{{ r.notes }}</p>{% endif %}
+      {% if r.catatan %}<p class="mvr-note"><i class="fa-regular fa-comment" aria-hidden="true"></i>{{ r.catatan }}</p>{% endif %}
 
       {% if r.status == 'pending' %}
-      <p class="mvr-why"><strong>Kenapa perlu persetujuan:</strong> {{ r.reasons }}</p>
+      <p class="mvr-why"><strong>Kenapa perlu persetujuan:</strong> {{ r.alasan }}</p>
       <div class="mvr-actions">
         <form method="post" action="{% url 'ga_movement_report_approve' r.pk %}" class="mvr-approve">
           {% csrf_token %}
@@ -57,10 +57,10 @@
           </form>
         </details>
       </div>
-      {% elif r.reviewed_by %}
-      <p class="mvr-review">{% if r.status == 'approved' %}Disetujui{% else %}Ditolak{% endif %} <strong>{{ r.reviewed_by.nama }}</strong> · {{ r.reviewed_at|date:"d M Y, H:i" }}{% if r.review_notes %} — {{ r.review_notes }}{% endif %}</p>
+      {% elif r.ditinjau_oleh %}
+      <p class="mvr-review">{% if r.status == 'approved' %}Disetujui{% else %}Ditolak{% endif %} <strong>{{ r.ditinjau_oleh.nama }}</strong> · {{ r.ditinjau_pada|date:"d M Y, H:i" }}{% if r.catatan_tinjauan %} — {{ r.catatan_tinjauan }}{% endif %}</p>
       {% else %}
-      <p class="mvr-review">Tercatat otomatis. Bila keliru, perbaiki di <a href="{% url 'movement_dashboard' %}?q={{ r.asset.asset_number|urlencode }}">Riwayat perpindahan</a>.</p>
+      <p class="mvr-review">Tercatat otomatis. Bila keliru, perbaiki di <a href="{% url 'movement_dashboard' %}?q={{ r.aset.nomor_aset|urlencode }}">Riwayat perpindahan</a>.</p>
       {% endif %}
     </li>
     {% endfor %}

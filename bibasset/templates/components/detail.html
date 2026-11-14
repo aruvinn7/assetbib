@@ -1,18 +1,18 @@
 {% extends "base.html" %}
 {% load rupiah %}
-{% block title %}{{ component.component_name }} · {{ asset.asset_number }}{% endblock %}
+{% block title %}{{ component.nama_komponen }} · {{ asset.nomor_aset }}{% endblock %}
 {% block nav_assets %}active{% endblock %}
 
 {% block content %}
 <div class="page">
   <div class="crumbs">
-    <a href="{% url 'asset_detail' asset.id %}">{{ asset.asset_number }}</a><i class="fa-solid fa-chevron-right" aria-hidden="true" style="font-size:10px"></i>
-    <a href="{% url 'component_list' asset.id %}">Komponen</a><i class="fa-solid fa-chevron-right" aria-hidden="true" style="font-size:10px"></i>{{ component.part_number }}
+    <a href="{% url 'asset_detail' asset.id %}">{{ asset.nomor_aset }}</a><i class="fa-solid fa-chevron-right" aria-hidden="true" style="font-size:10px"></i>
+    <a href="{% url 'component_list' asset.id %}">Komponen</a><i class="fa-solid fa-chevron-right" aria-hidden="true" style="font-size:10px"></i>{{ component.nomor_part }}
   </div>
   <div class="page-head">
     <div>
-      <h1>{{ component.component_name }} {% if component.is_critical %}{% include "components/_status.html" with kind="warning" label="Kritis" %}{% endif %}</h1>
-      <div class="sub">{{ component.part_number }} · {{ asset.nama_asset }}</div>
+      <h1>{{ component.nama_komponen }} {% if component.komponen_kritis %}{% include "components/_status.html" with kind="warning" label="Kritis" %}{% endif %}</h1>
+      <div class="sub">{{ component.nomor_part }} · {{ asset.nama_aset }}</div>
     </div>
     <div class="page-actions">
       <a href="{% url 'component_update' component.pk %}" class="btn outline"><i class="fa-regular fa-pen-to-square" aria-hidden="true"></i>Edit</a>
@@ -29,8 +29,8 @@
           <thead><tr><th>Tanggal</th><th>Alasan</th><th>Part lama</th><th class="num">Biaya</th><th>Oleh</th></tr></thead>
           <tbody>
           {% for r in replacements %}
-            <tr><td class="nowrap">{{ r.replaced_date|date:"d M Y" }}</td><td>{{ r.reason }}</td><td>{{ r.old_part_number|default:"—" }}</td>
-                <td class="num">{{ r.cost|rupiah }}</td><td>{{ r.performed_by.nama|default:"—" }}</td></tr>
+            <tr><td class="nowrap">{{ r.tanggal_penggantian|date:"d M Y" }}</td><td>{{ r.alasan }}</td><td>{{ r.nomor_part_lama|default:"—" }}</td>
+                <td class="num">{{ r.biaya|rupiah }}</td><td>{{ r.dilaksanakan_oleh.nama|default:"—" }}</td></tr>
           {% endfor %}
           </tbody>
         </table>
@@ -44,13 +44,13 @@
       <section class="panel">
         <div class="panel-head"><h2>Detail</h2></div>
         <dl class="kv">
-          <div><dt>Jumlah</dt><dd>{{ component.quantity }}</dd></div>
-          <div><dt>Harga satuan</dt><dd>{% if component.estimated_price %}{{ component.estimated_price|rupiah }}{% else %}<span class="dim">—</span>{% endif %}</dd></div>
+          <div><dt>Jumlah</dt><dd>{{ component.jumlah }}</dd></div>
+          <div><dt>Harga satuan</dt><dd>{% if component.harga_estimasi %}{{ component.harga_estimasi|rupiah }}{% else %}<span class="dim">—</span>{% endif %}</dd></div>
           <div><dt>Total</dt><dd>{{ component.total_estimated_cost|rupiah }}</dd></div>
-          <div><dt>Pemasok</dt><dd>{{ component.supplier_name|default:"—" }}</dd></div>
-          <div><dt>Terakhir diganti</dt><dd>{% if component.last_replaced %}{{ component.last_replaced|date:"d M Y" }}{% else %}<span class="dim">Belum pernah</span>{% endif %}</dd></div>
-          {% if component.description %}<div><dt>Deskripsi</dt><dd>{{ component.description }}</dd></div>{% endif %}
-          {% if component.notes %}<div><dt>Catatan</dt><dd>{{ component.notes|linebreaksbr }}</dd></div>{% endif %}
+          <div><dt>Pemasok</dt><dd>{{ component.nama_pemasok|default:"—" }}</dd></div>
+          <div><dt>Terakhir diganti</dt><dd>{% if component.penggantian_terakhir %}{{ component.penggantian_terakhir|date:"d M Y" }}{% else %}<span class="dim">Belum pernah</span>{% endif %}</dd></div>
+          {% if component.deskripsi %}<div><dt>Deskripsi</dt><dd>{{ component.deskripsi }}</dd></div>{% endif %}
+          {% if component.catatan %}<div><dt>Catatan</dt><dd>{{ component.catatan|linebreaksbr }}</dd></div>{% endif %}
         </dl>
       </section>
     </aside>

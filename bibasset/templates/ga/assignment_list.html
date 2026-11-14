@@ -47,16 +47,16 @@
           <tr>
             <td class="no"><span class="visually-hidden">Nomor </span>{{ page_obj.start_index|add:forloop.counter0 }}</td>
             <td class="lead">
-              <a class="row-link" href="{% url 'asset_detail' a.asset_id %}">{{ a.asset.nama_asset }}</a>
-              <div class="cell-sub">{{ a.asset.asset_number }}</div>
+              <a class="row-link" href="{% url 'asset_detail' a.aset_id %}">{{ a.aset.nama_aset }}</a>
+              <div class="cell-sub">{{ a.aset.nomor_aset }}</div>
             </td>
             {% if tab == 'pribadi' %}
-            <td data-label="Pemegang"><span class="row-name">{{ a.assigned_to.nama }}</span><div class="cell-sub">{{ a.assigned_to.jabatan|default:"—" }}{% if a.assigned_to.department %} · {{ a.assigned_to.department.name }}{% endif %}</div></td>
+            <td data-label="Pemegang"><span class="row-name">{{ a.diserahkan_kepada.nama }}</span><div class="cell-sub">{{ a.diserahkan_kepada.jabatan|default:"—" }}{% if a.diserahkan_kepada.departemen %} · {{ a.diserahkan_kepada.departemen.nama }}{% endif %}</div></td>
             {% else %}
-            <td data-label="Departemen"><span class="row-name">{{ a.department.name }}</span><div class="cell-sub">Pemakaian bersama</div></td>
+            <td data-label="Departemen"><span class="row-name">{{ a.departemen.nama }}</span><div class="cell-sub">Pemakaian bersama</div></td>
             {% endif %}
-            <td data-label="Lokasi">{{ a.asset.lokasi_asset|default:"—" }}</td>
-            <td data-label="Sejak" class="num nowrap">{{ a.assigned_date|date:"d M Y" }}</td>
+            <td data-label="Lokasi">{{ a.aset.lokasi|default:"—" }}</td>
+            <td data-label="Sejak" class="num nowrap">{{ a.tanggal_serah|date:"d M Y" }}</td>
             <td class="act"><a class="btn sm outline" href="{% url 'assignment_return' a.pk %}"><i class="fa-solid fa-rotate-left" aria-hidden="true"></i>Kembalikan</a></td>
           </tr>
         {% endfor %}
@@ -70,13 +70,13 @@
           <tr>
             <td class="no"><span class="visually-hidden">Nomor </span>{{ page_obj.start_index|add:forloop.counter0 }}</td>
             <td class="lead">
-              <a class="row-link" href="{% url 'asset_detail' asset.pk %}">{{ asset.nama_asset }}</a>
-              <div class="cell-sub">{{ asset.asset_number }}{% if asset.asset_category %} · {{ asset.asset_category.name }}{% if asset.asset_category.personal_use %} <span class="kind-pill">pribadi</span>{% endif %}{% endif %}</div>
+              <a class="row-link" href="{% url 'asset_detail' asset.pk %}">{{ asset.nama_aset }}</a>
+              <div class="cell-sub">{{ asset.nomor_aset }}{% if asset.kategori_aset %} · {{ asset.kategori_aset.nama }}{% if asset.kategori_aset.pemakaian_pribadi %} <span class="kind-pill">pribadi</span>{% endif %}{% endif %}</div>
             </td>
-            <td data-label="{% if tab == 'tersedia' %}Disimpan di{% else %}Lokasi{% endif %}">{{ asset.lokasi_asset|default:"Belum ditempatkan" }}</td>
-            <td data-label="Departemen">{{ asset.owned_by_department|default:"—" }}</td>
-            <td data-label="Status">{% include "components/_lifecycle.html" with status=asset.lifecycle_status %}</td>
-            <td class="act">{% if asset.lifecycle_status == 'active' %}<a class="btn sm outline" href="{% url 'assignment_create_for_asset' asset.pk %}" aria-label="Serahkan {{ asset.nama_asset }}">Serahkan</a>{% endif %}</td>
+            <td data-label="{% if tab == 'tersedia' %}Disimpan di{% else %}Lokasi{% endif %}">{{ asset.lokasi|default:"Belum ditempatkan" }}</td>
+            <td data-label="Departemen">{{ asset.departemen_pemilik|default:"—" }}</td>
+            <td data-label="Status">{% include "components/_lifecycle.html" with status=asset.status_siklus_hidup %}</td>
+            <td class="act">{% if asset.status_siklus_hidup == 'active' %}<a class="btn sm outline" href="{% url 'assignment_create_for_asset' asset.pk %}" aria-label="Serahkan {{ asset.nama_aset }}">Serahkan</a>{% endif %}</td>
           </tr>
         {% endfor %}
         </tbody>

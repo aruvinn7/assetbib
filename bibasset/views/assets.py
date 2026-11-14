@@ -1,5 +1,4 @@
 # views/assets.py [OPTIMIZED + PAGINATION]
-import os
 from datetime import timedelta
 from decimal import Decimal
 
@@ -42,46 +41,46 @@ def asset_list(request):
 
     # ── Query utama: health dihitung dari annotate, tanpa prefetch record ──
     component_count = Subquery(
-        AssetComponent.objects.filter(asset=OuterRef('pk'))
-        .order_by().values('asset').annotate(c=Count('id')).values('c')[:1],
+        AssetComponent.objects.filter(aset=OuterRef('pk'))
+        .order_by().values('aset').annotate(c=Count('id')).values('c')[:1],
         output_field=IntegerField(),
     )
     assets_qs = (
         Asset.objects
-        .select_related("lokasi_asset", "owned_by_department", "asset_category__group", "financial")
+        .select_related("lokasi", "departemen_pemilik", "kategori_aset__grup", "financial")
         .with_health_annotations()
         .annotate(
             component_count=Coalesce(component_count, 0),
             # Path foto utama (atau terbaru) untuk thumbnail di daftar
             photo_path=Subquery(
-                AssetPhoto.objects.filter(asset=OuterRef('pk'))
-                .order_by('-is_primary', '-uploaded_at').values('photo')[:1]
+                AssetPhoto.objects.filter(aset=OuterRef('pk'))
+                .order_by('-foto_utama', '-diunggah_pada').values('foto')[:1]
             ),
         )
     )
 
     if search_query:
         assets_qs = assets_qs.filter(
-            Q(nama_asset__icontains=search_query)   |
-            Q(asset_number__icontains=search_query) |
-            Q(no_po__icontains=search_query)        |
-            Q(asset_category__name__icontains=search_query) |
-            Q(asset_category__group__name__icontains=search_query) |
-            Q(lokasi_asset__name__icontains=search_query)   |
-            Q(owned_by_department__name__icontains=search_query)
+            Q(nama_aset__icontains=search_query)   |
+            Q(nomor_aset__icontains=search_query) |
+            Q(nomor_po__icontains=search_query)        |
+            Q(kategori_aset__nama__icontains=search_query) |
+            Q(kategori_aset__grup__nama__icontains=search_query) |
+            Q(lokasi__nama__icontains=search_query)   |
+            Q(departemen_pemilik__nama__icontains=search_query)
         )
 
     if category_filter.isdigit():
-        assets_qs = assets_qs.filter(asset_category_id=category_filter)
+        assets_qs = assets_qs.filter(kategori_aset_id=category_filter)
     if group_filter.isdigit():
-        assets_qs = assets_qs.filter(asset_category__group_id=group_filter)
+        assets_qs = assets_qs.filter(kategori_aset__grup_id=group_filter)
     if location_filter.isdigit():
-        assets_qs = assets_qs.filter(lokasi_asset_id=location_filter)
+        assets_qs = assets_qs.filter(lokasi_id=location_filter)
     elif location_filter == 'none':
-        assets_qs = assets_qs.filter(lokasi_asset__isnull=True)
+        assets_qs = assets_qs.filter(lokasi__isnull=True)
 
     if status_filter in ['active', 'maintenance', 'writeoff']:
-        assets_qs = assets_qs.filter(lifecycle_status=status_filter)
+        assets_qs = assets_qs.filter(status_siklus_hidup=status_filter)
     elif financial_filter == 'no':
         assets_qs = assets_qs.filter(financial__isnull=True)
 
@@ -96,8 +95,8 @@ def asset_list(request):
     if sort_key in SORT_FIELDS:
         if sort_key == 'health':
             assets_qs = assets_qs.annotate(ratio_annot=Case(
-                When(financial__nilai_awal_aset__gt=0,
-                     then=F('total_biaya_annot') * 100.0 / F('financial__nilai_awal_aset')),
+                When(financial__nilai_awal__gt=0,
+                     then=F('total_biaya_annot') * 100.0 / F('financial__nilai_awal')),
                 default=Value(None), output_field=FloatField(),
             ))
         expr = F(SORT_FIELDS[sort_key])
@@ -113,7 +112,7 @@ def asset_list(request):
     paginator = Paginator(assets_qs, 50)
     page_obj  = paginator.get_page(request.GET.get('page'))
     for asset in page_obj:
-        nilai_awal = asset.financial.nilai_awal_aset if hasattr(asset, 'financial') else None
+        nilai_awal = asset.financial.nilai_awal if hasattr(asset, 'financial') else None
         asset.health, asset.ratio = compute_health(
             asset.total_biaya_annot, asset.jumlah_corrective, nilai_awal
         )
@@ -146,8 +145,8 @@ def asset_list(request):
 # Kunci ?sort= → kolom. Kunci di SORT_DESC_FIRST dibalik supaya klik pertama
 # langsung menampilkan yang paling relevan (aset termuda, rasio biaya tertinggi).
 SORT_FIELDS = {
-    'name': 'nama_asset', 'category': 'asset_category__name', 'location': 'lokasi_asset__full_path',
-    'department': 'owned_by_department__name', 'age': 'tanggal_pembelian', 'status': 'lifecycle_status',
+    'name': 'nama_aset', 'category': 'kategori_aset__nama', 'location': 'lokasi__jalur_lengkap',
+    'department': 'departemen_pemilik__nama', 'age': 'tanggal_pembelian', 'status': 'status_siklus_hidup',
     'health': 'ratio_annot', 'bom': 'component_count',
 }
 SORT_DESC_FIRST = {'age', 'health', 'bom'}
@@ -169,29 +168,29 @@ def _sort_dir(sort):
 def asset_write_off(request, pk):
     """Write off resmi: catat tanggal, alasan, dan nilai buku; tutup jadwal, pemegang, dan laporan aktif."""
     asset = get_object_or_404(
-        Asset.objects.select_related('financial', 'asset_category', 'lokasi_asset', 'owned_by_department')
+        Asset.objects.select_related('financial', 'kategori_aset', 'lokasi', 'departemen_pemilik')
         .with_health_annotations(), pk=pk)
-    if asset.lifecycle_status == 'writeoff':
+    if asset.status_siklus_hidup == 'writeoff':
         messages.info(request, 'Aset ini sudah di-write off.')
         return redirect('asset_detail', pk=pk)
 
-    form = WriteOffForm(request.POST or None, asset=asset)
+    form = WriteOffForm(request.POST or None, aset=asset)
     if request.method == 'POST' and form.is_valid():
         d = form.cleaned_data
-        rujukan = BeritaAcara.objects.filter(jenis='kerusakan', status='ditandatangani', items__asset=asset,
+        rujukan = BeritaAcara.objects.filter(jenis='kerusakan', status='ditandatangani', items__aset=asset,
                                              items__rekomendasi='hapus').order_by('-tanggal').first()
         ba = hapuskan_aset([asset], d['tanggal'], d['alasan'], d['keterangan'], by=request.user.employee,
                            rujukan=rujukan, nilai_jual=d['nilai_jual'])
-        wo = AssetWriteOff.objects.get(asset=asset)
-        messages.success(request, f"{asset.nama_asset} di-write off per {wo.tanggal:%d %b %Y}. {ba.nomor} terbit."
+        wo = AssetWriteOff.objects.get(aset=asset)
+        messages.success(request, f"{asset.nama_aset} di-write off per {wo.tanggal:%d %b %Y}. {ba.nomor} terbit."
                          + (f" Nilai buku yang dihapus: Rp {wo.nilai_buku:,.0f}.".replace(',', '.') if wo.nilai_buku is not None else ""))
         return redirect('ba_detail', pk=ba.pk)
 
     fin = asset.financial if hasattr(asset, 'financial') else None
-    health, ratio = compute_health(asset.total_biaya_annot, asset.jumlah_corrective, fin.nilai_awal_aset if fin else None)
-    assignment = AssetAssignment.objects.filter(asset=asset, status='active').select_related('assigned_to', 'department').first()
+    health, ratio = compute_health(asset.total_biaya_annot, asset.jumlah_corrective, fin.nilai_awal if fin else None)
+    assignment = AssetAssignment.objects.filter(aset=asset, status='active').select_related('diserahkan_kepada', 'departemen').first()
     # Alasan yang disarankan dari kondisi aset (tetap bisa diganti)
-    suggested = 'rusak' if health in ('critical', 'waspada') or asset.lifecycle_status == 'maintenance' else \
+    suggested = 'rusak' if health in ('critical', 'waspada') or asset.status_siklus_hidup == 'maintenance' else \
                 'usang' if fin and fin.sisa_umur_ekonomis() <= 0 else ''
     return render(request, 'asset/write_off.html', {
         'asset':          asset,
@@ -203,7 +202,7 @@ def asset_write_off(request, pk):
         'assignment':     assignment,
         'schedule_count': asset.schedules.active().count(),
         'report_count':   DamageReport.objects.filter(
-                              asset=asset, report_status__in=DamageReport.ACTIVE_STATUS).count(),
+                              aset=asset, status_laporan__in=DamageReport.ACTIVE_STATUS).count(),
         'reasons':        AssetWriteOff.REASON,
         'cur_reason':     form.data.get('alasan') or suggested,
         'today':          timezone.localdate(),
@@ -213,9 +212,9 @@ def asset_write_off(request, pk):
 @role_required(is_ga)
 @require_POST
 def asset_write_off_cancel(request, pk):
-    asset = get_object_or_404(Asset.objects.select_related('write_off'), pk=pk, lifecycle_status='writeoff')
-    cancel_write_off(asset, by=request.user.employee)
-    messages.success(request, f"Write off {asset.nama_asset} dibatalkan. Aset aktif kembali dan jadwal maintenance dibuat ulang.")
+    aset = get_object_or_404(Asset.objects.select_related('write_off'), pk=pk, status_siklus_hidup='writeoff')
+    cancel_write_off(aset, by=request.user.employee)
+    messages.success(request, f"Write off {aset.nama_aset} dibatalkan. Aset aktif kembali dan jadwal maintenance dibuat ulang.")
     return redirect('asset_detail', pk=pk)
 
 
@@ -224,22 +223,22 @@ def asset_quickview(request, pk):
     """Ringkasan satu aset untuk panel samping di daftar aset (HTML parsial)."""
     asset = get_object_or_404(
         Asset.objects.select_related(
-            'lokasi_asset', 'owned_by_department', 'asset_category__group', 'financial', 'maintenance_config',
+            'lokasi', 'departemen_pemilik', 'kategori_aset__grup', 'financial', 'maintenance_config',
         ).with_health_annotations(),
         pk=pk,
     )
-    nilai_awal = asset.financial.nilai_awal_aset if hasattr(asset, 'financial') else None
+    nilai_awal = asset.financial.nilai_awal if hasattr(asset, 'financial') else None
     health, ratio = compute_health(asset.total_biaya_annot, asset.jumlah_corrective, nilai_awal)
-    assignment = AssetAssignment.objects.filter(asset=asset, status='active').select_related('assigned_to', 'department').first()
+    assignment = AssetAssignment.objects.filter(aset=asset, status='active').select_related('diserahkan_kepada', 'departemen').first()
     context = {
         'asset':         asset,
-        'photo':         asset.photos.order_by('-is_primary', '-uploaded_at').first(),
+        'photo':         asset.photos.order_by('-foto_utama', '-diunggah_pada').first(),
         'photo_count':   asset.photos.count(),
         'health':        health,
         'ratio':         ratio,
         'book_value':    asset.financial.book_value() if nilai_awal is not None else None,
-        'next_schedule': asset.schedules.active().order_by('scheduled_date').first(),
-        'last_record':   asset.maintenance_records.select_related('performed_by')
+        'next_schedule': asset.schedules.active().order_by('tanggal_jadwal').first(),
+        'last_record':   asset.maintenance_records.select_related('dilaksanakan_oleh')
                               .order_by('-tanggal_pelaksanaan', '-id').first(),
         'open_report':   asset.get_pending_damage_report(),
         'assignment':    assignment,
@@ -257,26 +256,26 @@ def asset_search(request):
     qs = Asset.objects.all()
     # Setiap kata harus cocok di salah satu kolom: "ac mess 3" → AC di Mess 3
     for term in q.split()[:5]:
-        qs = qs.filter(Q(nama_asset__icontains=term) | Q(asset_number__icontains=term) | Q(no_po__icontains=term) |
-                       Q(lokasi_asset__name__icontains=term) | Q(asset_category__name__icontains=term))
+        qs = qs.filter(Q(nama_aset__icontains=term) | Q(nomor_aset__icontains=term) | Q(nomor_po__icontains=term) |
+                       Q(lokasi__nama__icontains=term) | Q(kategori_aset__nama__icontains=term))
     qs = (qs
-          .select_related('lokasi_asset', 'asset_category')
+          .select_related('lokasi', 'kategori_aset')
           .annotate(photo_path=Subquery(
-              AssetPhoto.objects.filter(asset=OuterRef('pk')).order_by('-is_primary', '-uploaded_at').values('photo')[:1]))
-          .order_by('nama_asset', 'id'))
+              AssetPhoto.objects.filter(aset=OuterRef('pk')).order_by('-foto_utama', '-diunggah_pada').values('foto')[:1]))
+          .order_by('nama_aset', 'id'))
     can_log = is_ga(request.user)
     status_label = {'active': 'Aktif', 'maintenance': 'Maintenance', 'writeoff': 'Write off'}
     results = [{
         'id':           a.pk,
-        'name':         a.nama_asset,
-        'number':       a.asset_number,
-        'meta':         ' · '.join(x for x in [a.asset_category.name if a.asset_category else '',
-                                               str(a.lokasi_asset) if a.lokasi_asset else 'Belum ditempatkan'] if x),
-        'status':       a.lifecycle_status,
-        'status_label': status_label.get(a.lifecycle_status, ''),
+        'name':         a.nama_aset,
+        'number':       a.nomor_aset,
+        'meta':         ' · '.join(x for x in [a.kategori_aset.nama if a.kategori_aset else '',
+                                               str(a.lokasi) if a.lokasi else 'Belum ditempatkan'] if x),
+        'status':       a.status_siklus_hidup,
+        'status_label': status_label.get(a.status_siklus_hidup, ''),
         'photo':        f'{settings.MEDIA_URL}{a.photo_path}' if a.photo_path else '',
         'url':          reverse('asset_detail', args=[a.pk]),
-        'maint_url':    reverse('maintenance_create', args=[a.pk]) if can_log and a.lifecycle_status != 'writeoff' else '',
+        'maint_url':    reverse('maintenance_create', args=[a.pk]) if can_log and a.status_siklus_hidup != 'writeoff' else '',
     } for a in qs[:8]]
     return JsonResponse({'results': results, 'total': qs.count(),
                          'all_url': f"{reverse('asset_list')}?{urlencode({'q': q})}"})
@@ -284,11 +283,11 @@ def asset_search(request):
 
 def _asset_form_context():
     return {
-        "locations":    Location.objects.only("id", "name", "full_path").order_by("full_path"),
-        "departments":  Department.objects.only("id", "name").order_by("name"),
+        "locations":    Location.objects.only("id", "nama", "jalur_lengkap").order_by("jalur_lengkap"),
+        "departments":  Department.objects.only("id", "nama").order_by("nama"),
         "asset_groups": AssetGroup.objects.prefetch_related(
-            Prefetch("categories", queryset=AssetCategory.objects.order_by("name"))
-        ).order_by("name"),
+            Prefetch("categories", queryset=AssetCategory.objects.order_by("nama"))
+        ).order_by("nama"),
     }
 
 
@@ -299,10 +298,10 @@ def asset_create(request):
         if form.is_valid():
             with transaction.atomic():
                 asset = form.save(commit=False)
-                asset.created_by = request.user.employee
+                asset.dibuat_oleh = request.user.employee
                 asset.save()
                 initialize_schedule_for_asset(asset)
-            messages.success(request, f"Aset '{asset.nama_asset}' berhasil ditambahkan.")
+            messages.success(request, f"Aset '{asset.nama_aset}' berhasil ditambahkan.")
             return redirect("asset_list")
         flash_form_errors(request, form)
 
@@ -315,13 +314,13 @@ def asset_create(request):
 @role_required(is_ga_or_finance)
 def asset_update(request, pk):
     asset = get_object_or_404(
-        Asset.objects.select_related("asset_category", "maintenance_config", "lokasi_asset"), pk=pk
+        Asset.objects.select_related("kategori_aset", "maintenance_config", "lokasi"), pk=pk
     )
     if request.method == "POST":
         form = AssetUpdateForm(request.POST, instance=asset)
         if form.is_valid():
             form.save()
-            messages.success(request, f"Aset '{asset.nama_asset}' berhasil diperbarui.")
+            messages.success(request, f"Aset '{asset.nama_aset}' berhasil diperbarui.")
             return redirect("asset_detail", pk=asset.pk)
         flash_form_errors(request, form)
         asset.refresh_from_db()
@@ -329,7 +328,7 @@ def asset_update(request, pk):
     records = list(
         asset.maintenance_records
         .order_by('-tanggal_pelaksanaan')
-        .only("id", "asset_id", "tanggal_pelaksanaan", "maintenance_type", "hasil", "deskripsi_pekerjaan")
+        .only("id", "aset_id", "tanggal_pelaksanaan", "jenis_maintenance", "hasil", "deskripsi_pekerjaan")
     )
     context = {
         **_asset_form_context(),
@@ -348,16 +347,16 @@ def asset_update(request, pk):
 def asset_detail(request, pk):
     asset = get_object_or_404(
         Asset.objects.select_related(
-            "lokasi_asset", "owned_by_department",
-            "asset_category__group", "financial", "maintenance_config",
+            "lokasi", "departemen_pemilik",
+            "kategori_aset__grup", "financial", "maintenance_config",
         ).prefetch_related(
-            Prefetch("photos", queryset=AssetPhoto.objects.order_by('-is_primary', '-uploaded_at')),
+            Prefetch("photos", queryset=AssetPhoto.objects.order_by('-foto_utama', '-diunggah_pada')),
             Prefetch(
                 "maintenance_records",
-                queryset=MaintenanceRecord.objects.select_related("performed_by")
+                queryset=MaintenanceRecord.objects.select_related("dilaksanakan_oleh")
                     .order_by('-tanggal_pelaksanaan'),
             ),
-            Prefetch("schedules", queryset=MaintenanceSchedule.objects.order_by('scheduled_date')),
+            Prefetch("schedules", queryset=MaintenanceSchedule.objects.order_by('tanggal_jadwal')),
             "components",
         ),
         pk=pk,
@@ -365,17 +364,17 @@ def asset_detail(request, pk):
 
     stats = asset.maintenance_records.aggregate(
         total_count=Count('id'),
-        corrective_count=Count('id', filter=Q(maintenance_type='corrective')),
-        preventive_count=Count('id', filter=Q(maintenance_type='preventive')),
-        inspection_count=Count('id', filter=Q(maintenance_type='inspection')),
+        corrective_count=Count('id', filter=Q(jenis_maintenance='corrective')),
+        preventive_count=Count('id', filter=Q(jenis_maintenance='preventive')),
+        inspection_count=Count('id', filter=Q(jenis_maintenance='inspection')),
         total_biaya=Sum('biaya'),
-        total_biaya_corrective=Sum('biaya', filter=Q(maintenance_type='corrective')),
-        total_biaya_preventive=Sum('biaya', filter=~Q(maintenance_type='corrective')),
-        avg_biaya_corrective=Avg('biaya', filter=Q(maintenance_type='corrective')),
-        major_count=Count('id', filter=Q(maintenance_type='corrective', hasil='major_issue')),
-        minor_count=Count('id', filter=Q(maintenance_type='corrective', hasil='minor_issue')),
-        replaced_count=Count('id', filter=Q(maintenance_type='corrective', hasil='replaced_component')),
-        ok_count=Count('id', filter=Q(maintenance_type='corrective', hasil='ok')),
+        total_biaya_corrective=Sum('biaya', filter=Q(jenis_maintenance='corrective')),
+        total_biaya_preventive=Sum('biaya', filter=~Q(jenis_maintenance='corrective')),
+        avg_biaya_corrective=Avg('biaya', filter=Q(jenis_maintenance='corrective')),
+        major_count=Count('id', filter=Q(jenis_maintenance='corrective', hasil='major_issue')),
+        minor_count=Count('id', filter=Q(jenis_maintenance='corrective', hasil='minor_issue')),
+        replaced_count=Count('id', filter=Q(jenis_maintenance='corrective', hasil='replaced_component')),
+        ok_count=Count('id', filter=Q(jenis_maintenance='corrective', hasil='ok')),
     )
 
     # Semua dari data yang sudah di-prefetch — tidak query ulang
@@ -396,27 +395,27 @@ def asset_detail(request, pk):
     book_value = book_value_pct = life = None
     if hasattr(asset, 'financial'):
         fin = asset.financial
-        if asset.lifecycle_status != 'writeoff':
+        if asset.status_siklus_hidup != 'writeoff':
             year_ago = timezone.localdate() - timedelta(days=365)
-            recent = sum(1 for r in all_records if r.maintenance_type == 'corrective' and r.tanggal_pelaksanaan > year_ago)
+            recent = sum(1 for r in all_records if r.jenis_maintenance == 'corrective' and r.tanggal_pelaksanaan > year_ago)
             life = life_review(fin, stats['total_biaya_corrective'] or Decimal('0'), corrective_count, recent)
         book_value = fin.book_value()
-        rentang = fin.nilai_awal_aset - fin.nilai_residual
+        rentang = fin.nilai_awal - fin.nilai_residual
         book_value_pct = round(float((book_value - fin.nilai_residual) / rentang * 100)) if rentang > 0 else 0
 
     context = {
         "book_value":           book_value,
         "book_value_pct":       book_value_pct,
-        "wo":                   getattr(asset, 'write_off', None) if asset.lifecycle_status == 'writeoff' else None,
+        "wo":                   getattr(asset, 'write_off', None) if asset.status_siklus_hidup == 'writeoff' else None,
         "asset":                asset,
-        "assignment":           AssetAssignment.objects.filter(asset=asset, status='active')
-                                .select_related('assigned_to', 'department').first(),
+        "assignment":           AssetAssignment.objects.filter(aset=asset, status='active')
+                                .select_related('diserahkan_kepada', 'departemen').first(),
         "maintenance_records":  all_records,
-        "corrective_records":   [r for r in all_records if r.maintenance_type == 'corrective'],
+        "corrective_records":   [r for r in all_records if r.jenis_maintenance == 'corrective'],
         "schedules":            schedules,
         "components":           asset.components.all(),
         "photos":               photos,
-        "primary_photo":        next((p for p in photos if p.is_primary), None),
+        "primary_photo":        next((p for p in photos if p.foto_utama), None),
         # Jadwal aktif terdekat — termasuk yang sudah terlambat
         "next_schedule":        next((s for s in schedules if s.status in ('upcoming', 'overdue')), None),
         "last_maintenance":     all_records[0] if all_records else None,
@@ -452,7 +451,7 @@ def asset_detail(request, pk):
 def asset_delete(request, pk):
     # POST saja: link GET bisa terpicu prefetch browser atau tautan yang dibagikan
     asset = get_object_or_404(Asset, pk=pk)
-    name = asset.nama_asset
+    name = asset.nama_aset
     back_params = request.GET.urlencode()  # otomatis berisi page, q, status, dll
     asset.delete()
     messages.success(request, f"Aset {name} dihapus permanen.")
@@ -462,45 +461,57 @@ def asset_delete(request, pk):
     return redirect(redirect_url)
 
 @role_required(is_ga)
-def photo_upload(request, asset_id):
-    asset = get_object_or_404(Asset.objects.only("id"), id=asset_id)
+def photo_upload(request, aset_id):
+    aset = get_object_or_404(Asset.objects.only("id"), id=aset_id)
     if request.method == "POST":
-        photo_file = request.FILES.get('photo')
-        if photo_file and photo_file.size <= 5 * 1024 * 1024:
-            AssetPhoto.objects.create(
-                asset=asset, photo=photo_file,
-                photo_type=request.POST.get('photo_type', 'unit'),
-                caption=request.POST.get('caption', ''),
-                is_primary=request.POST.get('is_primary') == 'on',
-                uploaded_by=request.user.employee,
-            )
-            if not AssetPhoto.objects.filter(asset=asset, is_primary=True).exists():
-                first_id = AssetPhoto.objects.filter(asset=asset).values_list('id', flat=True).first()
-                if first_id:
-                    AssetPhoto.objects.filter(id=first_id).update(is_primary=True)
-    return redirect('asset_detail', pk=asset.id)
+        photo_file = request.FILES.get('foto')
+        jenis = request.POST.get('jenis_foto', 'unit')
+        if jenis not in dict(AssetPhoto.PHOTO_TYPE):
+            jenis = 'other'
+        if not photo_file:
+            messages.error(request, 'Pilih foto yang akan diunggah.')
+        elif photo_file.size > 5 * 1024 * 1024:
+            messages.error(request, 'Ukuran foto lebih dari 5 MB. Pilih foto yang lebih kecil.')
+        else:
+            utama = request.POST.get('foto_utama') == 'on'
+            with transaction.atomic():
+                if utama:
+                    AssetPhoto.objects.filter(aset=aset, foto_utama=True).update(foto_utama=False)
+                AssetPhoto.objects.create(
+                    aset=aset, foto=photo_file, jenis_foto=jenis,
+                    keterangan=request.POST.get('keterangan', '').strip()[:200],
+                    foto_utama=utama,
+                    diunggah_oleh=getattr(request.user, 'employee', None),
+                )
+                if not AssetPhoto.objects.filter(aset=aset, foto_utama=True).exists():
+                    first_id = AssetPhoto.objects.filter(aset=aset).values_list('id', flat=True).first()
+                    if first_id:
+                        AssetPhoto.objects.filter(id=first_id).update(foto_utama=True)
+            messages.success(request, 'Foto ditambahkan.')
+    return redirect('asset_detail', pk=aset.id)
 
 
 @role_required(is_ga)
 @require_POST
-def photo_set_primary(request, photo_id):
-    photo = get_object_or_404(AssetPhoto.objects.only("id", "asset_id"), id=photo_id)
-    AssetPhoto.objects.filter(asset_id=photo.asset_id).update(is_primary=False)
-    AssetPhoto.objects.filter(id=photo_id).update(is_primary=True)
-    return redirect('asset_detail', pk=photo.asset_id)
+def photo_set_primary(request, foto_id):
+    foto = get_object_or_404(AssetPhoto.objects.only("id", "aset_id"), id=foto_id)
+    AssetPhoto.objects.filter(aset_id=foto.aset_id).update(foto_utama=False)
+    AssetPhoto.objects.filter(id=foto_id).update(foto_utama=True)
+    return redirect('asset_detail', pk=foto.aset_id)
 
 
 @role_required(is_ga)
 @require_POST
-def photo_delete(request, photo_id):
-    photo = get_object_or_404(AssetPhoto.objects.only("id", "asset_id", "photo"), id=photo_id)
-    asset_id = photo.asset_id
-    if photo.photo and os.path.isfile(photo.photo.path):
-        os.remove(photo.photo.path)
-    photo.delete()
-    remaining = AssetPhoto.objects.filter(asset_id=asset_id)
-    if remaining.exists() and not remaining.filter(is_primary=True).exists():
+def photo_delete(request, foto_id):
+    foto = get_object_or_404(AssetPhoto.objects.only("id", "aset_id", "foto"), id=foto_id)
+    aset_id = foto.aset_id
+    if foto.foto:
+        # Lewat storage, bukan os.remove: berlaku untuk folder media/ lokal maupun bucket di server
+        foto.foto.delete(save=False)
+    foto.delete()
+    remaining = AssetPhoto.objects.filter(aset_id=aset_id)
+    if remaining.exists() and not remaining.filter(foto_utama=True).exists():
         first_id = remaining.values_list('id', flat=True).first()
         if first_id:
-            AssetPhoto.objects.filter(id=first_id).update(is_primary=True)
-    return redirect('asset_detail', pk=asset_id)
+            AssetPhoto.objects.filter(id=first_id).update(foto_utama=True)
+    return redirect('asset_detail', pk=aset_id)

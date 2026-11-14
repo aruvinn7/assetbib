@@ -8,14 +8,14 @@
         <input class="input" type="text" id="nama" name="nama" value="{% firstof posted.nama emp_obj.nama %}" maxlength="150" required {% if not emp_obj %}autofocus{% endif %}>
       </div>
       <div class="field">
-        <label for="employee_id">ID karyawan <span class="req" aria-hidden="true">*</span></label>
-        <input class="input" type="text" id="employee_id" name="employee_id" value="{% firstof posted.employee_id emp_obj.employee_id %}" maxlength="20" required placeholder="mis. EMP-042">
+        <label for="nomor_karyawan">ID karyawan <span class="req" aria-hidden="true">*</span></label>
+        <input class="input" type="text" id="nomor_karyawan" name="nomor_karyawan" value="{% firstof posted.nomor_karyawan emp_obj.nomor_karyawan %}" maxlength="20" required placeholder="mis. EMP-042">
       </div>
       <div class="field">
-        <label for="department">Departemen</label>
-        <select class="input select" id="department" name="department">
+        <label for="departemen">Departemen</label>
+        <select class="input select" id="departemen" name="departemen">
           <option value="">Tanpa departemen</option>
-          {% for d in departments %}<option value="{{ d.pk }}" {% if posted %}{% if posted.department == d.pk|stringformat:"s" %}selected{% endif %}{% elif emp_obj.department_id == d.pk %}selected{% endif %}>{{ d.name }}</option>{% endfor %}
+          {% for d in departments %}<option value="{{ d.pk }}" {% if posted %}{% if posted.departemen == d.pk|stringformat:"s" %}selected{% endif %}{% elif emp_obj.departemen_id == d.pk %}selected{% endif %}>{{ d.nama }}</option>{% endfor %}
         </select>
       </div>
       <div class="field span-all">

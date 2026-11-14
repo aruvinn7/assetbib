@@ -1,14 +1,14 @@
 {% extends "base.html" %}
-{% block title %}Edit komponen · {{ component.component_name }}{% endblock %}
+{% block title %}Edit komponen · {{ component.nama_komponen }}{% endblock %}
 {% block nav_assets %}active{% endblock %}
 
 {% block content %}
 <div class="page">
   <div class="crumbs">
-    <a href="{% url 'asset_detail' asset.id %}">{{ asset.asset_number }}</a><i class="fa-solid fa-chevron-right" aria-hidden="true" style="font-size:10px"></i>
+    <a href="{% url 'asset_detail' asset.id %}">{{ asset.nomor_aset }}</a><i class="fa-solid fa-chevron-right" aria-hidden="true" style="font-size:10px"></i>
     <a href="{% url 'component_list' asset.id %}">Komponen</a><i class="fa-solid fa-chevron-right" aria-hidden="true" style="font-size:10px"></i>Edit
   </div>
-  <div class="page-head"><div><h1>Edit komponen</h1><div class="sub">{{ component.component_name }} · {{ asset.nama_asset }}</div></div></div>
+  <div class="page-head"><div><h1>Edit komponen</h1><div class="sub">{{ component.nama_komponen }} · {{ asset.nama_aset }}</div></div></div>
 
   <form method="post" class="form-layout single">
     {% csrf_token %}

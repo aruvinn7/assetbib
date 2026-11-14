@@ -20,16 +20,16 @@ from ..roles import is_ga
 
 
 @role_required(is_ga)
-def maintenance_create(request, asset_id):
+def maintenance_create(request, aset_id):
     asset = get_object_or_404(
-        Asset.objects.select_related("asset_category", "maintenance_config"),
-        id=asset_id
+        Asset.objects.select_related("kategori_aset", "maintenance_config"),
+        id=aset_id
     )
-    if asset.lifecycle_status == 'writeoff':
+    if asset.status_siklus_hidup == 'writeoff':
         # Aset write off tidak dirawat lagi; dialog cepat ikut diarahkan ke detail aset (res.redirected)
-        messages.error(request, f"Aset '{asset.nama_asset}' sudah di-write off, maintenance tidak bisa dicatat.")
+        messages.error(request, f"Aset '{asset.nama_aset}' sudah di-write off, maintenance tidak bisa dicatat.")
         return redirect("asset_detail", pk=asset.id)
-    checklist_hint = asset.asset_category.maintenance_description if asset.asset_category else ""
+    checklist_hint = asset.kategori_aset.deskripsi_maintenance if asset.kategori_aset else ""
     # Dipanggil dari dialog "Catat cepat" (fetch) → balas parsial/JSON, bukan halaman penuh
     is_dialog = request.headers.get("X-Requested-With") == "fetch"
     form = None
@@ -42,20 +42,20 @@ def maintenance_create(request, asset_id):
                 # Hanya jadwal milik aset ini yang boleh ditandai selesai. Ditandai SEBELUM record
                 # disimpan: record.save() menghapus jadwal 'upcoming' lama saat membuat jadwal baru,
                 # sehingga jadwal yang dikerjakan dulu ikut terhapus dan riwayatnya hilang.
-                done_qs = MaintenanceSchedule.objects.filter(pk=schedule_id, asset=asset) \
+                done_qs = MaintenanceSchedule.objects.filter(pk=schedule_id, aset=asset) \
                     if schedule_id and schedule_id.isdigit() else MaintenanceSchedule.objects.none()
                 done_qs.update(status='done')
                 record = form.save(commit=False)
-                record.asset        = asset
-                record.performed_by = request.user.employee
+                record.aset        = asset
+                record.dilaksanakan_oleh = request.user.employee
                 record.save()
-                done_qs.update(maintenance_record=record)
+                done_qs.update(catatan_maintenance=record)
             if is_dialog:
-                nxt = asset.schedules.filter(status='upcoming').order_by('scheduled_date').first()
+                nxt = asset.schedules.filter(status='upcoming').order_by('tanggal_jadwal').first()
                 return JsonResponse({
                     "ok": True,
-                    "message": f"Maintenance {asset.asset_number} dicatat."
-                               + (f" Jadwal berikutnya {nxt.scheduled_date:%d %b %Y}." if nxt else ""),
+                    "message": f"Maintenance {asset.nomor_aset} dicatat."
+                               + (f" Jadwal berikutnya {nxt.tanggal_jadwal:%d %b %Y}." if nxt else ""),
                 })
             messages.success(request, "Maintenance berhasil dicatat.")
             return redirect("asset_detail", pk=asset.id)
@@ -63,8 +63,8 @@ def maintenance_create(request, asset_id):
             flash_form_errors(request, form)
 
     active_schedule = asset.schedules.active().only(
-        "id", "scheduled_date", "status", "damage_report"
-    ).order_by('scheduled_date').first()
+        "id", "tanggal_jadwal", "status", "laporan_kerusakan"
+    ).order_by('tanggal_jadwal').first()
 
     # Deskripsi yang pernah dipakai untuk aset ini → tombol isi cepat
     recent = []
@@ -73,7 +73,7 @@ def maintenance_create(request, asset_id):
             recent.append(d)
     default_type = ''
     if active_schedule:
-        default_type = 'corrective' if active_schedule.damage_report_id else 'preventive'
+        default_type = 'corrective' if active_schedule.laporan_kerusakan_id else 'preventive'
     # Dialog & halaman penuh memakai isian yang sama (maintenance/_fields.html)
     return render(request, "maintenance/_quick_form.html" if is_dialog else "maintenance/create.html", {
         "asset":           asset,
@@ -100,22 +100,22 @@ def maintenance_list(request):
     schedules_qs = (
         MaintenanceSchedule.objects
         .select_related(
-            'asset',
-            'asset__asset_category',
-            'asset__lokasi_asset',
-            'asset__maintenance_config',   # ← WAJIB agar tidak N+1 di get_effective_interval_days
+            'aset',
+            'aset__kategori_aset',
+            'aset__lokasi',
+            'aset__maintenance_config',   # ← WAJIB agar tidak N+1 di get_effective_interval_days
         )
         .only(
-            'id', 'status', 'scheduled_date', 'notes',
-            'asset__id', 'asset__nama_asset', 'asset__asset_number',
-            'asset__lifecycle_status',
-            'asset__lokasi_asset__name', 'asset__lokasi_asset__full_path',
-            'asset__asset_category__name',
-            'asset__asset_category__default_interval_value',
-            'asset__asset_category__default_interval_unit',
-            'asset__maintenance_config__custom_interval_days',
+            'id', 'status', 'tanggal_jadwal', 'catatan',
+            'aset__id', 'aset__nama_aset', 'aset__nomor_aset',
+            'aset__status_siklus_hidup',
+            'aset__lokasi__nama', 'aset__lokasi__jalur_lengkap',
+            'aset__kategori_aset__nama',
+            'aset__kategori_aset__interval_default',
+            'aset__kategori_aset__satuan_interval_default',
+            'aset__maintenance_config__interval_khusus_hari',
         )
-        .order_by('scheduled_date')
+        .order_by('tanggal_jadwal')
     )
 
     if status_filter:
@@ -125,8 +125,8 @@ def maintenance_list(request):
 
     if search_query:
         schedules_qs = schedules_qs.filter(
-            Q(asset__nama_asset__icontains=search_query) |
-            Q(asset__asset_number__icontains=search_query)
+            Q(aset__nama_aset__icontains=search_query) |
+            Q(aset__nomor_aset__icontains=search_query)
         )
 
     # ── Stats: 1 query aggregate ──
@@ -143,8 +143,8 @@ def maintenance_list(request):
 
     # ── Interval & custom flag per baris — relasi sudah di-select_related, jadi 0 query ──
     for sch in page_obj:
-        sch.interval_days      = sch.asset.get_effective_interval_days()
-        sch.is_custom_interval = hasattr(sch.asset, 'maintenance_config')
+        sch.interval_days      = sch.aset.get_effective_interval_days()
+        sch.is_custom_interval = hasattr(sch.aset, 'maintenance_config')
 
     context = {
         'page_obj':          page_obj,
@@ -161,25 +161,25 @@ def maintenance_list(request):
 @role_required(is_ga)
 @require_POST
 def maintenance_schedule_skip(request, pk):
-    sch = MaintenanceSchedule.objects.active().select_related('asset').filter(pk=pk).first()
+    sch = MaintenanceSchedule.objects.active().select_related('aset').filter(pk=pk).first()
     if sch:
         MaintenanceSchedule.objects.filter(pk=pk).update(status='skipped')
-        messages.success(request, f"Jadwal {sch.asset.nama_asset} ({sch.scheduled_date:%d %b %Y}) dilewati.")
+        messages.success(request, f"Jadwal {sch.aset.nama_aset} ({sch.tanggal_jadwal:%d %b %Y}) dilewati.")
     next_url = request.POST.get('next', '')
     return redirect(next_url if next_url.startswith('/maintenance/') else 'maintenance_list')
 
 
 @role_required(is_ga)
-def maintenance_config_create(request, asset_id):
+def maintenance_config_create(request, aset_id):
     asset = get_object_or_404(
-        Asset.objects.select_related("asset_category", "maintenance_config"),
-        id=asset_id
+        Asset.objects.select_related("kategori_aset", "maintenance_config"),
+        id=aset_id
     )
     if hasattr(asset, 'maintenance_config'):
-        return redirect("maintenance_config_update", asset_id=asset.id)
+        return redirect("maintenance_config_update", aset_id=asset.id)
 
     category_interval = (
-        asset.asset_category.default_interval_in_days() if asset.asset_category else None
+        asset.kategori_aset.default_interval_in_days() if asset.kategori_aset else None
     )
 
     if request.method == "POST":
@@ -187,12 +187,12 @@ def maintenance_config_create(request, asset_id):
         if form.is_valid():
             with transaction.atomic():
                 config = form.save(commit=False)
-                config.asset  = asset
-                config.set_by = request.user.employee
+                config.aset  = asset
+                config.ditetapkan_oleh = request.user.employee
                 config.save()
                 asset.maintenance_config = config
                 initialize_schedule_for_asset(asset)
-            messages.success(request, f"Interval khusus {config.custom_interval_days} hari disimpan; jadwal berikutnya dihitung ulang.")
+            messages.success(request, f"Interval khusus {config.interval_khusus_hari} hari disimpan; jadwal berikutnya dihitung ulang.")
             return redirect("asset_detail", pk=asset.id)
         flash_form_errors(request, form)
 
@@ -205,39 +205,39 @@ def maintenance_config_create(request, asset_id):
 
 
 @role_required(is_ga)
-def maintenance_config_update(request, asset_id):
-    asset  = get_object_or_404(Asset.objects.select_related("asset_category", "maintenance_config"), id=asset_id)
-    if not hasattr(asset, 'maintenance_config'):
-        return redirect("maintenance_config_create", asset_id=asset.id)
-    config = asset.maintenance_config
+def maintenance_config_update(request, aset_id):
+    aset  = get_object_or_404(Asset.objects.select_related("kategori_aset", "maintenance_config"), id=aset_id)
+    if not hasattr(aset, 'maintenance_config'):
+        return redirect("maintenance_config_create", aset_id=aset.id)
+    config = aset.maintenance_config
 
     if request.method == "POST":
         form = MaintenanceConfigForm(request.POST, instance=config)
         if form.is_valid():
             with transaction.atomic():
                 form.save()
-                initialize_schedule_for_asset(asset)
-            messages.success(request, f"Interval khusus diubah menjadi {config.custom_interval_days} hari; jadwal berikutnya dihitung ulang.")
-            return redirect("asset_detail", pk=asset.id)
+                initialize_schedule_for_asset(aset)
+            messages.success(request, f"Interval khusus diubah menjadi {config.interval_khusus_hari} hari; jadwal berikutnya dihitung ulang.")
+            return redirect("asset_detail", pk=aset.id)
         flash_form_errors(request, form)
         config.refresh_from_db()
 
     return render(request, "maintenance/config_form.html", {
-        "asset":             asset,
+        "asset":             aset,
         "config":            config,
-        "category_interval": asset.asset_category.default_interval_in_days() if asset.asset_category else None,
+        "category_interval": aset.kategori_aset.default_interval_in_days() if aset.kategori_aset else None,
         "posted":            request.POST.dict() if request.method == "POST" else None,
     })
 
 
 @role_required(is_ga)
-def maintenance_generate_schedule(request, asset_id):
+def maintenance_generate_schedule(request, aset_id):
     asset = get_object_or_404(
-        Asset.objects.select_related("asset_category", "maintenance_config"),
-        id=asset_id
+        Asset.objects.select_related("kategori_aset", "maintenance_config"),
+        id=aset_id
     )
     if not asset.get_effective_interval_days():
-        return redirect("maintenance_config_create", asset_id=asset.id)
+        return redirect("maintenance_config_create", aset_id=asset.id)
     # TEKNIK 9: delete() langsung tanpa loop
     asset.schedules.all().delete()
     initialize_schedule_for_asset(asset)

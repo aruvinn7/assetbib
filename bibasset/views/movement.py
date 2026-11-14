@@ -15,14 +15,14 @@ from ..models import record_movement, sync_holder
 from ..roles import is_ga
 
 
-def _back(request, asset_id):
+def _back(request, aset_id):
     """Kembali ke halaman & saringan riwayat yang tadi dibuka, dengan aset ini terbuka (#mv-<id>)."""
     url = request.META.get('HTTP_REFERER', '')
     base = reverse('movement_dashboard')
     if not (url and url_has_allowed_host_and_scheme(url, allowed_hosts={request.get_host()})
             and base in url):
         url = base
-    return redirect(url.split('#')[0] + f'#mv-{asset_id}')
+    return redirect(url.split('#')[0] + f'#mv-{aset_id}')
 
 
 # ── Dashboard: list aset + lokasi & status terkini ───────────────
@@ -39,22 +39,22 @@ def movement_dashboard(request):
     status    = request.GET.get('status', '')
     mv_filter = request.GET.get('mv', '')
 
-    has_movement = Exists(AssetMovement.objects.filter(asset=OuterRef('pk')))
+    has_movement = Exists(AssetMovement.objects.filter(aset=OuterRef('pk')))
     assets_qs = Asset.objects.select_related(
-        'lokasi_asset', 'asset_category__group',
+        'lokasi', 'kategori_aset__grup',
     ).annotate(
         has_movement=has_movement,
-        last_moved=Max('movements__moved_in'),
-    ).order_by(F('last_moved').desc(nulls_last=True), 'nama_asset')
+        last_moved=Max('movements__tanggal_masuk'),
+    ).order_by(F('last_moved').desc(nulls_last=True), 'nama_aset')
 
     if search:
         assets_qs = assets_qs.filter(
-            Q(nama_asset__icontains=search) |
-            Q(asset_number__icontains=search) |
-            Q(lokasi_asset__name__icontains=search)
+            Q(nama_aset__icontains=search) |
+            Q(nomor_aset__icontains=search) |
+            Q(lokasi__nama__icontains=search)
         )
     if status in ['active', 'maintenance', 'writeoff']:
-        assets_qs = assets_qs.filter(lifecycle_status=status)
+        assets_qs = assets_qs.filter(status_siklus_hidup=status)
 
     # Catatan: Count(filter=Q(has_movement=True)) di aggregate salah hitung untuk
     # anotasi Exists, jadi pakai 2 COUNT terpisah
@@ -77,12 +77,12 @@ def movement_dashboard(request):
     prefetch_related_objects(page_assets, Prefetch(
         'movements',
         queryset=AssetMovement.objects.select_related(
-            'held_by', 'department', 'location', 'recorded_by'
-        ).order_by('-moved_in'),
+            'dipegang_oleh', 'departemen', 'lokasi', 'dicatat_oleh'
+        ).order_by('-tanggal_masuk'),
     ))
     for asset in page_assets:
         all_movements = list(asset.movements.all())
-        asset.current_movement = next((m for m in all_movements if m.is_current), None)
+        asset.current_movement = next((m for m in all_movements if m.posisi_saat_ini), None)
         asset.movement_history = all_movements
         asset.movement_count   = len(all_movements)
 
@@ -93,9 +93,9 @@ def movement_dashboard(request):
         'search':          search,
         'status_filter':   status,
         'movement_filter': mv_filter or 'all',
-        'locations':   Location.objects.only('id', 'name', 'full_path').order_by('full_path'),
-        'departments': Department.objects.order_by('name'),
-        'employees':   Employee.objects.select_related('department').order_by('nama'),
+        'locations':   Location.objects.only('id', 'nama', 'jalur_lengkap').order_by('jalur_lengkap'),
+        'departments': Department.objects.order_by('nama'),
+        'employees':   Employee.objects.select_related('departemen').order_by('nama'),
     })
 
 
@@ -103,11 +103,11 @@ def movement_dashboard(request):
 
 @role_required(is_ga)
 @require_POST
-def movement_create(request, asset_id):
-    asset = get_object_or_404(Asset, pk=asset_id)
+def movement_create(request, aset_id):
+    asset = get_object_or_404(Asset, pk=aset_id)
 
-    if asset.lifecycle_status == 'writeoff':
-        messages.error(request, f"Aset '{asset.nama_asset}' sudah di-write off; perpindahan tidak bisa dicatat.")
+    if asset.status_siklus_hidup == 'writeoff':
+        messages.error(request, f"Aset '{asset.nama_aset}' sudah di-write off; perpindahan tidak bisa dicatat.")
         return _back(request, asset.pk)
 
     form = MovementForm(request.POST)
@@ -117,67 +117,67 @@ def movement_create(request, asset_id):
 
     record_movement(
         asset=asset,
-        held_by=form.cleaned_data['held_by'],
-        department=form.cleaned_data['department'],
-        location=form.cleaned_data['location'],
-        recorded_by=request.user.employee,
-        notes=form.cleaned_data['notes'],
+        dipegang_oleh=form.cleaned_data['dipegang_oleh'],
+        departemen=form.cleaned_data['departemen'],
+        lokasi=form.cleaned_data['lokasi'],
+        dicatat_oleh=request.user.employee,
+        catatan=form.cleaned_data['catatan'],
     )
-    messages.success(request, f"Perpindahan '{asset.nama_asset}' dicatat.")
+    messages.success(request, f"Perpindahan '{asset.nama_aset}' dicatat.")
     return _back(request, asset.pk)
 
 
 @role_required(is_ga)
 @require_POST
 def movement_update(request, pk):
-    mv = get_object_or_404(AssetMovement.objects.select_related('asset'), pk=pk)
+    mv = get_object_or_404(AssetMovement.objects.select_related('aset'), pk=pk)
 
-    if mv.asset.lifecycle_status == 'writeoff':
+    if mv.aset.status_siklus_hidup == 'writeoff':
         messages.error(request, "Catatan perpindahan aset write off tidak bisa diubah.")
-        return _back(request, mv.asset_id)
+        return _back(request, mv.aset_id)
 
     form = MovementForm(request.POST)
     if not form.is_valid():
         flash_form_errors(request, form)
-        return _back(request, mv.asset_id)
+        return _back(request, mv.aset_id)
 
     with transaction.atomic():
-        mv.held_by    = form.cleaned_data['held_by']
-        mv.department = form.cleaned_data['department']
-        mv.location   = form.cleaned_data['location']
-        mv.notes      = form.cleaned_data['notes']
+        mv.dipegang_oleh    = form.cleaned_data['dipegang_oleh']
+        mv.departemen = form.cleaned_data['departemen']
+        mv.lokasi   = form.cleaned_data['lokasi']
+        mv.catatan      = form.cleaned_data['catatan']
         mv.save()
         # Record aktif = posisi aset sekarang → sinkronkan lokasi & pemegang aset
-        if mv.is_current:
-            if mv.location_id:
-                Asset.objects.filter(pk=mv.asset_id).update(lokasi_asset_id=mv.location_id)
-            sync_holder(mv.asset, mv.held_by, by=request.user.employee, notes=mv.notes,
-                        department=mv.department, location=mv.location)
+        if mv.posisi_saat_ini:
+            if mv.lokasi_id:
+                Asset.objects.filter(pk=mv.aset_id).update(lokasi_id=mv.lokasi_id)
+            sync_holder(mv.aset, mv.dipegang_oleh, oleh=request.user.employee, catatan=mv.catatan,
+                        departemen=mv.departemen, lokasi=mv.lokasi)
     messages.success(request, "Catatan perpindahan diperbarui.")
-    return _back(request, mv.asset_id)
+    return _back(request, mv.aset_id)
 
 
 @role_required(is_ga)
 @require_POST
 def movement_delete(request, pk):
-    mv = get_object_or_404(AssetMovement.objects.select_related('asset'), pk=pk)
+    mv = get_object_or_404(AssetMovement.objects.select_related('aset'), pk=pk)
 
-    if mv.asset.lifecycle_status == 'writeoff':
+    if mv.aset.status_siklus_hidup == 'writeoff':
         messages.error(request, "Catatan perpindahan aset write off tidak bisa dihapus.")
-        return _back(request, mv.asset_id)
+        return _back(request, mv.aset_id)
 
     with transaction.atomic():
-        was_current = mv.is_current
-        asset       = mv.asset
+        was_current = mv.posisi_saat_ini
+        asset       = mv.aset
         mv.delete()
         # Kalau yang dihapus record aktif, record sebelumnya jadi aktif lagi (beserta pemegangnya)
         if was_current:
-            prev = asset.movements.select_related('held_by', 'department', 'location').order_by('-moved_in').first()
+            prev = asset.movements.select_related('dipegang_oleh', 'departemen', 'lokasi').order_by('-tanggal_masuk').first()
             if prev:
-                prev.is_current = True
-                prev.moved_out  = None
-                prev.save(update_fields=['is_current', 'moved_out'])
-            sync_holder(asset, prev.held_by if prev else None, by=request.user.employee,
-                        department=prev.department if prev else None, location=prev.location if prev else None)
-    messages.success(request, f"Catatan perpindahan '{asset.nama_asset}' dihapus.")
+                prev.posisi_saat_ini = True
+                prev.tanggal_keluar  = None
+                prev.save(update_fields=['posisi_saat_ini', 'tanggal_keluar'])
+            sync_holder(asset, prev.dipegang_oleh if prev else None, oleh=request.user.employee,
+                        departemen=prev.departemen if prev else None, lokasi=prev.lokasi if prev else None)
+    messages.success(request, f"Catatan perpindahan '{asset.nama_aset}' dihapus.")
     return _back(request, asset.pk)

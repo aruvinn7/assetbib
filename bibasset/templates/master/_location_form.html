@@ -3,16 +3,16 @@
   <div class="fsec-body">
     <div class="field">
       <label for="locParent">Induk lokasi</label>
-      <select class="input select" id="locParent" name="parent">
+      <select class="input select" id="locParent" name="induk">
         <option value="">Tidak ada — ini site utama</option>
-        {% for p in parents %}<option value="{{ p.pk }}" data-path="{{ p.full_path }}" {% if l.parent_id == p.pk or preset_parent == p.pk %}selected{% endif %}>{{ p.full_path }}</option>{% endfor %}
+        {% for p in parents %}<option value="{{ p.pk }}" data-path="{{ p.jalur_lengkap }}" {% if l.induk_id == p.pk or preset_parent == p.pk %}selected{% endif %}>{{ p.jalur_lengkap }}</option>{% endfor %}
       </select>
     </div>
     <div class="field">
       <label for="locName">Nama lokasi <span class="req" aria-hidden="true">*</span></label>
-      <input class="input" type="text" id="locName" name="name" value="{{ l.name|default:'' }}" maxlength="100" required autofocus placeholder="mis. Ruang Meeting 2">
+      <input class="input" type="text" id="locName" name="nama" value="{{ l.nama|default:'' }}" maxlength="100" required autofocus placeholder="mis. Ruang Meeting 2">
     </div>
-    <label class="check-row"><input type="checkbox" name="is_storage" {% if l.is_storage or posted.is_storage %}checked{% endif %}><span><strong>Tempat titip GA</strong> — aset yang dikembalikan disimpan di sini dan berstatus Tersedia sampai diserahkan lagi.</span></label>
+    <label class="check-row"><input type="checkbox" name="tempat_penyimpanan" {% if l.tempat_penyimpanan or posted.tempat_penyimpanan %}checked{% endif %}><span><strong>Tempat titip GA</strong> — aset yang dikembalikan disimpan di sini dan berstatus Tersedia sampai diserahkan lagi.</span></label>
     <div class="readonly" aria-live="polite"><i class="fa-solid fa-sitemap" aria-hidden="true" style="color:var(--ink-3)"></i><span>Akan tercatat sebagai <strong id="locPath">—</strong></span></div>
   </div>
 </section>

@@ -2,11 +2,11 @@
 <section class="panel">
   <div class="panel-head"><h2>Aset</h2></div>
   <dl class="kv">
-    <div><dt>Nama</dt><dd><a href="{% url 'asset_detail' asset.id %}">{{ asset.nama_asset }}</a></dd></div>
-    <div><dt>Nomor</dt><dd>{{ asset.asset_number }}</dd></div>
-    <div><dt>Kategori</dt><dd>{{ asset.asset_category.name|default:"—" }}</dd></div>
+    <div><dt>Nama</dt><dd><a href="{% url 'asset_detail' asset.id %}">{{ asset.nama_aset }}</a></dd></div>
+    <div><dt>Nomor</dt><dd>{{ asset.nomor_aset }}</dd></div>
+    <div><dt>Kategori</dt><dd>{{ asset.kategori_aset.nama|default:"—" }}</dd></div>
     <div><dt>Tanggal beli</dt><dd>{{ asset.tanggal_pembelian|date:"d M Y" }}</dd></div>
     <div><dt>Umur</dt><dd>{{ asset.umur_asset_detail|umur }}</dd></div>
-    <div><dt>Status</dt><dd>{% include "components/_lifecycle.html" with status=asset.lifecycle_status %}</dd></div>
+    <div><dt>Status</dt><dd>{% include "components/_lifecycle.html" with status=asset.status_siklus_hidup %}</dd></div>
   </dl>
 </section>

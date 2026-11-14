@@ -1,14 +1,14 @@
 {# Isian catat maintenance — dipakai dialog cepat (_quick_form.html) dan halaman penuh (create.html) #}
-{% firstof posted.maintenance_type default_type as cur_type %}
+{% firstof posted.jenis_maintenance default_type as cur_type %}
 {% firstof posted.hasil "ok" as cur_hasil %}
 {% if active_schedule %}
 <div class="qm-note {% if active_schedule.status == 'overdue' %}is-late{% endif %}">
   {% if active_schedule.status == 'overdue' %}
     {% include "components/_status.html" with kind="warning" label="Terlambat" %}
-    <span>Jadwal {{ active_schedule.scheduled_date|date:"d M Y" }} akan ditandai selesai.</span>
+    <span>Jadwal {{ active_schedule.tanggal_jadwal|date:"d M Y" }} akan ditandai selesai.</span>
   {% else %}
     {% include "components/_status.html" with kind="mandatory" label="Terjadwal" %}
-    <span>Jadwal {{ active_schedule.scheduled_date|date:"d M Y" }} akan ditandai selesai.</span>
+    <span>Jadwal {{ active_schedule.tanggal_jadwal|date:"d M Y" }} akan ditandai selesai.</span>
   {% endif %}
 </div>
 {% endif %}
@@ -18,11 +18,11 @@
 <fieldset class="qm-field">
   <legend>Tipe <span class="req" aria-hidden="true">*</span></legend>
   <div class="seg" role="radiogroup">
-    <label class="seg-opt"><input type="radio" name="maintenance_type" value="preventive" required {% if cur_type == 'preventive' %}checked{% endif %}><span>Preventive</span></label>
-    <label class="seg-opt"><input type="radio" name="maintenance_type" value="corrective" {% if cur_type == 'corrective' %}checked{% endif %}><span>Corrective</span></label>
-    <label class="seg-opt"><input type="radio" name="maintenance_type" value="inspection" {% if cur_type == 'inspection' %}checked{% endif %}><span>Inspeksi</span></label>
+    <label class="seg-opt"><input type="radio" name="jenis_maintenance" value="preventive" required {% if cur_type == 'preventive' %}checked{% endif %}><span>Preventive</span></label>
+    <label class="seg-opt"><input type="radio" name="jenis_maintenance" value="corrective" {% if cur_type == 'corrective' %}checked{% endif %}><span>Corrective</span></label>
+    <label class="seg-opt"><input type="radio" name="jenis_maintenance" value="inspection" {% if cur_type == 'inspection' %}checked{% endif %}><span>Inspeksi</span></label>
   </div>
-  {% if form.maintenance_type.errors %}<p class="field-error">Pilih tipe maintenance.</p>{% endif %}
+  {% if form.jenis_maintenance.errors %}<p class="field-error">Pilih tipe maintenance.</p>{% endif %}
 </fieldset>
 
 <div class="qm-row">
@@ -53,7 +53,7 @@
   {% endif %}
   {% if checklist_lines %}
   <details class="checklist">
-    <summary>Checklist standar {{ asset.asset_category.name }} ({{ checklist_lines|length }})</summary>
+    <summary>Checklist standar {{ asset.kategori_aset.nama }} ({{ checklist_lines|length }})</summary>
     <ol>{% for line in checklist_lines %}<li>{{ line }}</li>{% endfor %}</ol>
   </details>
   {% endif %}
@@ -71,5 +71,5 @@
 
 <div class="field">
   <label for="qmNote">Catatan <span class="opt">opsional</span></label>
-  <input class="input" type="text" id="qmNote" name="catatan_tambahan" value="{{ posted.catatan_tambahan|default:'' }}" placeholder="Mis. dikerjakan vendor, nomor part">
+  <input class="input" type="text" id="qmNote" name="catatan" value="{{ posted.catatan|default:'' }}" placeholder="Mis. dikerjakan vendor, nomor part">
 </div>

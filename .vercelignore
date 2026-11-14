@@ -1,0 +1,17 @@
+# Tidak ikut diunggah ke Vercel (data lokal, cadangan, bahan desain)
+db.sqlite3
+db.sqlite3*
+media/
+staticfiles/
+dump*.json
+backup_*.json
+*_fixture.json
+references/
+.impeccable/
+.claude/
+docs/
+seed_master1.py
+.env
+.env.*
+!.env.example
+__pycache__/

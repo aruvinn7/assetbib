@@ -5,17 +5,17 @@
     <div class="fgrid">
       <div class="field">
         <label for="catGroup">Grup <span class="req" aria-hidden="true">*</span></label>
-        <select class="input select" id="catGroup" name="group" required>
+        <select class="input select" id="catGroup" name="grup" required>
           <option value="">Pilih grup</option>
-          {% for g in groups %}<option value="{{ g.pk }}" {% if c.group_id == g.pk or preset_group == g.pk %}selected{% endif %}>{{ g.name }}</option>{% endfor %}
+          {% for g in groups %}<option value="{{ g.pk }}" {% if c.grup_id == g.pk or preset_group == g.pk %}selected{% endif %}>{{ g.nama }}</option>{% endfor %}
         </select>
       </div>
       <div class="field">
         <label for="catName">Nama kategori <span class="req" aria-hidden="true">*</span></label>
-        <input class="input" type="text" id="catName" name="name" value="{{ c.name|default:'' }}" maxlength="100" required placeholder="mis. AC">
+        <input class="input" type="text" id="catName" name="nama" value="{{ c.nama|default:'' }}" maxlength="100" required placeholder="mis. AC">
       </div>
     </div>
-    <label class="check-row"><input type="checkbox" name="personal_use" {% if c.personal_use or posted.personal_use %}checked{% endif %}><span><strong>Bisa diserahkan pribadi</strong> — barang yang ikut orangnya, mis. laptop, kursi kerja, kasur mess. Kategori lain diserahkan atas nama departemen.</span></label>
+    <label class="check-row"><input type="checkbox" name="pemakaian_pribadi" {% if c.pemakaian_pribadi or posted.pemakaian_pribadi %}checked{% endif %}><span><strong>Bisa diserahkan pribadi</strong> — barang yang ikut orangnya, mis. laptop, kursi kerja, kasur mess. Kategori lain diserahkan atas nama departemen.</span></label>
   </div>
 </section>
 
@@ -25,13 +25,13 @@
     <div class="fgrid">
       <div class="field">
         <label for="intervalVal">Setiap</label>
-        <input class="input" type="number" id="intervalVal" name="default_interval_value" min="1" step="1" value="{{ c.default_interval_value|default:'' }}" placeholder="mis. 3">
+        <input class="input" type="number" id="intervalVal" name="interval_default" min="1" step="1" value="{{ c.interval_default|default:'' }}" placeholder="mis. 3">
       </div>
       <div class="field">
         <label for="intervalUnit">Satuan</label>
-        <select class="input select" id="intervalUnit" name="default_interval_unit">
-          <option value="months" {% if not c or c.default_interval_unit == 'months' %}selected{% endif %}>Bulan</option>
-          <option value="days" {% if c.default_interval_unit == 'days' %}selected{% endif %}>Hari</option>
+        <select class="input select" id="intervalUnit" name="satuan_interval_default">
+          <option value="months" {% if not c or c.satuan_interval_default == 'months' %}selected{% endif %}>Bulan</option>
+          <option value="days" {% if c.satuan_interval_default == 'days' %}selected{% endif %}>Hari</option>
         </select>
       </div>
     </div>
@@ -39,7 +39,7 @@
 
     <div class="field">
       <label for="checklistArea">Checklist pekerjaan <span class="opt">opsional</span></label>
-      <textarea class="textarea" id="checklistArea" name="maintenance_description" rows="6" placeholder="Bersihkan filter&#10;Cek tekanan freon&#10;Bersihkan saluran drain">{{ c.maintenance_description|default:'' }}</textarea>
+      <textarea class="textarea" id="checklistArea" name="deskripsi_maintenance" rows="6" placeholder="Bersihkan filter&#10;Cek tekanan freon&#10;Bersihkan saluran drain">{{ c.deskripsi_maintenance|default:'' }}</textarea>
       <p class="field-hint">Satu langkah per baris. Nomor ditambahkan otomatis saat disimpan, dan checklist ini muncul di form catat maintenance.</p>
     </div>
   </div>

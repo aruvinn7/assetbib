@@ -26,12 +26,12 @@
           {% if selected %}
             <label class="picked-asset">
               <input class="visually-hidden" type="radio" name="asset_id" value="{{ selected.id }}" checked
-                     data-dept="{{ selected.owned_by_department_id|default:'' }}" data-holder="{{ selected.holder_id|default:'' }}"
-                     data-site="{% if selected.lokasi_asset %}{{ selected.lokasi_asset.full_path|default:selected.lokasi_asset.name }}{% endif %}" data-location="{{ selected.lokasi_asset_id|default:'' }}">
+                     data-dept="{{ selected.departemen_pemilik_id|default:'' }}" data-holder="{{ selected.holder_id|default:'' }}"
+                     data-site="{% if selected.lokasi %}{{ selected.lokasi.jalur_lengkap|default:selected.lokasi.nama }}{% endif %}" data-location="{{ selected.lokasi_id|default:'' }}">
               <i class="fa-solid fa-box-archive" aria-hidden="true"></i>
               <div>
-                <strong>{{ selected.nama_asset }}</strong>
-                <span>{{ selected.asset_number }} · {% if selected.lokasi_asset %}{{ selected.lokasi_asset.full_path }}{% else %}Belum ditempatkan{% endif %}{% if selected.owned_by_department %} · {{ selected.owned_by_department.name }}{% endif %}</span>
+                <strong>{{ selected.nama_aset }}</strong>
+                <span>{{ selected.nomor_aset }} · {% if selected.lokasi %}{{ selected.lokasi.jalur_lengkap }}{% else %}Belum ditempatkan{% endif %}{% if selected.departemen_pemilik %} · {{ selected.departemen_pemilik.nama }}{% endif %}</span>
               </div>
               <a class="picked-change" href="{% url 'movement_report_create' %}">Ganti aset</a>
             </label>
@@ -54,9 +54,9 @@
               <div class="asset-pick" role="radiogroup" aria-label="Aset yang Anda pegang">
                 {% for a in held_assets %}
                 <label class="ap-opt{% if a.pending_report %} is-blocked{% endif %}">
-                  <input type="radio" name="asset_id" value="{{ a.id }}" {% if a.pending_report %}disabled{% endif %} data-dept="{{ a.owned_by_department_id|default:'' }}" data-holder="{{ a.holder_id|default:'' }}"
-                         data-site="{% if a.lokasi_asset %}{{ a.lokasi_asset.full_path|default:a.lokasi_asset.name }}{% endif %}" data-location="{{ a.lokasi_asset_id|default:'' }}">
-                  <span><strong>{{ a.nama_asset }}</strong><small>{{ a.asset_number }} · {% if a.lokasi_asset %}{{ a.lokasi_asset.full_path }}{% else %}Belum ditempatkan{% endif %}</small>{% if a.pending_report %}<em class="ap-block">Menunggu persetujuan GA (#{{ a.pending_report }})</em>{% endif %}</span>
+                  <input type="radio" name="asset_id" value="{{ a.id }}" {% if a.pending_report %}disabled{% endif %} data-dept="{{ a.departemen_pemilik_id|default:'' }}" data-holder="{{ a.holder_id|default:'' }}"
+                         data-site="{% if a.lokasi %}{{ a.lokasi.jalur_lengkap|default:a.lokasi.nama }}{% endif %}" data-location="{{ a.lokasi_id|default:'' }}">
+                  <span><strong>{{ a.nama_aset }}</strong><small>{{ a.nomor_aset }} · {% if a.lokasi %}{{ a.lokasi.jalur_lengkap }}{% else %}Belum ditempatkan{% endif %}</small>{% if a.pending_report %}<em class="ap-block">Menunggu persetujuan GA (#{{ a.pending_report }})</em>{% endif %}</span>
                 </label>
                 {% endfor %}
               </div>
@@ -75,14 +75,14 @@
             <input class="input select-filter" type="search" placeholder="Saring lokasi…" data-filter-for="to_location" aria-label="Saring daftar lokasi">
             <select class="input select" id="to_location" name="to_location" required>
               <option value="">Pilih lokasi…</option>
-              {% for l in locations %}<option value="{{ l.pk }}" data-site="{{ l.full_path|default:l.name }}" {% if posted.to_location == l.pk|stringformat:"s" %}selected{% endif %}>{{ l.full_path }}</option>{% endfor %}
+              {% for l in locations %}<option value="{{ l.pk }}" data-site="{{ l.jalur_lengkap|default:l.nama }}" {% if posted.lokasi_tujuan == l.pk|stringformat:"s" %}selected{% endif %}>{{ l.jalur_lengkap }}</option>{% endfor %}
             </select>
           </div>
           <div class="fgrid">
             <div class="field">
               <label for="to_department">Departemen pemilik</label>
               <select class="input select" id="to_department" name="to_department">
-                {% for d in departments %}<option value="{{ d.pk }}" {% if posted %}{% if posted.to_department == d.pk|stringformat:"s" %}selected{% endif %}{% elif selected.owned_by_department_id == d.pk %}selected{% endif %}>{{ d.name }}</option>{% endfor %}
+                {% for d in departments %}<option value="{{ d.pk }}" {% if posted %}{% if posted.departemen_tujuan == d.pk|stringformat:"s" %}selected{% endif %}{% elif selected.departemen_pemilik_id == d.pk %}selected{% endif %}>{{ d.nama }}</option>{% endfor %}
               </select>
               <p class="field-hint">Biarkan sama bila aset tetap milik departemen yang sama.</p>
             </div>
@@ -90,13 +90,13 @@
               <label for="to_holder">Dipegang oleh</label>
               <select class="input select" id="to_holder" name="to_holder">
                 <option value="">Tidak dipegang siapa pun (aset ruangan)</option>
-                {% for e in recipients %}<option value="{{ e.pk }}" {% if posted %}{% if posted.to_holder == e.pk|stringformat:"s" %}selected{% endif %}{% elif selected.holder_id == e.pk %}selected{% endif %}>{{ e.nama }}{% if e.pk == request.user.employee.pk %} (Anda){% endif %}{% if e.department %} · {{ e.department.name }}{% endif %}</option>{% endfor %}
+                {% for e in recipients %}<option value="{{ e.pk }}" {% if posted %}{% if posted.pemegang_tujuan == e.pk|stringformat:"s" %}selected{% endif %}{% elif selected.holder_id == e.pk %}selected{% endif %}>{{ e.nama }}{% if e.pk == request.user.employee.pk %} (Anda){% endif %}{% if e.departemen %} · {{ e.departemen.nama }}{% endif %}</option>{% endfor %}
               </select>
             </div>
           </div>
           <div class="field">
             <label for="notes">Catatan <span class="opt">opsional</span></label>
-            <textarea class="textarea" id="notes" name="notes" rows="2" placeholder="Mis. pindah karena renovasi ruang meeting">{{ posted.notes|default:'' }}</textarea>
+            <textarea class="textarea" id="notes" name="notes" rows="2" placeholder="Mis. pindah karena renovasi ruang meeting">{{ posted.catatan|default:'' }}</textarea>
           </div>
 
           <div class="note mvr-verdict" id="mvVerdict" hidden aria-live="polite">

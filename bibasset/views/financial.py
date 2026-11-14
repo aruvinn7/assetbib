@@ -10,24 +10,24 @@ from ..models import Asset, AssetFinancial
 from ..roles import is_finance
 
 
-def _get_asset(asset_id):
+def _get_asset(aset_id):
     return get_object_or_404(
-        Asset.objects.select_related('financial', 'lokasi_asset', 'asset_category__group', 'write_off'),
-        id=asset_id,
+        Asset.objects.select_related('financial', 'lokasi', 'kategori_aset__grup', 'write_off'),
+        id=aset_id,
     )
 
 
 @role_required(is_finance)
-def financial_create(request, asset_id):
-    asset = _get_asset(asset_id)
+def financial_create(request, aset_id):
+    asset = _get_asset(aset_id)
     if hasattr(asset, "financial"):
         return redirect("financial_detail", asset.id)
 
     if request.method == "POST":
-        form = AssetFinancialForm(request.POST, instance=AssetFinancial(asset=asset))
+        form = AssetFinancialForm(request.POST, instance=AssetFinancial(aset=asset))
         if form.is_valid():
             financial = form.save(commit=False)
-            financial.created_by = request.user.employee
+            financial.dibuat_oleh = request.user.employee
             financial.save()
             return redirect("financial_detail", asset.id)
         flash_form_errors(request, form)
@@ -38,8 +38,8 @@ def financial_create(request, asset_id):
 
 
 @role_required(is_finance)
-def financial_update(request, asset_id):
-    asset = _get_asset(asset_id)
+def financial_update(request, aset_id):
+    asset = _get_asset(aset_id)
     if not hasattr(asset, "financial"):
         return redirect("financial_create", asset.id)
     financial = asset.financial
@@ -58,14 +58,14 @@ def financial_update(request, asset_id):
 
 
 @role_required(is_finance)
-def financial_detail(request, asset_id):
-    asset = _get_asset(asset_id)
+def financial_detail(request, aset_id):
+    asset = _get_asset(aset_id)
     if not hasattr(asset, "financial"):
         return redirect("financial_create", asset.id)
     fin = asset.financial
     # Jadwal penyusutan per tahun buku sampai nilai buku mencapai residual
     rows, start_year = [], asset.tanggal_pembelian.year
-    end_cap = getattr(asset, 'write_off', None).tanggal if asset.lifecycle_status == 'writeoff' and hasattr(asset, 'write_off') else None
+    end_cap = getattr(asset, 'write_off', None).tanggal if asset.status_siklus_hidup == 'writeoff' and hasattr(asset, 'write_off') else None
     for year in range(start_year, start_year + fin.umur_ekonomis + 1):
         start = fin.book_value(max(date(year, 1, 1), asset.tanggal_pembelian))
         end = fin.book_value(min(date(year, 12, 31), end_cap) if end_cap else date(year, 12, 31))
@@ -74,11 +74,11 @@ def financial_detail(request, asset_id):
         if end <= fin.nilai_residual or (end_cap and year >= end_cap.year):
             break
     book = fin.book_value()
-    rentang = fin.nilai_awal_aset - fin.nilai_residual
+    rentang = fin.nilai_awal - fin.nilai_residual
     return render(request, "financial/detail.html", {
         "asset": asset, "financial": fin, "book": book, "rows": rows,
-        "book_pct": round(book / fin.nilai_awal_aset * 100) if fin.nilai_awal_aset else 0,
-        "dep_pct": round((fin.nilai_awal_aset - book) / rentang * 100) if rentang > 0 else 100,
+        "book_pct": round(book / fin.nilai_awal * 100) if fin.nilai_awal else 0,
+        "dep_pct": round((fin.nilai_awal - book) / rentang * 100) if rentang > 0 else 100,
         "end_date": asset.tanggal_pembelian.replace(year=asset.tanggal_pembelian.year + fin.umur_ekonomis)
                     if not (asset.tanggal_pembelian.month == 2 and asset.tanggal_pembelian.day == 29)
                     else date(asset.tanggal_pembelian.year + fin.umur_ekonomis, 3, 1),

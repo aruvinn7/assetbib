@@ -1,14 +1,14 @@
 {% extends "base.html" %}
-{% block title %}Isi finansial · {{ asset.asset_number }}{% endblock %}
+{% block title %}Isi finansial · {{ asset.nomor_aset }}{% endblock %}
 {% block nav_financial %}active{% endblock %}
 
 {% block content %}
 <div class="page">
   <div class="crumbs">
-    <a href="{% url 'asset_list' %}?financial=no">Belum dinilai</a><i class="fa-solid fa-chevron-right" aria-hidden="true" style="font-size:10px"></i>{{ asset.asset_number }}
+    <a href="{% url 'asset_list' %}?financial=no">Belum dinilai</a><i class="fa-solid fa-chevron-right" aria-hidden="true" style="font-size:10px"></i>{{ asset.nomor_aset }}
   </div>
   <div class="page-head">
-    <div><h1>Isi data finansial</h1><div class="sub">{{ asset.nama_asset }}</div></div>
+    <div><h1>Isi data finansial</h1><div class="sub">{{ asset.nama_aset }}</div></div>
   </div>
 
   <form method="post" class="form-layout">

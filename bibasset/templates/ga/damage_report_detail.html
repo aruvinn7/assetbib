@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% load static waktu rupiah %}
-{% block title %}Laporan #{{ report.pk }} · {{ report.title }}{% endblock %}
+{% block title %}Laporan #{{ report.pk }} · {{ report.judul }}{% endblock %}
 {% block nav_damage %}active{% endblock %}
 {% block extra_head %}<link rel="stylesheet" href="{% static 'css/pages/damage_report.css' %}?v=5">{% endblock %}
 
@@ -12,28 +12,28 @@
 
   <div class="page-head">
     <div>
-      <h1>{{ report.title }}</h1>
-      <div class="sub">#{{ report.pk }} · dari {{ report.reported_by.nama|default:"—" }}{% if report.reported_by.jabatan %} ({{ report.reported_by.jabatan }}){% endif %} · {{ report.reported_at|sejak }}
-        · {% if not holder %}aset belum diserahkan ke siapa pun{% elif holder.assigned_to_id and holder.assigned_to_id == report.reported_by_id %}pelapor adalah pemegang aset{% elif holder.is_shared %}aset bersama departemen {{ holder.department.name }}{% else %}pemegang aset: {{ holder.assigned_to.nama }}{% endif %}</div>
+      <h1>{{ report.judul }}</h1>
+      <div class="sub">#{{ report.pk }} · dari {{ report.dilaporkan_oleh.nama|default:"—" }}{% if report.dilaporkan_oleh.jabatan %} ({{ report.dilaporkan_oleh.jabatan }}){% endif %} · {{ report.dilaporkan_pada|sejak }}
+        · {% if not holder %}aset belum diserahkan ke siapa pun{% elif holder.diserahkan_kepada_id and holder.diserahkan_kepada_id == report.dilaporkan_oleh_id %}pelapor adalah pemegang aset{% elif holder.is_shared %}aset bersama departemen {{ holder.departemen.nama }}{% else %}pemegang aset: {{ holder.diserahkan_kepada.nama }}{% endif %}</div>
       <div class="head-tags">
-        {% include "components/_severity.html" with severity=report.severity %}
-        {% include "components/_report_status.html" with status=report.report_status %}
+        {% include "components/_severity.html" with severity=report.tingkat_keparahan %}
+        {% include "components/_report_status.html" with status=report.status_laporan %}
       </div>
     </div>
     <div class="page-actions">
-      <a class="btn outline" href="{% url 'asset_detail' report.asset.pk %}"><i class="fa-solid fa-box-archive" aria-hidden="true"></i>Buka aset</a>
+      <a class="btn outline" href="{% url 'asset_detail' report.aset.pk %}"><i class="fa-solid fa-box-archive" aria-hidden="true"></i>Buka aset</a>
     </div>
   </div>
 
   <div class="rd-grid">
     <div class="rd-main">
       <section class="panel">
-        <div class="panel-head"><h2>Keterangan pelapor</h2><span class="meta">{{ report.get_severity_display }}</span></div>
+        <div class="panel-head"><h2>Keterangan pelapor</h2><span class="meta">{{ report.get_tingkat_keparahan_display }}</span></div>
         <div class="panel-body rd-desc">
-          <p>{{ report.description }}</p>
-          {% if report.photo_evidence %}
-          <a class="rd-photo" href="{{ report.photo_evidence.url }}" target="_blank" rel="noopener">
-            <img src="{{ report.photo_evidence.url }}" alt="Foto bukti kerusakan {{ report.asset.nama_asset }}" loading="lazy">
+          <p>{{ report.deskripsi }}</p>
+          {% if report.foto_bukti %}
+          <a class="rd-photo" href="{{ report.foto_bukti.url }}" target="_blank" rel="noopener">
+            <img src="{{ report.foto_bukti.url }}" alt="Foto bukti kerusakan {{ report.aset.nama_aset }}" loading="lazy">
             <span><i class="fa-solid fa-up-right-from-square" aria-hidden="true"></i>Buka foto ukuran penuh</span>
           </a>
           {% else %}
@@ -44,9 +44,9 @@
 
       {% if report.is_active %}
       <section class="panel act-panel" aria-labelledby="actTitle">
-        <div class="panel-head"><h2 id="actTitle">Tindak lanjut</h2><span class="meta">{% if report.report_status == 'pending' %}Belum ditanggapi{% else %}Diterima, menunggu hasil perbaikan{% endif %}</span></div>
+        <div class="panel-head"><h2 id="actTitle">Tindak lanjut</h2><span class="meta">{% if report.status_laporan == 'pending' %}Belum ditanggapi{% else %}Diterima, menunggu hasil perbaikan{% endif %}</span></div>
 
-        {% if report.report_status == 'pending' %}
+        {% if report.status_laporan == 'pending' %}
         <form method="post" action="{% url 'ga_damage_report_acknowledge' report.pk %}" class="act-step">
           {% csrf_token %}
           <div class="act-step-head">
@@ -64,14 +64,14 @@
         <form method="post" action="{% url 'ga_damage_report_resolve' report.pk %}" class="act-step">
           {% csrf_token %}
           <div class="act-step-head">
-            {% if report.report_status == 'pending' %}<span class="step-no" aria-hidden="true">2</span>{% endif %}
+            {% if report.status_laporan == 'pending' %}<span class="step-no" aria-hidden="true">2</span>{% endif %}
             <div><h3>Catat perbaikan selesai</h3><p>Tercatat sebagai maintenance corrective. Aset kembali Aktif bila hasilnya bukan Major issue.</p></div>
           </div>
 
           <div class="qm-row">
             <div class="field">
               <label for="rsDate">Tanggal perbaikan <span class="req" aria-hidden="true">*</span></label>
-              <input class="input" type="date" id="rsDate" name="tanggal_pelaksanaan" value="{% firstof resolve_posted.tanggal_pelaksanaan today|date:'Y-m-d' %}" min="{{ report.reported_at|date:'Y-m-d' }}" max="{{ today|date:'Y-m-d' }}" required>
+              <input class="input" type="date" id="rsDate" name="tanggal_pelaksanaan" value="{% firstof resolve_posted.tanggal_pelaksanaan today|date:'Y-m-d' %}" min="{{ report.dilaporkan_pada|date:'Y-m-d' }}" max="{{ today|date:'Y-m-d' }}" required>
             </div>
             <div class="field">
               <label for="rsCost">Biaya</label>
@@ -101,8 +101,8 @@
 
           <div class="field">
             <label for="rsNote">Pesan untuk pelapor <span class="opt">opsional</span></label>
-            <textarea class="textarea" id="rsNote" name="ga_notes" rows="2" placeholder="Mis. printer sudah normal, hindari kertas lembap">{% firstof resolve_posted.ga_notes report.ga_notes %}</textarea>
-            <p class="field-hint">Tampil di halaman laporan milik {{ report.reported_by.nama|default:"pelapor" }}.</p>
+            <textarea class="textarea" id="rsNote" name="ga_notes" rows="2" placeholder="Mis. printer sudah normal, hindari kertas lembap">{% firstof resolve_posted.catatan_ga report.catatan_ga %}</textarea>
+            <p class="field-hint">Tampil di halaman laporan milik {{ report.dilaporkan_oleh.nama|default:"pelapor" }}.</p>
           </div>
 
           <div class="act-foot">
@@ -126,37 +126,37 @@
       </section>
       {% endif %}
 
-      {% if report.resolved_maintenance %}
-      {% with rec=report.resolved_maintenance %}
+      {% if report.maintenance_penyelesai %}
+      {% with rec=report.maintenance_penyelesai %}
       <section class="panel">
         <div class="panel-head"><h2>Hasil perbaikan</h2><span class="meta">{{ rec.tanggal_pelaksanaan|date:"d M Y" }}</span></div>
         <dl class="kv">
           <div><dt>Hasil</dt><dd>{% if rec.hasil == 'ok' %}{% include "components/_status.html" with kind="safe" label="Baik" %}{% elif rec.hasil == 'minor_issue' %}{% include "components/_status.html" with kind="warning" label="Minor issue" %}{% elif rec.hasil == 'major_issue' %}{% include "components/_status.html" with kind="danger" label="Major issue" %}{% else %}{% include "components/_status.html" with kind="mandatory" label="Komponen diganti" %}{% endif %}</dd></div>
-          <div><dt>Dikerjakan oleh</dt><dd>{{ rec.performed_by.nama|default:"—" }}</dd></div>
+          <div><dt>Dikerjakan oleh</dt><dd>{{ rec.dilaksanakan_oleh.nama|default:"—" }}</dd></div>
           <div><dt>Biaya</dt><dd>{{ rec.biaya|rupiah }}</dd></div>
-          {% if report.ga_notes %}<div><dt>Pesan ke pelapor</dt><dd class="pre">{{ report.ga_notes }}</dd></div>{% endif %}
+          {% if report.catatan_ga %}<div><dt>Pesan ke pelapor</dt><dd class="pre">{{ report.catatan_ga }}</dd></div>{% endif %}
         </dl>
       </section>
       {% endwith %}
-      {% elif report.report_status == 'rejected' %}
+      {% elif report.status_laporan == 'rejected' %}
       <section class="panel">
         <div class="panel-head"><h2>Alasan penolakan</h2></div>
-        <div class="panel-body"><p class="pre">{{ report.ga_notes|default:"Tidak ada alasan yang dicatat." }}</p></div>
+        <div class="panel-body"><p class="pre">{{ report.catatan_ga|default:"Tidak ada alasan yang dicatat." }}</p></div>
       </section>
       {% endif %}
     </div>
 
     <aside class="rd-side">
       <section class="panel">
-        <div class="panel-head"><h2>Aset</h2><a href="{% url 'asset_detail' report.asset.pk %}">Detail</a></div>
+        <div class="panel-head"><h2>Aset</h2><a href="{% url 'asset_detail' report.aset.pk %}">Detail</a></div>
         <dl class="kv">
-          <div><dt>Nama</dt><dd><strong class="asset-name">{{ report.asset.nama_asset }}</strong></dd></div>
-          <div><dt>Nomor</dt><dd>{{ report.asset.asset_number }}</dd></div>
-          {% if report.asset.asset_category %}<div><dt>Kategori</dt><dd>{{ report.asset.asset_category.name }}</dd></div>{% endif %}
-          <div><dt>Lokasi</dt><dd>{% if report.asset.lokasi_asset %}{{ report.asset.lokasi_asset }}{% else %}<span class="dim">Belum ditempatkan</span>{% endif %}</dd></div>
-          <div><dt>Status aset</dt><dd>{% include "components/_lifecycle.html" with status=report.asset.lifecycle_status %}</dd></div>
+          <div><dt>Nama</dt><dd><strong class="asset-name">{{ report.aset.nama_aset }}</strong></dd></div>
+          <div><dt>Nomor</dt><dd>{{ report.aset.nomor_aset }}</dd></div>
+          {% if report.aset.kategori_aset %}<div><dt>Kategori</dt><dd>{{ report.aset.kategori_aset.nama }}</dd></div>{% endif %}
+          <div><dt>Lokasi</dt><dd>{% if report.aset.lokasi %}{{ report.aset.lokasi }}{% else %}<span class="dim">Belum ditempatkan</span>{% endif %}</dd></div>
+          <div><dt>Status aset</dt><dd>{% include "components/_lifecycle.html" with status=report.aset.status_siklus_hidup %}</dd></div>
           {% if ba_item %}<div><dt>Berita acara</dt><dd><a href="{% url 'ba_detail' ba_item.ba.pk %}">{% if ba_item.ba.status == 'draft' %}Draf BA Kerusakan{% else %}{{ ba_item.ba.nomor }}{% endif %}</a></dd></div>{% endif %}
-          {% if corrective_schedule %}<div><dt>Jadwal corrective</dt><dd>{{ corrective_schedule.scheduled_date|date:"d M Y" }} <span class="dim">· {{ corrective_schedule.get_status_display|lower }}</span></dd></div>{% endif %}
+          {% if corrective_schedule %}<div><dt>Jadwal corrective</dt><dd>{{ corrective_schedule.tanggal_jadwal|date:"d M Y" }} <span class="dim">· {{ corrective_schedule.get_status_display|lower }}</span></dd></div>{% endif %}
         </dl>
       </section>
 

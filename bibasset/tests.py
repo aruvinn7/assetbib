@@ -16,7 +16,7 @@ from .views.import_views import _parse_decimal
 
 def make_employee(username, profile=None):
     user = User.objects.create_user(username, password='x')
-    emp = Employee.objects.create(user=user, employee_id=username, nama=username, jabatan='-')
+    emp = Employee.objects.create(user=user, nomor_karyawan=username, nama=username, jabatan='-')
     if profile:
         profile.objects.create(employee=emp)
     return user, emp
@@ -27,8 +27,8 @@ class LifeReviewTest(TestCase):
 
     def review(self, years_old, life, biaya, breakdown, recent):
         from .models import health_cause, life_review
-        asset = Asset(tanggal_pembelian=date.today() - timedelta(days=int(365.25 * years_old)))
-        fin = AssetFinancial(asset=asset, nilai_awal_aset=Decimal(100_000_000), nilai_residual=0, umur_ekonomis=life)
+        aset = Asset(tanggal_pembelian=date.today() - timedelta(days=int(365.25 * years_old)))
+        fin = AssetFinancial(aset=aset, nilai_awal=Decimal(100_000_000), nilai_residual=0, umur_ekonomis=life)
         return life_review(fin, Decimal(biaya), breakdown, recent)['verdict']
 
     def test_verdicts(self):
@@ -69,31 +69,31 @@ class HealthRulesTest(TestCase):
 
     def test_sql_critical_filter_matches_python(self):
         for i, biaya in enumerate([700_000, 100_000]):
-            a = Asset.objects.create(no_po='PO', asset_number=f'A{i}', nama_asset='x',
+            a = Asset.objects.create(nomor_po='PO', nomor_aset=f'A{i}', nama_aset='x',
                                      tanggal_pembelian=date(2024, 1, 1))
-            AssetFinancial.objects.create(asset=a, nilai_awal_aset=1_000_000, nilai_residual=0)
-            MaintenanceRecord.objects.create(asset=a, maintenance_type='corrective',
+            AssetFinancial.objects.create(aset=a, nilai_awal=1_000_000, nilai_residual=0)
+            MaintenanceRecord.objects.create(aset=a, jenis_maintenance='corrective',
                                              tanggal_pelaksanaan=date(2024, 6, 1),
                                              deskripsi_pekerjaan='-', biaya=biaya)
         critical = Asset.objects.with_health_annotations().critical_health()
-        self.assertEqual(list(critical.values_list('asset_number', flat=True)), ['A0'])
+        self.assertEqual(list(critical.values_list('nomor_aset', flat=True)), ['A0'])
 
 
 class FinancialTest(TestCase):
     def test_book_value_not_below_residual(self):
-        a = Asset.objects.create(no_po='PO', asset_number='F1', nama_asset='x',
+        a = Asset.objects.create(nomor_po='PO', nomor_aset='F1', nama_aset='x',
                                  tanggal_pembelian=date.today() - timedelta(days=365 * 10))
-        fin = AssetFinancial.objects.create(asset=a, nilai_awal_aset=10_000_000,
+        fin = AssetFinancial.objects.create(aset=a, nilai_awal=10_000_000,
                                             nilai_residual=1_000_000, umur_ekonomis=5)
         self.assertEqual(fin.book_value(), Decimal('1000000'))
 
 
 class LocationPathTest(TestCase):
     def test_full_path_follows_parent_rename(self):
-        root  = Location.objects.create(name='Site')
-        child = Location.objects.create(name='Gedung', parent=root)
+        root  = Location.objects.create(nama='Site')
+        child = Location.objects.create(nama='Gedung', induk=root)
         self.assertEqual(str(child), 'Site > Gedung')
-        root.name = 'Site Baru'
+        root.nama = 'Site Baru'
         root.save()
         child.refresh_from_db()
         self.assertEqual(str(child), 'Site Baru > Gedung')
@@ -113,77 +113,77 @@ class AccessAndFlowTest(TestCase):
         self.ga_user, self.ga = make_employee('ga', GAProfile)
         self.fin_user, _ = make_employee('fin', FinanceProfile)
         self.usr_user, self.usr = make_employee('usr', UserProfile)
-        group = AssetGroup.objects.create(name='AC')
-        self.cat = AssetCategory.objects.create(group=group, name='Split', default_interval_value=3)
-        self.asset = Asset.objects.create(no_po='PO', asset_number='AC-1', nama_asset='AC',
+        group = AssetGroup.objects.create(nama='AC')
+        self.cat = AssetCategory.objects.create(grup=group, nama='Split', interval_default=3)
+        self.aset = Asset.objects.create(nomor_po='PO', nomor_aset='AC-1', nama_aset='AC',
                                           tanggal_pembelian=date(2025, 1, 1),
-                                          asset_category=self.cat)
-        self.room = Location.objects.create(name='Ruang A')
+                                          kategori_aset=self.cat)
+        self.room = Location.objects.create(nama='Ruang A')
 
     def test_role_restrictions(self):
         self.client.force_login(self.usr_user)
         self.assertRedirects(self.client.get('/asset/'), '/user/dashboard/', fetch_redirect_response=False)
         self.client.force_login(self.fin_user)
-        self.client.get(f'/master/assetgroup/{self.cat.group_id}/delete/')
-        self.assertTrue(AssetGroup.objects.filter(pk=self.cat.group_id).exists())
+        self.client.get(f'/master/assetgroup/{self.cat.grup_id}/delete/')
+        self.assertTrue(AssetGroup.objects.filter(pk=self.cat.grup_id).exists())
 
     def test_asset_create_validation(self):
         self.client.force_login(self.ga_user)
-        r = self.client.post('/asset/create/', {'no_po': 'PO', 'nama_asset': 'X',
-                                                'asset_number': 'AC-1', 'tanggal_pembelian': '2025-01-01'})
+        r = self.client.post('/asset/create/', {'nomor_po': 'PO', 'nama_aset': 'X',
+                                                'nomor_aset': 'AC-1', 'tanggal_pembelian': '2025-01-01'})
         self.assertEqual(r.status_code, 200)            # re-render, bukan 500
         self.assertEqual(Asset.objects.count(), 1)
 
     def test_damage_report_flow(self):
         self.client.force_login(self.ga_user)
-        dept = Department.objects.create(name='IT')
-        self.client.post('/ga/assignment/buat/', {'asset_id': self.asset.pk, 'mode': 'department',
-                                                  'department': dept.pk, 'location': self.room.pk})
-        self.assertTrue(AssetAssignment.objects.filter(asset=self.asset, department=dept, status='active').exists())
+        dept = Department.objects.create(nama='IT')
+        self.client.post('/ga/assignment/buat/', {'aset_id': self.aset.pk, 'mode': 'department',
+                                                  'departemen': dept.pk, 'lokasi': self.room.pk})
+        self.assertTrue(AssetAssignment.objects.filter(aset=self.aset, departemen=dept, status='active').exists())
         self.client.force_login(self.usr_user)
         self.client.post('/user/laporan-kerusakan/buat/', {
-            'asset_id': self.asset.pk, 'title': 'Mati', 'description': '-', 'severity': 'high'})
+            'aset_id': self.aset.pk, 'judul': 'Mati', 'deskripsi': '-', 'tingkat_keparahan': 'high'})
         report = DamageReport.objects.get()
-        self.asset.refresh_from_db()
-        self.assertEqual(self.asset.lifecycle_status, 'maintenance')
+        self.aset.refresh_from_db()
+        self.assertEqual(self.aset.status_siklus_hidup, 'maintenance')
         self.assertEqual(report.corrective_schedules.get().status, 'overdue')
 
         self.client.force_login(self.ga_user)
         self.client.post(f'/ga/laporan-kerusakan/{report.pk}/resolve/', {
             'tanggal_pelaksanaan': '2025-06-01', 'deskripsi_pekerjaan': 'fix', 'hasil': 'ok'})
-        report.refresh_from_db(); self.asset.refresh_from_db()
-        self.assertEqual(report.report_status, 'resolved')
-        self.assertEqual(self.asset.lifecycle_status, 'active')
+        report.refresh_from_db(); self.aset.refresh_from_db()
+        self.assertEqual(report.status_laporan, 'resolved')
+        self.assertEqual(self.aset.status_siklus_hidup, 'active')
         self.assertEqual(report.corrective_schedules.get().status, 'done')
 
     def test_destructive_actions_need_post(self):
         self.client.force_login(self.ga_user)
-        sch = self.asset.schedules.create(scheduled_date=date.today(), status='upcoming')
+        sch = self.aset.schedules.create(tanggal_jadwal=date.today(), status='upcoming')
         # Link GET (prefetch browser, tautan yang dibagikan) tidak boleh mengubah data
-        self.assertEqual(self.client.get(f'/asset/{self.asset.pk}/delete/').status_code, 405)
+        self.assertEqual(self.client.get(f'/asset/{self.aset.pk}/delete/').status_code, 405)
         self.assertEqual(self.client.get(f'/maintenance/schedule/{sch.pk}/skip/').status_code, 405)
-        self.assertTrue(Asset.objects.filter(pk=self.asset.pk).exists())
+        self.assertTrue(Asset.objects.filter(pk=self.aset.pk).exists())
         sch.refresh_from_db()
         self.assertEqual(sch.status, 'upcoming')
 
         self.client.post(f'/maintenance/schedule/{sch.pk}/skip/')
         sch.refresh_from_db()
         self.assertEqual(sch.status, 'skipped')
-        self.client.post(f'/asset/{self.asset.pk}/delete/')
-        self.assertFalse(Asset.objects.filter(pk=self.asset.pk).exists())
+        self.client.post(f'/asset/{self.aset.pk}/delete/')
+        self.assertFalse(Asset.objects.filter(pk=self.aset.pk).exists())
 
     def test_berita_acara_flow(self):
         from .models import BeritaAcara, MaintenanceRecord as MR, PenandaTanganBA
         # Temuan inspeksi bermasalah → otomatis masuk draf BA Kerusakan
-        MR.objects.create(asset=self.asset, maintenance_type='inspection', tanggal_pelaksanaan=date.today(),
-                          deskripsi_pekerjaan='Cek unit', hasil='major_issue', catatan_tambahan='Kompresor mati')
+        MR.objects.create(aset=self.aset, jenis_maintenance='inspection', tanggal_pelaksanaan=date.today(),
+                          deskripsi_pekerjaan='Cek unit', hasil='major_issue', catatan='Kompresor mati')
         draft = BeritaAcara.objects.get(jenis='kerusakan', status='draft')
-        item = draft.items.get()
-        self.assertIn('Kompresor mati', item.kerusakan)
+        butir = draft.items.get()
+        self.assertIn('Kompresor mati', butir.kerusakan)
 
         self.client.force_login(self.ga_user)
         self.client.post(f'/berita-acara/{draft.pk}/', {
-            f'kerusakan-{item.pk}': 'Kompresor mati total', f'rekomendasi-{item.pk}': 'hapus',
+            f'kerusakan-{butir.pk}': 'Kompresor mati total', f'rekomendasi-{butir.pk}': 'hapus',
             'aksi': 'terbitkan', 'tanggal': date.today().isoformat()})
         draft.refresh_from_db()
         self.assertEqual(draft.status, 'terbit')
@@ -191,13 +191,13 @@ class AccessAndFlowTest(TestCase):
         self.assertEqual(len(draft.penanda_tangan), PenandaTanganBA.objects.count())   # salinan saat terbit
 
         # Belum ditandatangani → penghapusan ditolak; setelah ditandatangani → write off + BA Penghapusan
-        self.client.post(f'/berita-acara/{draft.pk}/penghapusan/', {'item': item.pk})
-        self.assertEqual(Asset.objects.get(pk=self.asset.pk).lifecycle_status, 'active')
+        self.client.post(f'/berita-acara/{draft.pk}/penghapusan/', {'butir': butir.pk})
+        self.assertEqual(Asset.objects.get(pk=self.aset.pk).status_siklus_hidup, 'active')
         self.client.post(f'/berita-acara/{draft.pk}/ditandatangani/')
         self.client.post(f'/berita-acara/{draft.pk}/penghapusan/', {
-            'item': item.pk, 'tanggal': date.today().isoformat(), 'alasan': 'rusak',
+            'butir': butir.pk, 'tanggal': date.today().isoformat(), 'alasan': 'rusak',
             'keterangan': 'Sesuai BA kerusakan', 'konfirmasi': 'on'})
-        self.assertEqual(Asset.objects.get(pk=self.asset.pk).lifecycle_status, 'writeoff')
+        self.assertEqual(Asset.objects.get(pk=self.aset.pk).status_siklus_hidup, 'writeoff')
         hapus = BeritaAcara.objects.get(jenis='penghapusan')
         self.assertEqual(hapus.rujukan, draft)
         self.assertTrue(hapus.nomor.startswith('002/'))
@@ -205,10 +205,10 @@ class AccessAndFlowTest(TestCase):
 
     def test_form_errors_are_tagged_per_field(self):
         self.client.force_login(self.ga_user)
-        r = self.client.post('/asset/create/', {'no_po': 'PO', 'nama_asset': 'X',
-                                                'asset_number': 'AC-1', 'tanggal_pembelian': '2025-01-01'})
+        r = self.client.post('/asset/create/', {'nomor_po': 'PO', 'nama_aset': 'X',
+                                                'nomor_aset': 'AC-1', 'tanggal_pembelian': '2025-01-01'})
         tags = [m.extra_tags for m in r.context['messages']]
-        self.assertIn('field:asset_number|', ' '.join(tags))   # ditempel di bawah isian nomor aset
+        self.assertIn('field:nomor_aset|', ' '.join(tags))   # ditempel di bawah isian nomor aset
 
     def test_holder_single_source(self):
         """Semua jalur (serah terima, movement, edit/hapus movement, kembali) menjaga assignment = movement."""
@@ -216,27 +216,27 @@ class AccessAndFlowTest(TestCase):
         from .models import AssetAssignment, AssetMovement
 
         def holder():
-            mv = AssetMovement.objects.filter(asset=self.asset, is_current=True).first()
-            aktif = list(AssetAssignment.objects.filter(asset=self.asset, status='active'))
+            mv = AssetMovement.objects.filter(aset=self.aset, posisi_saat_ini=True).first()
+            aktif = list(AssetAssignment.objects.filter(aset=self.aset, status='active'))
             self.assertLessEqual(len(aktif), 1)
-            self.assertEqual(aktif[0].assigned_to_id if aktif else None, mv.held_by_id if mv else None)
-            return mv.held_by_id if mv else None
+            self.assertEqual(aktif[0].diserahkan_kepada_id if aktif else None, mv.dipegang_oleh_id if mv else None)
+            return mv.dipegang_oleh_id if mv else None
 
         _, lain = make_employee('lain', UserProfile)
-        AssetCategory.objects.filter(pk=self.cat.pk).update(personal_use=True)
+        AssetCategory.objects.filter(pk=self.cat.pk).update(pemakaian_pribadi=True)
         self.client.force_login(self.ga_user)
-        self.client.post('/ga/assignment/buat/', {'asset_id': self.asset.pk, 'mode': 'personal',
-                                                  'assigned_to': self.usr.pk, 'location': self.room.pk})
+        self.client.post('/ga/assignment/buat/', {'aset_id': self.aset.pk, 'mode': 'personal',
+                                                  'diserahkan_kepada': self.usr.pk, 'lokasi': self.room.pk})
         self.assertEqual(holder(), self.usr.pk)
 
         # Pindah pemegang lewat Pelacakan → assignment lama 'transferred', yang baru aktif
-        self.client.post(f'/movement/{self.asset.pk}/create/', {'held_by': lain.pk})
+        self.client.post(f'/movement/{self.aset.pk}/create/', {'dipegang_oleh': lain.pk})
         self.assertEqual(holder(), lain.pk)
-        self.assertTrue(AssetAssignment.objects.filter(assigned_to=self.usr, status='transferred').exists())
+        self.assertTrue(AssetAssignment.objects.filter(diserahkan_kepada=self.usr, status='transferred').exists())
 
         # Edit movement aktif mengganti pemegang
-        mv = AssetMovement.objects.get(asset=self.asset, is_current=True)
-        self.client.post(f'/movement/{mv.pk}/update/', {'held_by': self.usr.pk})
+        mv = AssetMovement.objects.get(aset=self.aset, posisi_saat_ini=True)
+        self.client.post(f'/movement/{mv.pk}/update/', {'dipegang_oleh': self.usr.pk})
         self.assertEqual(holder(), self.usr.pk)
 
         # Hapus movement aktif → movement sebelumnya (dan pemegangnya) aktif lagi
@@ -244,46 +244,46 @@ class AccessAndFlowTest(TestCase):
         self.assertEqual(holder(), self.usr.pk)
 
         # Kembalikan → tidak ada pemegang
-        a = AssetAssignment.objects.get(asset=self.asset, status='active')
-        self.client.post(f'/ga/assignment/{a.pk}/kembalikan/', {'location': self.room.pk, 'condition': 'baik',
-                                                                'notes': 'selesai'})
+        a = AssetAssignment.objects.get(aset=self.aset, status='active')
+        self.client.post(f'/ga/assignment/{a.pk}/kembalikan/', {'lokasi': self.room.pk, 'kondisi': 'baik',
+                                                                'catatan': 'selesai'})
         self.assertIsNone(holder())
         a.refresh_from_db()
-        self.assertEqual((a.status, a.return_condition), ('returned', 'baik'))
-        self.assertIn('[Dikembalikan: selesai]', a.notes)
+        self.assertEqual((a.status, a.kondisi_kembali), ('returned', 'baik'))
+        self.assertIn('[Dikembalikan: selesai]', a.catatan)
 
         # Constraint DB: tidak mungkin ada 2 assignment aktif / 2 movement aktif
-        AssetAssignment.objects.create(asset=self.asset, assigned_to=self.usr)
+        AssetAssignment.objects.create(aset=self.aset, diserahkan_kepada=self.usr)
         with self.assertRaises(IntegrityError), transaction.atomic():
-            AssetAssignment.objects.create(asset=self.asset, assigned_to=lain)
+            AssetAssignment.objects.create(aset=self.aset, diserahkan_kepada=lain)
         with self.assertRaises(IntegrityError), transaction.atomic():
-            AssetMovement.objects.create(asset=self.asset, is_current=True)
+            AssetMovement.objects.create(aset=self.aset, posisi_saat_ini=True)
 
     def test_import_group_without_category_goes_to_lainnya(self):
         import io
         from openpyxl import Workbook
         from .models import AssetCategory
         wb = Workbook(); ws = wb.active
-        ws.append(['no_po', 'asset_number', 'nama_asset', 'tanggal_pembelian', 'asset_group', 'asset_category'])
+        ws.append(['nomor_po', 'nomor_aset', 'nama_aset', 'tanggal_pembelian', 'asset_group', 'kategori_aset'])
         ws.append(['PO-9', 'AC-9', 'Kipas', '2025-01-01', 'AC', ''])
         buf = io.BytesIO(); wb.save(buf); buf.seek(0); buf.name = 'aset.xlsx'
         self.client.force_login(self.ga_user)
         self.client.post('/asset/import/', {'excel_file': buf})
-        asset = Asset.objects.get(asset_number='AC-9')
-        self.assertEqual(asset.asset_category, AssetCategory.objects.get(group=self.cat.group, name='Lainnya'))
+        aset = Asset.objects.get(nomor_aset='AC-9')
+        self.assertEqual(aset.kategori_aset, AssetCategory.objects.get(grup=self.cat.grup, nama='Lainnya'))
 
     def test_asset_stays_in_maintenance_while_other_reports_open(self):
         """Corrective selesai hanya mengaktifkan aset bila tidak ada laporan kerusakan lain yang berjalan."""
         def status():
-            self.asset.refresh_from_db()
-            return self.asset.lifecycle_status
+            self.aset.refresh_from_db()
+            return self.aset.status_siklus_hidup
 
-        r1 = DamageReport.objects.create(asset=self.asset, reported_by=self.usr, title='Bocor', description='-')
-        r2 = DamageReport.objects.create(asset=self.asset, reported_by=self.usr, title='Berisik', description='-')
+        r1 = DamageReport.objects.create(aset=self.aset, dilaporkan_oleh=self.usr, judul='Bocor', deskripsi='-')
+        r2 = DamageReport.objects.create(aset=self.aset, dilaporkan_oleh=self.usr, judul='Berisik', deskripsi='-')
         self.assertEqual(status(), 'maintenance')
 
         # Perbaikan corrective di luar alur laporan → laporan masih terbuka, aset tetap maintenance
-        MaintenanceRecord.objects.create(asset=self.asset, maintenance_type='corrective',
+        MaintenanceRecord.objects.create(aset=self.aset, jenis_maintenance='corrective',
                                          tanggal_pelaksanaan=date.today(), deskripsi_pekerjaan='Ganti seal')
         self.assertEqual(status(), 'maintenance')
 
@@ -291,29 +291,29 @@ class AccessAndFlowTest(TestCase):
         resolve = {'tanggal_pelaksanaan': date.today().isoformat(), 'deskripsi_pekerjaan': 'fix', 'hasil': 'ok'}
         self.client.post(f'/ga/laporan-kerusakan/{r1.pk}/resolve/', resolve)
         r1.refresh_from_db()
-        self.assertEqual(r1.report_status, 'resolved')
+        self.assertEqual(r1.status_laporan, 'resolved')
         self.assertEqual(status(), 'maintenance')          # r2 masih berjalan
 
         self.client.post(f'/ga/laporan-kerusakan/{r2.pk}/resolve/', resolve)
         self.assertEqual(status(), 'active')               # laporan terakhir selesai
 
     def test_reject_last_report_reactivates_but_writeoff_stays(self):
-        r1 = DamageReport.objects.create(asset=self.asset, reported_by=self.usr, title='A', description='-')
-        r2 = DamageReport.objects.create(asset=self.asset, reported_by=self.usr, title='B', description='-')
+        r1 = DamageReport.objects.create(aset=self.aset, dilaporkan_oleh=self.usr, judul='A', deskripsi='-')
+        r2 = DamageReport.objects.create(aset=self.aset, dilaporkan_oleh=self.usr, judul='B', deskripsi='-')
         self.client.force_login(self.ga_user)
         self.client.post(f'/ga/laporan-kerusakan/{r1.pk}/reject/')
-        self.asset.refresh_from_db()
-        self.assertEqual(self.asset.lifecycle_status, 'maintenance')
+        self.aset.refresh_from_db()
+        self.assertEqual(self.aset.status_siklus_hidup, 'maintenance')
         self.client.post(f'/ga/laporan-kerusakan/{r2.pk}/reject/')
-        self.asset.refresh_from_db()
-        self.assertEqual(self.asset.lifecycle_status, 'active')
+        self.aset.refresh_from_db()
+        self.assertEqual(self.aset.status_siklus_hidup, 'active')
 
         # Aset write off tidak boleh "hidup lagi" karena ada catatan corrective
-        Asset.objects.filter(pk=self.asset.pk).update(lifecycle_status='writeoff')
-        MaintenanceRecord.objects.create(asset=self.asset, maintenance_type='corrective',
+        Asset.objects.filter(pk=self.aset.pk).update(status_siklus_hidup='writeoff')
+        MaintenanceRecord.objects.create(aset=self.aset, jenis_maintenance='corrective',
                                          tanggal_pelaksanaan=date.today(), deskripsi_pekerjaan='-')
-        self.asset.refresh_from_db()
-        self.assertEqual(self.asset.lifecycle_status, 'writeoff')
+        self.aset.refresh_from_db()
+        self.assertEqual(self.aset.status_siklus_hidup, 'writeoff')
 
     def test_all_simple_pages_render(self):
         """Semua halaman tanpa parameter URL terbuka tanpa error 500 untuk tiap peran."""
@@ -328,75 +328,75 @@ class AccessAndFlowTest(TestCase):
                     self.assertLess(self.client.get(reverse(name)).status_code, 500)
 
     def test_maintenance_blocked_for_writeoff_asset(self):
-        Asset.objects.filter(pk=self.asset.pk).update(lifecycle_status='writeoff')
+        Asset.objects.filter(pk=self.aset.pk).update(status_siklus_hidup='writeoff')
         self.client.force_login(self.ga_user)
-        r = self.client.post(f'/maintenance/asset/{self.asset.pk}/create/', {
-            'maintenance_type': 'corrective', 'tanggal_pelaksanaan': '2025-06-01', 'deskripsi_pekerjaan': '-', 'hasil': 'ok'})
-        self.assertRedirects(r, f'/asset/{self.asset.pk}/detail/', fetch_redirect_response=False)
-        self.assertFalse(MaintenanceRecord.objects.filter(asset=self.asset).exists())
+        r = self.client.post(f'/maintenance/asset/{self.aset.pk}/create/', {
+            'jenis_maintenance': 'corrective', 'tanggal_pelaksanaan': '2025-06-01', 'deskripsi_pekerjaan': '-', 'hasil': 'ok'})
+        self.assertRedirects(r, f'/asset/{self.aset.pk}/detail/', fetch_redirect_response=False)
+        self.assertFalse(MaintenanceRecord.objects.filter(aset=self.aset).exists())
 
     def test_import_finansial_lists_skipped_rows(self):
         import io
         from openpyxl import Workbook
         wb = Workbook(); ws = wb.active
-        ws.append(['asset_number', 'nilai_awal_aset', 'nilai_residual', 'umur_ekonomis'])
+        ws.append(['nomor_aset', 'nilai_awal', 'nilai_residual', 'umur_ekonomis'])
         ws.append(['AC-1', 10_000_000, 1_000_000, 5])
         ws.append(['TIDAK-ADA', 5_000_000, 0, 4])
         buf = io.BytesIO(); wb.save(buf); buf.seek(0); buf.name = 'fin.xlsx'
         self.client.force_login(self.ga_user)
         r = self.client.post('/asset/import/finansial/', {'excel_file': buf})
         self.assertContains(r, "Aset &#x27;TIDAK-ADA&#x27; tidak ditemukan di sistem")
-        self.assertTrue(AssetFinancial.objects.filter(asset=self.asset).exists())
+        self.assertTrue(AssetFinancial.objects.filter(aset=self.aset).exists())
 
     def test_damage_report_any_asset_without_assignment(self):
         """Karyawan boleh melapor aset yang tidak ia pegang; duplikat & aset write off ditolak."""
         self.client.force_login(self.usr_user)
         r = self.client.get('/user/laporan-kerusakan/cari-aset/?q=AC-1')
-        self.assertEqual(r.json()['results'][0]['id'], self.asset.pk)
+        self.assertEqual(r.json()['results'][0]['id'], self.aset.pk)
         self.assertEqual(r.json()['results'][0]['blocked'], '')
-        self.assertEqual(self.client.get(f'/user/laporan-kerusakan/buat/{self.asset.pk}/').status_code, 200)
+        self.assertEqual(self.client.get(f'/user/laporan-kerusakan/buat/{self.aset.pk}/').status_code, 200)
         self.client.post('/user/laporan-kerusakan/buat/', {
-            'asset_id': self.asset.pk, 'title': 'Bocor', 'description': '-', 'severity': 'medium'})
+            'aset_id': self.aset.pk, 'judul': 'Bocor', 'deskripsi': '-', 'tingkat_keparahan': 'medium'})
         report = DamageReport.objects.get()
-        self.assertEqual(report.reported_by, self.usr)
+        self.assertEqual(report.dilaporkan_oleh, self.usr)
         # Laporan kedua untuk aset yang sama ditolak, dan pencarian menandainya
         self.client.post('/user/laporan-kerusakan/buat/', {
-            'asset_id': self.asset.pk, 'title': 'Lagi', 'description': '-', 'severity': 'low'})
+            'aset_id': self.aset.pk, 'judul': 'Lagi', 'deskripsi': '-', 'tingkat_keparahan': 'low'})
         self.assertEqual(DamageReport.objects.count(), 1)
         self.assertIn(f'#{report.pk}', self.client.get('/user/laporan-kerusakan/cari-aset/?q=AC-1').json()['results'][0]['blocked'])
         # Aset write off tidak muncul dan tidak bisa dilaporkan
-        Asset.objects.filter(pk=self.asset.pk).update(lifecycle_status='writeoff')
-        DamageReport.objects.update(report_status='resolved')
+        Asset.objects.filter(pk=self.aset.pk).update(status_siklus_hidup='writeoff')
+        DamageReport.objects.update(status_laporan='resolved')
         self.assertEqual(self.client.get('/user/laporan-kerusakan/cari-aset/?q=AC-1').json()['results'], [])
         self.client.post('/user/laporan-kerusakan/buat/', {
-            'asset_id': self.asset.pk, 'title': 'X', 'description': '-', 'severity': 'low'})
+            'aset_id': self.aset.pk, 'judul': 'X', 'deskripsi': '-', 'tingkat_keparahan': 'low'})
         self.assertEqual(DamageReport.objects.count(), 1)
 
     def test_ga_and_finance_can_report_damage(self):
         """GA & Finance tanpa akses Karyawan tetap bisa melapor dan melihat laporannya sendiri."""
         for i, user in enumerate((self.ga_user, self.fin_user)):
-            asset = Asset.objects.create(no_po='PO', asset_number=f'R-{i}', nama_asset=f'Printer {i}',
-                                         tanggal_pembelian=date(2025, 1, 1), asset_category=self.cat)
+            aset = Asset.objects.create(nomor_po='PO', nomor_aset=f'R-{i}', nama_aset=f'Printer {i}',
+                                         tanggal_pembelian=date(2025, 1, 1), kategori_aset=self.cat)
             self.client.force_login(user)
             self.assertEqual(self.client.get('/user/laporan-kerusakan/cari-aset/?q=Printer').status_code, 200)
             self.client.post('/user/laporan-kerusakan/buat/', {
-                'asset_id': asset.pk, 'title': 'Macet', 'description': '-', 'severity': 'low'})
-            report = DamageReport.objects.get(asset=asset)
-            self.assertEqual(report.reported_by.user, user)
+                'aset_id': aset.pk, 'judul': 'Macet', 'deskripsi': '-', 'tingkat_keparahan': 'low'})
+            report = DamageReport.objects.get(aset=aset)
+            self.assertEqual(report.dilaporkan_oleh.user, user)
             self.assertEqual(self.client.get(f'/user/laporan-kerusakan/{report.pk}/').status_code, 200)
             self.assertContains(self.client.get('/user/laporan-kerusakan/'), 'Macet')
 
     def test_employee_admin_is_ga_only(self):
         self.client.force_login(self.fin_user)
         self.assertEqual(self.client.get('/ga/karyawan/').status_code, 302)
-        self.client.post('/ga/karyawan/tambah/', {'nama': 'B', 'employee_id': 'B1', 'jabatan': '-',
+        self.client.post('/ga/karyawan/tambah/', {'nama': 'B', 'nomor_karyawan': 'B1', 'jabatan': '-',
                                                   'username': 'b', 'access': ['user']})
-        self.assertFalse(Employee.objects.filter(employee_id='B1').exists())
+        self.assertFalse(Employee.objects.filter(nomor_karyawan='B1').exists())
 
         self.client.force_login(self.ga_user)
-        r = self.client.post('/ga/karyawan/tambah/', {'nama': 'Budi', 'employee_id': 'B1', 'jabatan': 'Staff',
+        r = self.client.post('/ga/karyawan/tambah/', {'nama': 'Budi', 'nomor_karyawan': 'B1', 'jabatan': 'Staff',
                                                       'username': 'budi', 'access': ['user']})
-        budi = Employee.objects.get(employee_id='B1')
+        budi = Employee.objects.get(nomor_karyawan='B1')
         self.assertRedirects(r, f'/ga/karyawan/{budi.pk}/', fetch_redirect_response=False)
         # Password otomatis tampil sekali (tersembunyi, dengan tombol mata), lalu hilang
         page = self.client.get(f'/ga/karyawan/{budi.pk}/').content.decode()
@@ -405,7 +405,7 @@ class AccessAndFlowTest(TestCase):
         self.client.post(f'/ga/karyawan/{budi.pk}/password/', {'password': 'BaruSekali9'})
         self.assertTrue(User.objects.get(username='budi').check_password('BaruSekali9'))
         # GA tidak bisa mencabut akses GA, menonaktifkan, atau menghapus akunnya sendiri
-        self.client.post(f'/ga/karyawan/{self.ga.pk}/', {'nama': 'ga', 'employee_id': 'ga', 'jabatan': '-',
+        self.client.post(f'/ga/karyawan/{self.ga.pk}/', {'nama': 'ga', 'nomor_karyawan': 'ga', 'jabatan': '-',
                                                        'username': 'ga', 'access': ['user']})
         self.assertTrue(GAProfile.objects.filter(employee=self.ga).exists())
         self.client.post(f'/ga/karyawan/{self.ga.pk}/status/')
@@ -453,11 +453,11 @@ class AccessAndFlowTest(TestCase):
         for label in ('>Pelacakan<', '>Berita acara<'):
             self.assertNotIn(label, page)
         from django.urls import reverse
-        detail = self.client.get(reverse('asset_detail', args=[self.asset.pk]))
+        detail = self.client.get(reverse('asset_detail', args=[self.aset.pk]))
         self.assertEqual(detail.status_code, 200)
         self.assertNotContains(detail, 'Histori movement')
         self.client.force_login(self.ga_user)
-        self.assertContains(self.client.get(reverse('asset_detail', args=[self.asset.pk])), 'Histori movement')
+        self.assertContains(self.client.get(reverse('asset_detail', args=[self.aset.pk])), 'Histori movement')
         self.client.force_login(self.fin_user)
         self.client.force_login(self.ga_user)
         self.assertEqual(self.client.get('/master/location/').status_code, 200)
@@ -468,93 +468,93 @@ class MovementReportTest(TestCase):
     """Karyawan melapor pindah sendiri; GA hanya menyetujui pindah departemen / pindah site."""
 
     def setUp(self):
-        self.it, self.hse = Department.objects.create(name='IT'), Department.objects.create(name='HSE')
+        self.it, self.hse = Department.objects.create(nama='IT'), Department.objects.create(nama='HSE')
         self.ga_user, self.ga = make_employee('ga', GAProfile)
         self.usr_user, self.usr = make_employee('usr', UserProfile)
         self.lain_user, self.lain = make_employee('lain', UserProfile)
         self.fin_user, _ = make_employee('fin', FinanceProfile)
-        Employee.objects.filter(pk=self.usr.pk).update(department=self.it)
-        Employee.objects.filter(pk=self.lain.pk).update(department=self.hse)
-        angsana = Location.objects.create(name='Angsana')
-        self.r1 = Location.objects.create(name='Ruang 1', parent=angsana)
-        self.r2 = Location.objects.create(name='Ruang 2', parent=angsana)
-        self.kusan = Location.objects.create(name='Kusan')
-        self.asset = Asset.objects.create(no_po='PO', asset_number='IT-1', nama_asset='Laptop',
-                                          tanggal_pembelian=date(2025, 1, 1), owned_by_department=self.it,
-                                          lokasi_asset=self.r1)
+        Employee.objects.filter(pk=self.usr.pk).update(departemen=self.it)
+        Employee.objects.filter(pk=self.lain.pk).update(departemen=self.hse)
+        angsana = Location.objects.create(nama='Angsana')
+        self.r1 = Location.objects.create(nama='Ruang 1', induk=angsana)
+        self.r2 = Location.objects.create(nama='Ruang 2', induk=angsana)
+        self.kusan = Location.objects.create(nama='Kusan')
+        self.aset = Asset.objects.create(nomor_po='PO', nomor_aset='IT-1', nama_aset='Laptop',
+                                          tanggal_pembelian=date(2025, 1, 1), departemen_pemilik=self.it,
+                                          lokasi=self.r1)
 
     def post(self, **data):
-        base = {'asset_id': self.asset.pk, 'to_location': self.r1.pk, 'to_department': self.it.pk, 'to_holder': ''}
+        base = {'aset_id': self.aset.pk, 'lokasi_tujuan': self.r1.pk, 'departemen_tujuan': self.it.pk, 'pemegang_tujuan': ''}
         return self.client.post('/user/lapor-pindah/buat/', {**base, **data})
 
     def test_room_move_recorded_immediately(self):
         self.client.force_login(self.usr_user)  # departemen pemilik, bukan pemegang
-        self.post(to_location=self.r2.pk, to_holder=self.usr.pk, notes='renovasi')
+        self.post(lokasi_tujuan=self.r2.pk, pemegang_tujuan=self.usr.pk, catatan='renovasi')
         report = MovementReport.objects.get()
         self.assertEqual(report.status, 'recorded')
-        self.asset.refresh_from_db()
-        self.assertEqual(self.asset.lokasi_asset, self.r2)
-        mv = AssetMovement.objects.get(asset=self.asset, is_current=True)
-        self.assertEqual((mv.location, mv.held_by, report.movement), (self.r2, self.usr, mv))
-        self.assertEqual(AssetAssignment.objects.get(asset=self.asset, status='active').assigned_to, self.usr)
+        self.aset.refresh_from_db()
+        self.assertEqual(self.aset.lokasi, self.r2)
+        mv = AssetMovement.objects.get(aset=self.aset, posisi_saat_ini=True)
+        self.assertEqual((mv.lokasi, mv.dipegang_oleh, report.perpindahan), (self.r2, self.usr, mv))
+        self.assertEqual(AssetAssignment.objects.get(aset=self.aset, status='active').diserahkan_kepada, self.usr)
 
     def test_movement_history_lists_latest_move_first(self):
-        tua = Asset.objects.create(no_po='PO', asset_number='IT-0', nama_asset='Aaa printer',
-                                   tanggal_pembelian=date(2025, 1, 1), lokasi_asset=self.r1)
-        Asset.objects.create(no_po='PO', asset_number='IT-9', nama_asset='Belum pindah',
+        tua = Asset.objects.create(nomor_po='PO', nomor_aset='IT-0', nama_aset='Aaa printer',
+                                   tanggal_pembelian=date(2025, 1, 1), lokasi=self.r1)
+        Asset.objects.create(nomor_po='PO', nomor_aset='IT-9', nama_aset='Belum pindah',
                              tanggal_pembelian=date(2025, 1, 1))
-        AssetMovement.objects.create(asset=tua, location=self.r1, moved_in=timezone.now() - timedelta(days=30))
+        AssetMovement.objects.create(aset=tua, lokasi=self.r1, tanggal_masuk=timezone.now() - timedelta(days=30))
         self.client.force_login(self.usr_user)
-        self.post(to_location=self.r2.pk)  # laporan pindah terbaru
+        self.post(lokasi_tujuan=self.r2.pk)  # laporan pindah terbaru
         self.client.force_login(self.ga_user)
-        names = [a.nama_asset for a in self.client.get('/movement/').context['assets']]
+        names = [a.nama_aset for a in self.client.get('/movement/').context['assets']]
         self.assertEqual(names, ['Laptop', 'Aaa printer', 'Belum pindah'])
 
     def test_department_or_site_change_waits_for_ga(self):
         self.client.force_login(self.usr_user)
-        self.post(to_location=self.kusan.pk, to_department=self.hse.pk)
+        self.post(lokasi_tujuan=self.kusan.pk, departemen_tujuan=self.hse.pk)
         report = MovementReport.objects.get()
         self.assertEqual(report.status, 'pending')
-        self.assertEqual(report.reasons, 'Pindah departemen · Pindah site')
-        self.asset.refresh_from_db()
-        self.assertEqual((self.asset.lokasi_asset, self.asset.owned_by_department), (self.r1, self.it))
+        self.assertEqual(report.alasan, 'Pindah departemen · Pindah site')
+        self.aset.refresh_from_db()
+        self.assertEqual((self.aset.lokasi, self.aset.departemen_pemilik), (self.r1, self.it))
         # Laporan kedua untuk aset yang sama ditolak selama yang pertama menunggu
-        self.post(to_location=self.r2.pk)
+        self.post(lokasi_tujuan=self.r2.pk)
         self.assertEqual(MovementReport.objects.count(), 1)
 
         self.client.force_login(self.ga_user)
         self.assertContains(self.client.get('/ga/laporan-pindah/'), 'Pindah departemen')
-        self.client.post(f'/ga/laporan-pindah/{report.pk}/setujui/', {'review_notes': 'ok'})
-        report.refresh_from_db(); self.asset.refresh_from_db()
-        self.assertEqual((report.status, report.reviewed_by), ('approved', self.ga))
-        self.assertEqual((self.asset.lokasi_asset, self.asset.owned_by_department), (self.kusan, self.hse))
+        self.client.post(f'/ga/laporan-pindah/{report.pk}/setujui/', {'catatan_tinjauan': 'ok'})
+        report.refresh_from_db(); self.aset.refresh_from_db()
+        self.assertEqual((report.status, report.ditinjau_oleh), ('approved', self.ga))
+        self.assertEqual((self.aset.lokasi, self.aset.departemen_pemilik), (self.kusan, self.hse))
 
     def test_reject_needs_reason_and_keeps_position(self):
         self.client.force_login(self.usr_user)
-        self.post(to_location=self.kusan.pk)
+        self.post(lokasi_tujuan=self.kusan.pk)
         report = MovementReport.objects.get()
         self.client.force_login(self.ga_user)
-        self.client.post(f'/ga/laporan-pindah/{report.pk}/tolak/', {'review_notes': ''})
+        self.client.post(f'/ga/laporan-pindah/{report.pk}/tolak/', {'catatan_tinjauan': ''})
         report.refresh_from_db()
         self.assertEqual(report.status, 'pending')
-        self.client.post(f'/ga/laporan-pindah/{report.pk}/tolak/', {'review_notes': 'Belum boleh keluar site'})
-        report.refresh_from_db(); self.asset.refresh_from_db()
+        self.client.post(f'/ga/laporan-pindah/{report.pk}/tolak/', {'catatan_tinjauan': 'Belum boleh keluar site'})
+        report.refresh_from_db(); self.aset.refresh_from_db()
         self.assertEqual(report.status, 'rejected')
-        self.assertEqual(self.asset.lokasi_asset, self.r1)
-        self.assertFalse(AssetMovement.objects.filter(asset=self.asset).exists())
+        self.assertEqual(self.aset.lokasi, self.r1)
+        self.assertFalse(AssetMovement.objects.filter(aset=self.aset).exists())
 
     def test_only_holder_or_owner_department_can_report(self):
         self.client.force_login(self.lain_user)  # HSE, bukan pemegang aset IT
-        self.post(to_location=self.r2.pk)
+        self.post(lokasi_tujuan=self.r2.pk)
         self.assertFalse(MovementReport.objects.exists())
         self.assertEqual(self.client.get('/user/lapor-pindah/cari-aset/?q=Laptop').json()['results'], [])
         # Setelah ia memegang asetnya, boleh melapor
-        AssetAssignment.objects.create(asset=self.asset, assigned_to=self.lain)
+        AssetAssignment.objects.create(aset=self.aset, diserahkan_kepada=self.lain)
         self.assertEqual(len(self.client.get('/user/lapor-pindah/cari-aset/?q=Laptop').json()['results']), 1)
-        self.post(to_location=self.r2.pk, to_holder=self.lain.pk)
+        self.post(lokasi_tujuan=self.r2.pk, pemegang_tujuan=self.lain.pk)
         self.assertEqual(MovementReport.objects.get().status, 'recorded')
         # Tanpa perubahan apa pun → ditolak
-        self.post(to_location=self.r2.pk, to_holder=self.lain.pk)
+        self.post(lokasi_tujuan=self.r2.pk, pemegang_tujuan=self.lain.pk)
         self.assertEqual(MovementReport.objects.count(), 1)
         # Finance & approve oleh non-GA tidak boleh
         self.client.force_login(self.fin_user)
@@ -568,85 +568,85 @@ class HandoverTest(TestCase):
     def setUp(self):
         self.ga_user, self.ga = make_employee('ga', GAProfile)
         self.usr_user, self.usr = make_employee('usr', UserProfile)
-        self.it, self.hse = Department.objects.create(name='IT'), Department.objects.create(name='HSE')
-        Employee.objects.filter(pk=self.usr.pk).update(department=self.hse)
-        angsana = Location.objects.create(name='Angsana')
-        self.room = Location.objects.create(name='Ruang 1', parent=angsana)
-        self.room2 = Location.objects.create(name='Ruang 2', parent=angsana)
-        self.gudang = Location.objects.create(name='Gudang GA', parent=angsana, is_storage=True)
-        Location.objects.create(name='Gudang GA', parent=Location.objects.create(name='Kusan'), is_storage=True)
-        group = AssetGroup.objects.create(name='IT')
-        laptop = AssetCategory.objects.create(group=group, name='Laptop', personal_use=True)
-        printer = AssetCategory.objects.create(group=group, name='Printer')
-        self.laptop = Asset.objects.create(no_po='PO', asset_number='LP-1', nama_asset='Laptop',
-                                           tanggal_pembelian=date(2025, 1, 1), asset_category=laptop,
-                                           owned_by_department=self.it, lokasi_asset=self.gudang)
-        self.printer = Asset.objects.create(no_po='PO', asset_number='PR-1', nama_asset='Printer',
-                                            tanggal_pembelian=date(2025, 1, 1), asset_category=printer,
-                                            owned_by_department=self.it, lokasi_asset=self.room)
+        self.it, self.hse = Department.objects.create(nama='IT'), Department.objects.create(nama='HSE')
+        Employee.objects.filter(pk=self.usr.pk).update(departemen=self.hse)
+        angsana = Location.objects.create(nama='Angsana')
+        self.room = Location.objects.create(nama='Ruang 1', induk=angsana)
+        self.room2 = Location.objects.create(nama='Ruang 2', induk=angsana)
+        self.gudang = Location.objects.create(nama='Gudang GA', induk=angsana, tempat_penyimpanan=True)
+        Location.objects.create(nama='Gudang GA', induk=Location.objects.create(nama='Kusan'), tempat_penyimpanan=True)
+        group = AssetGroup.objects.create(nama='IT')
+        laptop = AssetCategory.objects.create(grup=group, nama='Laptop', pemakaian_pribadi=True)
+        printer = AssetCategory.objects.create(grup=group, nama='Printer')
+        self.laptop = Asset.objects.create(nomor_po='PO', nomor_aset='LP-1', nama_aset='Laptop',
+                                           tanggal_pembelian=date(2025, 1, 1), kategori_aset=laptop,
+                                           departemen_pemilik=self.it, lokasi=self.gudang)
+        self.printer = Asset.objects.create(nomor_po='PO', nomor_aset='PR-1', nama_aset='Printer',
+                                            tanggal_pembelian=date(2025, 1, 1), kategori_aset=printer,
+                                            departemen_pemilik=self.it, lokasi=self.room)
         self.client.force_login(self.ga_user)
 
     def hand_over(self, asset, **data):
-        return self.client.post('/ga/assignment/buat/', {'asset_id': asset.pk, 'location': self.room.pk, **data})
+        return self.client.post('/ga/assignment/buat/', {'aset_id': asset.pk, 'lokasi': self.room.pk, **data})
 
     def active(self, asset):
-        return AssetAssignment.objects.filter(asset=asset, status='active').first()
+        return AssetAssignment.objects.filter(aset=asset, status='active').first()
 
     def test_shared_category_cannot_go_to_a_person(self):
-        self.hand_over(self.printer, mode='personal', assigned_to=self.usr.pk)
+        self.hand_over(self.printer, mode='personal', diserahkan_kepada=self.usr.pk)
         self.assertIsNone(self.active(self.printer))
-        self.hand_over(self.laptop, mode='personal', assigned_to=self.usr.pk)
-        self.assertEqual(self.active(self.laptop).assigned_to, self.usr)
+        self.hand_over(self.laptop, mode='personal', diserahkan_kepada=self.usr.pk)
+        self.assertEqual(self.active(self.laptop).diserahkan_kepada, self.usr)
         self.laptop.refresh_from_db()
-        self.assertEqual(self.laptop.lokasi_asset, self.room)   # keluar dari gudang
+        self.assertEqual(self.laptop.lokasi, self.room)   # keluar dari gudang
 
     def test_department_handover_becomes_owner_and_shows_to_staff(self):
-        self.hand_over(self.printer, mode='department', department=self.hse.pk)
+        self.hand_over(self.printer, mode='department', departemen=self.hse.pk)
         a = self.active(self.printer)
-        self.assertEqual((a.department, a.assigned_to), (self.hse, None))
+        self.assertEqual((a.departemen, a.diserahkan_kepada), (self.hse, None))
         self.printer.refresh_from_db()
-        self.assertEqual(self.printer.owned_by_department, self.hse)
+        self.assertEqual(self.printer.departemen_pemilik, self.hse)
 
         # Dipindah ruangan oleh karyawan departemennya → tetap atas nama departemen
         self.client.force_login(self.usr_user)
-        self.client.post('/user/lapor-pindah/buat/', {'asset_id': self.printer.pk, 'to_location': self.room2.pk,
-                                                      'to_department': self.hse.pk, 'to_holder': ''})
+        self.client.post('/user/lapor-pindah/buat/', {'aset_id': self.printer.pk, 'lokasi_tujuan': self.room2.pk,
+                                                      'departemen_tujuan': self.hse.pk, 'pemegang_tujuan': ''})
         self.assertEqual(self.active(self.printer).pk, a.pk)
         r = self.client.get('/user/dashboard/')
-        self.assertEqual([x.asset for x in r.context['shared_assignments']], [self.printer])
+        self.assertEqual([x.aset for x in r.context['shared_assignments']], [self.printer])
 
         # Laporan pindah tidak boleh langsung ke gudang (itu pengembalian lewat GA)
-        self.client.post('/user/lapor-pindah/buat/', {'asset_id': self.printer.pk, 'to_location': self.gudang.pk,
-                                                      'to_department': self.hse.pk, 'to_holder': ''})
+        self.client.post('/user/lapor-pindah/buat/', {'aset_id': self.printer.pk, 'lokasi_tujuan': self.gudang.pk,
+                                                      'departemen_tujuan': self.hse.pk, 'pemegang_tujuan': ''})
         self.assertEqual(MovementReport.objects.count(), 1)
 
     def test_return_to_storage_with_damage(self):
-        self.hand_over(self.laptop, mode='personal', assigned_to=self.usr.pk)
+        self.hand_over(self.laptop, mode='personal', diserahkan_kepada=self.usr.pk)
         a = self.active(self.laptop)
         r = self.client.get(f'/ga/assignment/{a.pk}/kembalikan/')
         self.assertEqual(r.context['storage'], self.gudang)    # gudang di site yang sama, bukan Kusan
 
         # Rusak tanpa catatan ditolak
-        self.client.post(f'/ga/assignment/{a.pk}/kembalikan/', {'location': self.gudang.pk, 'condition': 'rusak_berat'})
+        self.client.post(f'/ga/assignment/{a.pk}/kembalikan/', {'lokasi': self.gudang.pk, 'kondisi': 'rusak_berat'})
         self.assertIsNotNone(self.active(self.laptop))
 
-        self.client.post(f'/ga/assignment/{a.pk}/kembalikan/', {'location': self.gudang.pk, 'condition': 'rusak_berat',
-                                                                'notes': 'Layar retak'})
+        self.client.post(f'/ga/assignment/{a.pk}/kembalikan/', {'lokasi': self.gudang.pk, 'kondisi': 'rusak_berat',
+                                                                'catatan': 'Layar retak'})
         a.refresh_from_db()
-        self.assertEqual((a.status, a.return_condition), ('returned', 'rusak_berat'))
+        self.assertEqual((a.status, a.kondisi_kembali), ('returned', 'rusak_berat'))
         self.laptop.refresh_from_db()
-        self.assertEqual((self.laptop.lokasi_asset, self.laptop.lifecycle_status), (self.gudang, 'maintenance'))
-        report = DamageReport.objects.get(asset=self.laptop)
-        self.assertEqual((report.severity, report.description, report.report_status), ('high', 'Layar retak', 'acknowledged'))
+        self.assertEqual((self.laptop.lokasi, self.laptop.status_siklus_hidup), (self.gudang, 'maintenance'))
+        report = DamageReport.objects.get(aset=self.laptop)
+        self.assertEqual((report.tingkat_keparahan, report.deskripsi, report.status_laporan), ('high', 'Layar retak', 'acknowledged'))
         r = self.client.get('/ga/assignment/?tab=tersedia')
         self.assertEqual(r.context['counts']['tersedia'], 1)
 
     def test_storage_move_and_write_off_close_shared_handover(self):
         from .models import record_movement, write_off_asset
-        self.hand_over(self.printer, mode='department', department=self.hse.pk)
-        record_movement(self.printer, held_by=None, department=self.hse, location=self.gudang)
+        self.hand_over(self.printer, mode='department', departemen=self.hse.pk)
+        record_movement(self.printer, dipegang_oleh=None, departemen=self.hse, lokasi=self.gudang)
         self.assertIsNone(self.active(self.printer))
 
-        self.hand_over(self.printer, mode='department', department=self.hse.pk)
+        self.hand_over(self.printer, mode='department', departemen=self.hse.pk)
         write_off_asset(self.printer, date.today(), 'rusak', '-', by=self.ga)
         self.assertIsNone(self.active(self.printer))

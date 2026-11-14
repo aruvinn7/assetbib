@@ -52,23 +52,23 @@ class AliasModelForm(forms.ModelForm):
 # ── Asset ────────────────────────────────────────────────────────
 
 class AssetForm(AliasModelForm):
-    aliases = {'department': 'owned_by_department'}
+    aliases = {'department': 'departemen_pemilik'}
 
     class Meta:
         model = Asset
         fields = [
-            'no_po', 'asset_number', 'nama_asset', 'tanggal_pembelian',
-            'lokasi_asset', 'owned_by_department', 'asset_category',
+            'nomor_po', 'nomor_aset', 'nama_aset', 'tanggal_pembelian',
+            'lokasi', 'departemen_pemilik', 'kategori_aset',
         ]
         labels = {
-            'no_po': 'No. PO', 'asset_number': 'Nomor aset', 'nama_asset': 'Nama aset',
-            'tanggal_pembelian': 'Tanggal pembelian', 'lokasi_asset': 'Lokasi',
-            'owned_by_department': 'Departemen',
-            'asset_category': 'Kategori aset',
+            'nomor_po': 'No. PO', 'nomor_aset': 'Nomor aset', 'nama_aset': 'Nama aset',
+            'tanggal_pembelian': 'Tanggal pembelian', 'lokasi': 'Lokasi',
+            'departemen_pemilik': 'Departemen',
+            'kategori_aset': 'Kategori aset',
         }
         # LANGUAGE_CODE masih en-us, jadi pesan bawaan Django ditulis ulang di sini
         error_messages = {
-            'asset_number': {'unique': 'Nomor aset ini sudah dipakai aset lain.'},
+            'nomor_aset': {'unique': 'Nomor aset ini sudah dipakai aset lain.'},
         }
 
 
@@ -88,8 +88,8 @@ class WriteOffForm(forms.ModelForm):
         labels = {'tanggal': 'Tanggal write off', 'alasan': 'Alasan', 'keterangan': 'Keterangan',
                   'nilai_jual': 'Hasil penjualan'}
 
-    def __init__(self, *args, asset=None, **kwargs):
-        self.asset = asset
+    def __init__(self, *args, aset=None, **kwargs):
+        self.aset = aset
         super().__init__(*args, **kwargs)
         self.fields['nilai_jual'].required = False
 
@@ -97,7 +97,7 @@ class WriteOffForm(forms.ModelForm):
         tanggal = self.cleaned_data['tanggal']
         if tanggal > timezone.localdate():
             raise forms.ValidationError('Tidak boleh di masa depan.')
-        if self.asset and tanggal < self.asset.tanggal_pembelian:
+        if self.aset and tanggal < self.aset.tanggal_pembelian:
             raise forms.ValidationError('Tidak boleh sebelum tanggal pembelian aset.')
         return tanggal
 
@@ -120,21 +120,21 @@ class WriteOffForm(forms.ModelForm):
 # ── Financial ────────────────────────────────────────────────────
 
 class AssetFinancialForm(AliasModelForm):
-    aliases = {'nilai_awal': 'nilai_awal_aset'}
+    aliases = {'nilai_awal': 'nilai_awal'}
 
     class Meta:
         model = AssetFinancial
-        fields = ['nilai_awal_aset', 'nilai_residual', 'umur_ekonomis']
+        fields = ['nilai_awal', 'nilai_residual', 'umur_ekonomis']
         labels = {
-            'nilai_awal_aset': 'Nilai awal', 'nilai_residual': 'Nilai residual',
+            'nilai_awal': 'Nilai awal', 'nilai_residual': 'Nilai residual',
             'umur_ekonomis': 'Umur ekonomis',
         }
 
     def clean(self):
         cleaned = super().clean()
-        awal, residual = cleaned.get('nilai_awal_aset'), cleaned.get('nilai_residual')
+        awal, residual = cleaned.get('nilai_awal'), cleaned.get('nilai_residual')
         if awal is not None and awal <= 0:
-            self.add_error('nilai_awal_aset', 'Harus lebih dari 0.')
+            self.add_error('nilai_awal', 'Harus lebih dari 0.')
         if residual is not None and residual < 0:
             self.add_error('nilai_residual', 'Tidak boleh negatif.')
         if awal is not None and residual is not None and residual > awal:
@@ -150,15 +150,15 @@ class AssetComponentForm(forms.ModelForm):
     class Meta:
         model = AssetComponent
         fields = [
-            'part_number', 'component_name', 'description', 'quantity', 'is_critical',
-            'supplier_name', 'estimated_price', 'last_replaced', 'notes',
+            'nomor_part', 'nama_komponen', 'deskripsi', 'jumlah', 'komponen_kritis',
+            'nama_pemasok', 'harga_estimasi', 'penggantian_terakhir', 'catatan',
         ]
-        labels = {'part_number': 'Part number', 'component_name': 'Nama komponen', 'quantity': 'Jumlah'}
+        labels = {'nomor_part': 'Part number', 'nama_komponen': 'Nama komponen', 'jumlah': 'Jumlah'}
 
-    def clean_part_number(self):
-        # unique_together (asset, part_number) tidak divalidasi otomatis karena asset bukan field form
-        pn = self.cleaned_data['part_number']
-        dup = AssetComponent.objects.filter(asset_id=self.instance.asset_id, part_number=pn) \
+    def clean_nomor_part(self):
+        # unique_together (aset, nomor_part) tidak divalidasi otomatis karena aset bukan field form
+        pn = self.cleaned_data['nomor_part']
+        dup = AssetComponent.objects.filter(aset_id=self.instance.aset_id, nomor_part=pn) \
                                     .exclude(pk=self.instance.pk)
         if dup.exists():
             raise forms.ValidationError(f"Part number '{pn}' sudah ada di aset ini.")
@@ -168,8 +168,8 @@ class AssetComponentForm(forms.ModelForm):
 class ComponentReplacementForm(forms.ModelForm):
     class Meta:
         model = ComponentReplacement
-        fields = ['replaced_date', 'reason', 'cost', 'old_part_number']
-        labels = {'replaced_date': 'Tanggal ganti', 'reason': 'Alasan', 'cost': 'Biaya'}
+        fields = ['tanggal_penggantian', 'alasan', 'biaya', 'nomor_part_lama']
+        labels = {'tanggal_penggantian': 'Tanggal ganti', 'alasan': 'Alasan', 'biaya': 'Biaya'}
 
 
 # ── Maintenance ──────────────────────────────────────────────────
@@ -178,11 +178,11 @@ class MaintenanceRecordForm(forms.ModelForm):
     class Meta:
         model = MaintenanceRecord
         fields = [
-            'maintenance_type', 'tanggal_pelaksanaan', 'deskripsi_pekerjaan',
-            'hasil', 'biaya', 'catatan_tambahan',
+            'jenis_maintenance', 'tanggal_pelaksanaan', 'deskripsi_pekerjaan',
+            'hasil', 'biaya', 'catatan',
         ]
         labels = {
-            'maintenance_type': 'Tipe maintenance', 'tanggal_pelaksanaan': 'Tanggal pelaksanaan',
+            'jenis_maintenance': 'Tipe maintenance', 'tanggal_pelaksanaan': 'Tanggal pelaksanaan',
             'deskripsi_pekerjaan': 'Deskripsi pekerjaan', 'hasil': 'Hasil', 'biaya': 'Biaya',
         }
 
@@ -200,17 +200,17 @@ class MaintenanceRecordForm(forms.ModelForm):
 class ResolveDamageForm(MaintenanceRecordForm):
     """Form GA saat menyelesaikan laporan kerusakan (tipe selalu corrective)."""
     class Meta(MaintenanceRecordForm.Meta):
-        fields = ['tanggal_pelaksanaan', 'deskripsi_pekerjaan', 'hasil', 'biaya', 'catatan_tambahan']
+        fields = ['tanggal_pelaksanaan', 'deskripsi_pekerjaan', 'hasil', 'biaya', 'catatan']
 
 
 class MaintenanceConfigForm(forms.ModelForm):
     class Meta:
         model = AssetMaintenanceConfig
-        fields = ['custom_interval_days', 'reason']
-        labels = {'custom_interval_days': 'Interval (hari)', 'reason': 'Alasan'}
+        fields = ['interval_khusus_hari', 'alasan']
+        labels = {'interval_khusus_hari': 'Interval (hari)', 'alasan': 'Alasan'}
 
-    def clean_custom_interval_days(self):
-        days = self.cleaned_data['custom_interval_days']
+    def clean_interval_khusus_hari(self):
+        days = self.cleaned_data['interval_khusus_hari']
         if days < 1:
             raise forms.ValidationError('Minimal 1 hari.')
         return days
@@ -221,49 +221,49 @@ class MaintenanceConfigForm(forms.ModelForm):
 class DepartmentForm(forms.ModelForm):
     class Meta:
         model = Department
-        fields = ['name']
-        labels = {'name': 'Nama departemen'}
+        fields = ['nama']
+        labels = {'nama': 'Nama departemen'}
 
 
 class AssetGroupForm(forms.ModelForm):
     class Meta:
         model = AssetGroup
-        fields = ['name']
-        labels = {'name': 'Nama grup'}
+        fields = ['nama']
+        labels = {'nama': 'Nama grup'}
 
 
 class AssetCategoryForm(forms.ModelForm):
     class Meta:
         model = AssetCategory
-        fields = ['group', 'name', 'personal_use', 'default_interval_value', 'default_interval_unit',
-                  'maintenance_description']
-        labels = {'group': 'Grup', 'name': 'Nama kategori', 'default_interval_value': 'Interval',
-                  'personal_use': 'Bisa diserahkan pribadi'}
+        fields = ['grup', 'nama', 'pemakaian_pribadi', 'interval_default', 'satuan_interval_default',
+                  'deskripsi_maintenance']
+        labels = {'grup': 'Grup', 'nama': 'Nama kategori', 'interval_default': 'Interval',
+                  'pemakaian_pribadi': 'Bisa diserahkan pribadi'}
 
-    def clean_maintenance_description(self):
+    def clean_deskripsi_maintenance(self):
         """Checklist: satu langkah per baris, dinomori ulang otomatis (1. … 2. …)."""
         import re
         lines = [re.sub(r'^\s*\d+\s*[.)]\s*', '', l).strip()
-                 for l in (self.cleaned_data.get('maintenance_description') or '').splitlines()]
+                 for l in (self.cleaned_data.get('deskripsi_maintenance') or '').splitlines()]
         return '\n'.join(f'{i}. {l}' for i, l in enumerate((l for l in lines if l), 1))
 
 
 class LocationForm(forms.ModelForm):
     class Meta:
         model = Location
-        fields = ['name', 'parent', 'is_storage']
-        labels = {'name': 'Nama lokasi', 'parent': 'Induk lokasi', 'is_storage': 'Tempat titip GA'}
+        fields = ['nama', 'induk', 'tempat_penyimpanan']
+        labels = {'nama': 'Nama lokasi', 'induk': 'Induk lokasi', 'tempat_penyimpanan': 'Tempat titip GA'}
 
-    def clean_parent(self):
-        parent = self.cleaned_data.get('parent')
-        if parent and self.instance.pk:
+    def clean_induk(self):
+        induk = self.cleaned_data.get('induk')
+        if induk and self.instance.pk:
             # Cegah siklus: induk tidak boleh diri sendiri atau turunannya
-            node = parent
+            node = induk
             while node:
                 if node.pk == self.instance.pk:
                     raise forms.ValidationError('Induk tidak boleh lokasi ini sendiri atau sub-lokasinya.')
-                node = node.parent
-        return parent
+                node = node.induk
+        return induk
 
 
 # ── Assignment, movement, damage report ──────────────────────────
@@ -272,67 +272,67 @@ class AssignmentForm(forms.Form):
     """Serah terima: ke karyawan (kategori pemakaian pribadi saja) atau atas nama departemen."""
     MODE = [('personal', 'Pribadi'), ('department', 'Departemen')]
 
-    asset_id      = forms.ModelChoiceField(Asset.objects.filter(lifecycle_status='active')
-                                           .select_related('asset_category'), label='Aset')
+    aset_id      = forms.ModelChoiceField(Asset.objects.filter(status_siklus_hidup='active')
+                                           .select_related('kategori_aset'), label='Aset')
     mode          = forms.ChoiceField(choices=MODE, label='Diserahkan ke')
-    assigned_to   = forms.ModelChoiceField(Employee.objects.filter(user_profile__isnull=False, user__is_active=True),
+    diserahkan_kepada   = forms.ModelChoiceField(Employee.objects.filter(user_profile__isnull=False, user__is_active=True),
                                            required=False, label='Karyawan')
-    department    = forms.ModelChoiceField(Department.objects.all(), required=False, label='Departemen')
-    location      = forms.ModelChoiceField(Location.objects.filter(is_storage=False), label='Lokasi pemakaian')
-    assigned_date = forms.DateField(required=False, label='Tanggal serah terima')
-    notes         = forms.CharField(required=False)
+    departemen    = forms.ModelChoiceField(Department.objects.all(), required=False, label='Departemen')
+    lokasi      = forms.ModelChoiceField(Location.objects.filter(tempat_penyimpanan=False), label='Lokasi pemakaian')
+    tanggal_serah = forms.DateField(required=False, label='Tanggal serah terima')
+    catatan       = forms.CharField(required=False)
 
     def clean(self):
         data = super().clean()
-        asset, mode = data.get('asset_id'), data.get('mode')
+        asset, mode = data.get('aset_id'), data.get('mode')
         if mode == 'personal':
-            if not data.get('assigned_to'):
-                self.add_error('assigned_to', 'Pilih karyawan penerima.')
-            category = asset.asset_category if asset else None
-            if asset and not (category and category.personal_use):
-                self.add_error('mode', f"{category.name if category else 'Aset tanpa kategori'} dipakai bersama; "
+            if not data.get('diserahkan_kepada'):
+                self.add_error('diserahkan_kepada', 'Pilih karyawan penerima.')
+            category = asset.kategori_aset if asset else None
+            if asset and not (category and category.pemakaian_pribadi):
+                self.add_error('mode', f"{category.nama if category else 'Aset tanpa kategori'} dipakai bersama; "
                                        "serahkan atas nama departemen.")
-        elif mode == 'department' and not data.get('department'):
-            self.add_error('department', 'Pilih departemen penerima.')
+        elif mode == 'department' and not data.get('departemen'):
+            self.add_error('departemen', 'Pilih departemen penerima.')
         return data
 
 
 class AssignmentReturnForm(forms.Form):
-    location      = forms.ModelChoiceField(Location.objects.all(), label='Disimpan di')
-    condition     = forms.ChoiceField(choices=AssetAssignment.CONDITION, label='Kondisi saat diterima')
-    returned_date = forms.DateField(required=False, label='Tanggal kembali')
-    notes         = forms.CharField(required=False, label='Catatan')
+    lokasi      = forms.ModelChoiceField(Location.objects.all(), label='Disimpan di')
+    kondisi       = forms.ChoiceField(choices=AssetAssignment.CONDITION, label='Kondisi saat diterima')
+    tanggal_kembali = forms.DateField(required=False, label='Tanggal kembali')
+    catatan       = forms.CharField(required=False, label='Catatan')
 
     def clean(self):
         data = super().clean()
-        data['notes'] = (data.get('notes') or '').strip()
-        if data.get('condition', 'baik') != 'baik' and not data['notes']:
-            self.add_error('notes', 'Jelaskan kerusakannya; catatan ini jadi laporan kerusakan.')
+        data['catatan'] = (data.get('catatan') or '').strip()
+        if data.get('kondisi', 'baik') != 'baik' and not data['catatan']:
+            self.add_error('catatan', 'Jelaskan kerusakannya; catatan ini jadi laporan kerusakan.')
         return data
 
 
 class MovementForm(forms.Form):
-    held_by    = forms.ModelChoiceField(Employee.objects.all(), required=False, label='Pemegang')
-    department = forms.ModelChoiceField(Department.objects.all(), required=False, label='Departemen')
-    location   = forms.ModelChoiceField(Location.objects.all(), required=False, label='Lokasi')
-    notes      = forms.CharField(required=False)
+    dipegang_oleh    = forms.ModelChoiceField(Employee.objects.all(), required=False, label='Pemegang')
+    departemen = forms.ModelChoiceField(Department.objects.all(), required=False, label='Departemen')
+    lokasi   = forms.ModelChoiceField(Location.objects.all(), required=False, label='Lokasi')
+    catatan    = forms.CharField(required=False)
 
-    def clean_notes(self):
-        return self.cleaned_data['notes'].strip()
+    def clean_catatan(self):
+        return self.cleaned_data['catatan'].strip()
 
 
 class DamageReportForm(forms.ModelForm):
     class Meta:
         model = DamageReport
-        fields = ['title', 'description', 'severity', 'photo_evidence']
-        labels = {'title': 'Judul', 'description': 'Deskripsi', 'severity': 'Tingkat kerusakan',
-                  'photo_evidence': 'Foto bukti'}
+        fields = ['judul', 'deskripsi', 'tingkat_keparahan', 'foto_bukti']
+        labels = {'judul': 'Judul', 'deskripsi': 'Deskripsi', 'tingkat_keparahan': 'Tingkat kerusakan',
+                  'foto_bukti': 'Foto bukti'}
 
-    def clean_photo_evidence(self):
-        photo = self.cleaned_data.get('photo_evidence')
-        if photo and getattr(photo, 'size', 0) > MAX_UPLOAD_SIZE:
+    def clean_foto_bukti(self):
+        foto = self.cleaned_data.get('foto_bukti')
+        if foto and getattr(foto, 'size', 0) > MAX_UPLOAD_SIZE:
             raise forms.ValidationError('Ukuran foto maksimal 5 MB.')
-        return photo
+        return foto
 
 
 # ── Karyawan & akun login (khusus GA) ─────────────────────────────
@@ -369,8 +369,8 @@ class EmployeeForm(forms.ModelForm):
 
     class Meta:
         model = Employee
-        fields = ['nama', 'employee_id', 'department', 'jabatan']
-        labels = {'nama': 'Nama lengkap', 'employee_id': 'ID karyawan', 'department': 'Departemen', 'jabatan': 'Jabatan'}
+        fields = ['nama', 'nomor_karyawan', 'departemen', 'jabatan']
+        labels = {'nama': 'Nama lengkap', 'nomor_karyawan': 'ID karyawan', 'departemen': 'Departemen', 'jabatan': 'Jabatan'}
 
     def __init__(self, *args, editor=None, **kwargs):
         super().__init__(*args, **kwargs)

@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% load static waktu %}
-{% block title %}{{ report.title }}{% endblock %}
+{% block title %}{{ report.judul }}{% endblock %}
 {% block nav_my_reports %}active{% endblock %}
 {% block extra_head %}<link rel="stylesheet" href="{% static 'css/pages/damage_report.css' %}?v=5">{% endblock %}
 
@@ -9,11 +9,11 @@
   <div class="crumbs"><a href="{% url 'user_damage_report_list' %}">Laporan saya</a><i class="fa-solid fa-chevron-right" aria-hidden="true" style="font-size:10px"></i>#{{ report.pk }}</div>
   <div class="page-head">
     <div>
-      <h1>{{ report.title }}</h1>
-      <div class="sub">{{ report.asset.nama_asset }} · {{ report.asset.asset_number }} · dilaporkan {{ report.reported_at|sejak }}</div>
+      <h1>{{ report.judul }}</h1>
+      <div class="sub">{{ report.aset.nama_aset }} · {{ report.aset.nomor_aset }} · dilaporkan {{ report.dilaporkan_pada|sejak }}</div>
       <div class="head-tags">
-        {% include "components/_severity.html" with severity=report.severity %}
-        {% include "components/_report_status.html" with status=report.report_status %}
+        {% include "components/_severity.html" with severity=report.tingkat_keparahan %}
+        {% include "components/_report_status.html" with status=report.status_laporan %}
       </div>
     </div>
   </div>
@@ -21,21 +21,21 @@
   <div class="rd-grid">
     <div class="rd-main">
       <section class="panel">
-        <div class="panel-head"><h2>Tanggapan GA</h2>{% if report.handled_by %}<span class="meta">{{ report.handled_by.nama }}</span>{% endif %}</div>
+        <div class="panel-head"><h2>Tanggapan GA</h2>{% if report.ditangani_oleh %}<span class="meta">{{ report.ditangani_oleh.nama }}</span>{% endif %}</div>
         <div class="panel-body">
-          {% if report.ga_notes %}<p class="pre">{{ report.ga_notes }}</p>
-          {% elif report.report_status == 'pending' %}<p class="dim">GA belum menanggapi. Anda tidak perlu melapor ulang; laporan ini sudah masuk antrean.</p>
+          {% if report.catatan_ga %}<p class="pre">{{ report.catatan_ga }}</p>
+          {% elif report.status_laporan == 'pending' %}<p class="dim">GA belum menanggapi. Anda tidak perlu melapor ulang; laporan ini sudah masuk antrean.</p>
           {% else %}<p class="dim">GA tidak menuliskan pesan.</p>{% endif %}
         </div>
       </section>
 
       <section class="panel">
-        <div class="panel-head"><h2>Laporan Anda</h2><span class="meta">{{ report.get_severity_display }}</span></div>
+        <div class="panel-head"><h2>Laporan Anda</h2><span class="meta">{{ report.get_tingkat_keparahan_display }}</span></div>
         <div class="panel-body rd-desc">
-          <p>{{ report.description }}</p>
-          {% if report.photo_evidence %}
-          <a class="rd-photo" href="{{ report.photo_evidence.url }}" target="_blank" rel="noopener">
-            <img src="{{ report.photo_evidence.url }}" alt="Foto bukti kerusakan {{ report.asset.nama_asset }}" loading="lazy">
+          <p>{{ report.deskripsi }}</p>
+          {% if report.foto_bukti %}
+          <a class="rd-photo" href="{{ report.foto_bukti.url }}" target="_blank" rel="noopener">
+            <img src="{{ report.foto_bukti.url }}" alt="Foto bukti kerusakan {{ report.aset.nama_aset }}" loading="lazy">
             <span><i class="fa-solid fa-up-right-from-square" aria-hidden="true"></i>Buka foto ukuran penuh</span>
           </a>
           {% endif %}

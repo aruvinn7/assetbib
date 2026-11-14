@@ -9,7 +9,7 @@
   <div class="page-head">
     <div>
       <h1>{{ emp_obj.nama }}</h1>
-      <div class="sub">{{ emp_obj.employee_id }} · {{ emp_obj.jabatan }}{% if emp_obj.department %} · {{ emp_obj.department.name }}{% endif %}{% if is_self %} · akun Anda{% endif %}</div>
+      <div class="sub">{{ emp_obj.nomor_karyawan }} · {{ emp_obj.jabatan }}{% if emp_obj.departemen %} · {{ emp_obj.departemen.nama }}{% endif %}{% if is_self %} · akun Anda{% endif %}</div>
     </div>
     <div class="page-actions"><a href="{% url 'employee_list' %}" class="btn outline"><i class="fa-solid fa-arrow-left" aria-hidden="true"></i>Daftar karyawan</a></div>
   </div>

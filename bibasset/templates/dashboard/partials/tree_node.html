@@ -1,11 +1,11 @@
 {# Satu node pohon lokasi (rekursif). Terbuka bila ada di jalur lokasi terpilih. #}
 {% with open=node.pk|stringformat:'s' %}
-<li class="tn" data-name="{{ node.name|lower }}">
+<li class="tn" data-name="{{ node.nama|lower }}">
   <div class="tn-row {% if selected_id == open %}is-selected{% endif %}">
     {% if node.children_list %}
-    <button type="button" class="tn-toggle" aria-expanded="{% if node.pk in breadcrumb_pks %}true{% else %}false{% endif %}" aria-controls="tn-{{ node.pk }}" aria-label="Buka/tutup {{ node.name }}"><i class="fa-solid fa-chevron-right" aria-hidden="true"></i></button>
+    <button type="button" class="tn-toggle" aria-expanded="{% if node.pk in breadcrumb_pks %}true{% else %}false{% endif %}" aria-controls="tn-{{ node.pk }}" aria-label="Buka/tutup {{ node.nama }}"><i class="fa-solid fa-chevron-right" aria-hidden="true"></i></button>
     {% else %}<span class="tn-space" aria-hidden="true"></span>{% endif %}
-    <a href="{% url 'location_dashboard' %}?location={{ node.pk }}" {% if selected_id == open %}aria-current="page"{% endif %}>{{ node.name }}</a>
+    <a href="{% url 'location_dashboard' %}?location={{ node.pk }}" {% if selected_id == open %}aria-current="page"{% endif %}>{{ node.nama }}</a>
     <span class="tn-count {% if not node.total_assets %}is-zero{% endif %}">{{ node.total_assets }}</span>
   </div>
   {% if node.children_list %}

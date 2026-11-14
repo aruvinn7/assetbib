@@ -77,7 +77,7 @@
         <tbody>
         {% for c in candidates %}
           <tr>
-            <td><a class="row-link" href="{% url 'asset_detail' c.asset.pk %}">{{ c.asset.nama_asset }}</a><div class="cell-sub">{{ c.asset.asset_number }} · {{ c.asset.umur_asset_detail|umur_singkat }} · {{ c.asset.lokasi_asset.name|default:"—" }}</div></td>
+            <td><a class="row-link" href="{% url 'asset_detail' c.asset.pk %}">{{ c.asset.nama_aset }}</a><div class="cell-sub">{{ c.asset.nomor_aset }} · {{ c.asset.umur_asset_detail|umur_singkat }} · {{ c.asset.lokasi.nama|default:"—" }}</div></td>
             <td>{% include "components/_health.html" with health=c.status %}{% if c.ratio is not None %}<div class="cell-sub">{{ c.ratio|floatformat:0 }}% biaya</div>{% endif %}</td>
             <td class="num">{{ c.corrective }}×</td>
             <td class="num">{% if c.book is not None %}{{ c.book|rupiah }}{% else %}<span class="cell-sub">belum dinilai</span>{% endif %}</td>
@@ -104,7 +104,7 @@
       {% if frequent %}
       <ul class="rank">
         {% for f in frequent %}
-        <li><a href="{% url 'asset_detail' f.asset_id %}"><span><strong>{{ f.asset__nama_asset }}</strong><small>{{ f.asset__asset_number }} · biaya {{ f.s|rupiah }}</small></span><b>{{ f.n }}× rusak</b></a></li>
+        <li><a href="{% url 'asset_detail' f.aset_id %}"><span><strong>{{ f.aset__nama_aset }}</strong><small>{{ f.aset__nomor_aset }} · biaya {{ f.s|rupiah }}</small></span><b>{{ f.n }}× rusak</b></a></li>
         {% endfor %}
       </ul>
       {% else %}
@@ -120,5 +120,5 @@
 {{ chart_cost|json_script:"chart-cost" }}
 {{ chart_compliance|json_script:"chart-compliance" }}
 {{ chart_cats|json_script:"chart-cats" }}
-<script src="{% static 'js/analytics.js' %}?v=2"></script>
+<script src="{% static 'js/analytics.js' %}?v=2" defer></script>
 {% endblock %}

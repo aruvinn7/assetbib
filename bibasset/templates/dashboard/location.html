@@ -33,13 +33,13 @@
       {% if selected_node %}
       <div class="crumbs">
         <a href="{% url 'location_dashboard' %}">Semua area</a>
-        {% for crumb in breadcrumb %}<i class="fa-solid fa-chevron-right" aria-hidden="true" style="font-size:10px"></i>{% if forloop.last %}{{ crumb.name }}{% else %}<a href="{% url 'location_dashboard' %}?location={{ crumb.pk }}">{{ crumb.name }}</a>{% endif %}{% endfor %}
+        {% for crumb in breadcrumb %}<i class="fa-solid fa-chevron-right" aria-hidden="true" style="font-size:10px"></i>{% if forloop.last %}{{ crumb.nama }}{% else %}<a href="{% url 'location_dashboard' %}?location={{ crumb.pk }}">{{ crumb.nama }}</a>{% endif %}{% endfor %}
       </div>
 
       <section class="panel" aria-labelledby="locTitle">
         <div class="panel-head">
           <div>
-            <h2 id="locTitle">{{ selected_node.name }}</h2>
+            <h2 id="locTitle">{{ selected_node.nama }}</h2>
             <span class="meta">{{ selected_node.total_assets }} aset{% if selected_node.children_list %}, termasuk {{ selected_node.children_list|length }} sub-lokasi{% endif %}</span>
           </div>
           <a href="{% url 'asset_list' %}?location={{ selected_node.pk }}">Buka di daftar aset</a>
@@ -55,7 +55,7 @@
           <ul class="subloc-list">
             {% for child in selected_node.children_list %}
             <li><a href="{% url 'location_dashboard' %}?location={{ child.pk }}">
-              <span class="subloc-name">{{ child.name }}{% if child.children_list %}<small>{{ child.children_list|length }} sub-lokasi</small>{% endif %}</span>
+              <span class="subloc-name">{{ child.nama }}{% if child.children_list %}<small>{{ child.children_list|length }} sub-lokasi</small>{% endif %}</span>
               <span class="subloc-n {% if not child.total_assets %}is-zero{% endif %}">{{ child.total_assets }} aset</span>
             </a></li>
             {% endfor %}
@@ -82,13 +82,13 @@
             <thead><tr><th class="no">No</th><th>Aset</th><th>Lokasi</th><th>Departemen</th><th>Status</th><th><span class="visually-hidden">Aksi</span></th></tr></thead>
             <tbody>
             {% for asset in selected_assets %}
-              <tr data-status="{{ asset.lifecycle_status }}">
+              <tr data-status="{{ asset.status_siklus_hidup }}">
                 <td class="no"><span class="visually-hidden">Nomor </span>{{ forloop.counter }}</td>
-                <td class="lead"><a class="row-link" href="{% url 'asset_detail' asset.pk %}">{{ asset.nama_asset }}</a><div class="cell-sub">{{ asset.asset_number }}{% if asset.asset_category %} · {{ asset.asset_category.name }}{% endif %}</div></td>
-                <td data-label="Lokasi">{{ asset.lokasi_asset.name|default:"—" }}</td>
-                <td data-label="Departemen">{{ asset.owned_by_department.name|default:"—" }}</td>
-                <td data-label="Status">{% include "components/_lifecycle.html" with status=asset.lifecycle_status %}</td>
-                <td class="act">{% if asset.lifecycle_status != 'writeoff' %}<a class="btn sm outline" href="{% url 'maintenance_create' asset.id %}" data-quick-maint aria-label="Catat maintenance {{ asset.nama_asset }}"><i class="fa-solid fa-plus" aria-hidden="true"></i>Catat</a>{% endif %}</td>
+                <td class="lead"><a class="row-link" href="{% url 'asset_detail' asset.pk %}">{{ asset.nama_aset }}</a><div class="cell-sub">{{ asset.nomor_aset }}{% if asset.kategori_aset %} · {{ asset.kategori_aset.nama }}{% endif %}</div></td>
+                <td data-label="Lokasi">{{ asset.lokasi.nama|default:"—" }}</td>
+                <td data-label="Departemen">{{ asset.departemen_pemilik.nama|default:"—" }}</td>
+                <td data-label="Status">{% include "components/_lifecycle.html" with status=asset.status_siklus_hidup %}</td>
+                <td class="act">{% if asset.status_siklus_hidup != 'writeoff' %}<a class="btn sm outline" href="{% url 'maintenance_create' asset.id %}" data-quick-maint aria-label="Catat maintenance {{ asset.nama_aset }}"><i class="fa-solid fa-plus" aria-hidden="true"></i>Catat</a>{% endif %}</td>
               </tr>
             {% endfor %}
             </tbody>
@@ -110,7 +110,7 @@
             {% for root in roots %}
               <tr>
                 <td class="no"><span class="visually-hidden">Nomor </span>{{ forloop.counter }}</td>
-                <td class="lead"><a class="row-link" href="{% url 'location_dashboard' %}?location={{ root.pk }}">{{ root.name }}</a></td>
+                <td class="lead"><a class="row-link" href="{% url 'location_dashboard' %}?location={{ root.pk }}">{{ root.nama }}</a></td>
                 <td data-label="Aset" class="num">{{ root.total_assets }}</td>
                 <td data-label="Aktif" class="num">{{ root.total_active }}</td>
                 <td data-label="Maintenance" class="num">{{ root.total_maint }}</td>

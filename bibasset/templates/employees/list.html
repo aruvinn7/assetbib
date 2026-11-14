@@ -43,9 +43,9 @@
             <td class="no"><span class="visually-hidden">Nomor </span>{{ page_obj.start_index|add:forloop.counter0 }}</td>
             <td class="lead">
               <a class="row-link" href="{% url 'employee_update' e.pk %}">{{ e.nama }}</a>
-              <div class="cell-sub">{{ e.employee_id }} · {{ e.user.username }}</div>
+              <div class="cell-sub">{{ e.nomor_karyawan }} · {{ e.user.username }}</div>
             </td>
-            <td data-label="Departemen">{{ e.department.name|default:"—" }}</td>
+            <td data-label="Departemen">{{ e.departemen.nama|default:"—" }}</td>
             <td data-label="Jabatan">{{ e.jabatan|default:"—" }}</td>
             <td data-label="Akses">
               <div class="access-tags">

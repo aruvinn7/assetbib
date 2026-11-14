@@ -1,14 +1,14 @@
 {% extends "base.html" %}
-{% block title %}Interval khusus · {{ asset.asset_number }}{% endblock %}
+{% block title %}Interval khusus · {{ asset.nomor_aset }}{% endblock %}
 {% block nav_maintenance %}active{% endblock %}
 
 {% block content %}
 <div class="page">
   <div class="crumbs">
-    <a href="{% url 'asset_detail' asset.id %}">{{ asset.asset_number }}</a><i class="fa-solid fa-chevron-right" aria-hidden="true" style="font-size:10px"></i>Interval khusus
+    <a href="{% url 'asset_detail' asset.id %}">{{ asset.nomor_aset }}</a><i class="fa-solid fa-chevron-right" aria-hidden="true" style="font-size:10px"></i>Interval khusus
   </div>
   <div class="page-head">
-    <div><h1>{% if config %}Ubah interval khusus{% else %}Atur interval khusus{% endif %}</h1><div class="sub">{{ asset.nama_asset }}</div></div>
+    <div><h1>{% if config %}Ubah interval khusus{% else %}Atur interval khusus{% endif %}</h1><div class="sub">{{ asset.nama_aset }}</div></div>
   </div>
 
   <form method="post" class="form-layout">
@@ -16,14 +16,14 @@
     <div class="form-main">
       <section class="fsec" aria-labelledby="secInterval">
         <div class="fsec-head"><h2 id="secInterval">Interval maintenance</h2>
-          <p>{% if category_interval %}Standar kategori {{ asset.asset_category.name }} adalah setiap {{ category_interval }} hari. Isi hanya bila aset ini perlu interval yang berbeda.{% else %}Kategori aset ini belum punya interval standar, jadi interval khusus menentukan jadwal otomatisnya.{% endif %}</p>
+          <p>{% if category_interval %}Standar kategori {{ asset.kategori_aset.nama }} adalah setiap {{ category_interval }} hari. Isi hanya bila aset ini perlu interval yang berbeda.{% else %}Kategori aset ini belum punya interval standar, jadi interval khusus menentukan jadwal otomatisnya.{% endif %}</p>
         </div>
         <div class="fsec-body">
           <div class="field">
             <label for="intervalInput">Interval (hari) <span class="req" aria-hidden="true">*</span></label>
             <div class="input-affix interval-input">
-              <input class="input" type="number" id="intervalInput" name="custom_interval_days" min="1" max="999" required inputmode="numeric"
-                     value="{% firstof posted.custom_interval_days config.custom_interval_days '' %}" aria-describedby="intervalHint">
+              <input class="input" type="number" id="intervalInput" name="interval_khusus_hari" min="1" max="999" required inputmode="numeric"
+                     value="{% firstof posted.interval_khusus_hari config.interval_khusus_hari '' %}" aria-describedby="intervalHint">
               <span aria-hidden="true">hari</span>
             </div>
             <p class="field-hint" id="intervalHint" aria-live="polite">Contoh: 14 = 2 minggu, 30 = 1 bulan, 90 = 3 bulan.</p>
@@ -36,8 +36,8 @@
             </div>
           </div>
           <div class="field">
-            <label for="reason">Alasan <span class="req" aria-hidden="true">*</span></label>
-            <textarea class="textarea" id="reason" name="reason" rows="3" required placeholder="Mis. dipakai 24 jam di area berdebu, perlu dicek lebih sering">{% firstof posted.reason config.reason '' %}</textarea>
+            <label for="alasan">Alasan <span class="req" aria-hidden="true">*</span></label>
+            <textarea class="textarea" id="alasan" name="alasan" rows="3" required placeholder="Mis. dipakai 24 jam di area berdebu, perlu dicek lebih sering">{% firstof posted.alasan config.alasan '' %}</textarea>
           </div>
         </div>
       </section>
@@ -54,10 +54,10 @@
         <div class="panel-head"><h2 id="assetInfo">Aset</h2></div>
         <div class="panel-body">
           <dl class="kv">
-            <div><dt>Nomor</dt><dd>{{ asset.asset_number }}</dd></div>
-            <div><dt>Kategori</dt><dd>{{ asset.asset_category.name|default:"—" }}</dd></div>
+            <div><dt>Nomor</dt><dd>{{ asset.nomor_aset }}</dd></div>
+            <div><dt>Kategori</dt><dd>{{ asset.kategori_aset.nama|default:"—" }}</dd></div>
             <div><dt>Standar</dt><dd>{% if category_interval %}Setiap {{ category_interval }} hari{% else %}<span class="dim">Belum diatur</span>{% endif %}</dd></div>
-            {% if config %}<div><dt>Saat ini</dt><dd>Setiap {{ config.custom_interval_days }} hari</dd></div>{% endif %}
+            {% if config %}<div><dt>Saat ini</dt><dd>Setiap {{ config.interval_khusus_hari }} hari</dd></div>{% endif %}
           </dl>
         </div>
       </section>

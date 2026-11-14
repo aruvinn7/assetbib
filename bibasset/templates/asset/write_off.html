@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% load static rupiah waktu %}
-{% block title %}Write off · {{ asset.nama_asset }}{% endblock %}
+{% block title %}Write off · {{ asset.nama_aset }}{% endblock %}
 {% block nav_assets %}active{% endblock %}
 {% block extra_head %}<link rel="stylesheet" href="{% static 'css/pages/write_off.css' %}?v=1">{% endblock %}
 
@@ -8,13 +8,13 @@
 <div class="page">
   <div class="crumbs">
     <a href="{% url 'asset_list' %}">Daftar aset</a><i class="fa-solid fa-chevron-right" aria-hidden="true" style="font-size:10px"></i>
-    <a href="{% url 'asset_detail' asset.id %}">{{ asset.asset_number }}</a><i class="fa-solid fa-chevron-right" aria-hidden="true" style="font-size:10px"></i>Write off
+    <a href="{% url 'asset_detail' asset.id %}">{{ asset.nomor_aset }}</a><i class="fa-solid fa-chevron-right" aria-hidden="true" style="font-size:10px"></i>Write off
   </div>
 
   <div class="page-head">
     <div>
       <h1>Write off aset</h1>
-      <div class="sub">{{ asset.nama_asset }} · {{ asset.asset_number }}</div>
+      <div class="sub">{{ asset.nama_aset }} · {{ asset.nomor_aset }}</div>
     </div>
   </div>
 
@@ -78,11 +78,11 @@
       <section class="panel">
         <div class="panel-head"><h2>Kondisi aset</h2></div>
         <dl class="wo-facts">
-          <div><dt>Status</dt><dd>{% include "components/_lifecycle.html" with status=asset.lifecycle_status %}</dd></div>
+          <div><dt>Status</dt><dd>{% include "components/_lifecycle.html" with status=asset.status_siklus_hidup %}</dd></div>
           <div><dt>Kesehatan</dt><dd>{% include "components/_health.html" with health=health %}{% if ratio is not None %}<span class="dim">{{ ratio|floatformat:0 }}% biaya</span>{% endif %}</dd></div>
           <div><dt>Kerusakan</dt><dd>{{ asset.jumlah_corrective }}× tercatat</dd></div>
           <div><dt>Umur</dt><dd>{{ asset.umur_asset_detail|umur }}{% if fin %} <span class="dim">dari {{ fin.umur_ekonomis }} tahun umur ekonomis</span>{% endif %}</dd></div>
-          <div><dt>Nilai perolehan</dt><dd>{% if fin %}{{ fin.nilai_awal_aset|rupiah }}{% else %}<span class="dim">Belum dinilai</span>{% endif %}</dd></div>
+          <div><dt>Nilai perolehan</dt><dd>{% if fin %}{{ fin.nilai_awal|rupiah }}{% else %}<span class="dim">Belum dinilai</span>{% endif %}</dd></div>
           <div class="em"><dt>Nilai buku dihapus</dt>
             <dd>{% if fin %}<strong id="bookAt">{{ book_today|rupiah }}</strong><span class="dim" id="bookAtNote">per {{ today|date:"d M Y" }}</span>{% else %}<span class="dim">Isi data finansial dulu agar nilai buku tercatat</span>{% endif %}</dd></div>
           <div id="gainRow" hidden><dt>Laba/rugi pelepasan</dt><dd><strong id="gainVal">—</strong></dd></div>
@@ -109,7 +109,7 @@
 {# Nilai buku pada tanggal terpilih — rumus sama dengan AssetFinancial.book_value() #}
 <script>
   (() => {
-    const fin = { awal: {{ fin.nilai_awal_aset|stringformat:"f" }}, residu: {{ fin.nilai_residual|stringformat:"f" }}, umur: {{ fin.umur_ekonomis }}, beli: '{{ asset.tanggal_pembelian|date:"Y-m-d" }}' };
+    const fin = { awal: {{ fin.nilai_awal|stringformat:"f" }}, residu: {{ fin.nilai_residual|stringformat:"f" }}, umur: {{ fin.umur_ekonomis }}, beli: '{{ asset.tanggal_pembelian|date:"Y-m-d" }}' };
     const dateEl = document.getElementById('woDate'), saleEl = document.getElementById('woSale');
     const fmt = v => 'Rp ' + Math.round(v).toLocaleString('id-ID');
     const bookAt = d => {

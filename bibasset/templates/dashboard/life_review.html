@@ -49,7 +49,7 @@
       <label class="visually-hidden" for="lrGroup">Grup aset</label>
       <select class="input select" id="lrGroup" name="group" onchange="this.form.submit()">
         <option value="">Semua grup</option>
-        {% for g in groups %}<option value="{{ g.pk }}" {% if group == g.pk|stringformat:'s' %}selected{% endif %}>{{ g.name }}</option>{% endfor %}
+        {% for g in groups %}<option value="{{ g.pk }}" {% if group == g.pk|stringformat:'s' %}selected{% endif %}>{{ g.nama }}</option>{% endfor %}
       </select>
       <div class="search">
         <i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i>
@@ -72,8 +72,8 @@
           <tr>
             <td class="no"><span class="visually-hidden">Nomor </span>{{ page_obj.start_index|add:forloop.counter0 }}</td>
             <td class="lead">
-              <a class="row-link" href="{% url 'asset_detail' r.asset.pk %}">{{ r.asset.nama_asset }}</a>
-              <div class="cell-sub">{{ r.asset.asset_number }} · {{ r.asset.asset_category.name|default:"—" }}{% if r.asset.owned_by_department %} · {{ r.asset.owned_by_department.name }}{% endif %}</div>
+              <a class="row-link" href="{% url 'asset_detail' r.asset.pk %}">{{ r.asset.nama_aset }}</a>
+              <div class="cell-sub">{{ r.asset.nomor_aset }} · {{ r.asset.kategori_aset.nama|default:"—" }}{% if r.asset.departemen_pemilik %} · {{ r.asset.departemen_pemilik.nama }}{% endif %}</div>
             </td>
             <td data-label="Umur ekonomis" class="lr-life">
               <span class="lr-bar stage-{{ r.stage }}" aria-hidden="true"><i style="width:{% if r.used_pct > 100 %}100{% else %}{{ r.used_pct|floatformat:0 }}{% endif %}%"></i></span>

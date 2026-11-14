@@ -49,17 +49,17 @@
               {% elif sch.status == 'upcoming' %}{% include "components/_status.html" with kind="none" label="Terjadwal" %}
               {% elif sch.status == 'done' %}{% include "components/_status.html" with kind="safe" label="Selesai" %}
               {% else %}{% include "components/_status.html" with kind="off" label="Dilewati" %}{% endif %}
-              {% if sch.notes %}<div class="cell-sub" title="{{ sch.notes }}">{% if sch.notes|slice:":11" == "[CORRECTIVE" %}dari laporan kerusakan{% else %}{{ sch.notes|truncatechars:40 }}{% endif %}</div>{% endif %}
+              {% if sch.catatan %}<div class="cell-sub" title="{{ sch.catatan }}">{% if sch.catatan|slice:":11" == "[CORRECTIVE" %}dari laporan kerusakan{% else %}{{ sch.catatan|truncatechars:40 }}{% endif %}</div>{% endif %}
             </td>
-            <td data-label="Aset" class="asset-cell lead"><a class="row-link" href="{% url 'asset_detail' sch.asset.id %}">{{ sch.asset.nama_asset }}</a><div class="cell-sub">{{ sch.asset.asset_number }}{% if sch.asset.asset_category %} · {{ sch.asset.asset_category.name }}{% endif %}</div></td>
-            <td data-label="Lokasi" class="loc">{% include "components/_location.html" with loc=sch.asset.lokasi_asset %}</td>
-            <td data-label="Jadwal" class="num">{{ sch.scheduled_date|date:"d M Y" }}
+            <td data-label="Aset" class="asset-cell lead"><a class="row-link" href="{% url 'asset_detail' sch.aset.id %}">{{ sch.aset.nama_aset }}</a><div class="cell-sub">{{ sch.aset.nomor_aset }}{% if sch.aset.kategori_aset %} · {{ sch.aset.kategori_aset.nama }}{% endif %}</div></td>
+            <td data-label="Lokasi" class="loc">{% include "components/_location.html" with loc=sch.aset.lokasi %}</td>
+            <td data-label="Jadwal" class="num">{{ sch.tanggal_jadwal|date:"d M Y" }}
               {% if sch.status == 'overdue' or sch.status == 'upcoming' %}<div class="cell-sub {% if d < 0 %}late{% endif %}">{% if d < 0 %}{{ d|abs_value }} hari terlambat{% elif d == 0 %}hari ini{% else %}{{ d }} hari lagi{% endif %}</div>{% endif %}
             </td>
             <td data-label="Interval" class="num">{% if sch.interval_days %}{{ sch.interval_days }} hari<div class="cell-sub">{% if sch.is_custom_interval %}custom{% else %}kategori{% endif %}</div>{% else %}<span class="cell-sub">—</span>{% endif %}</td>
             <td class="actions">{% if sch.status == 'upcoming' or sch.status == 'overdue' %}
-                <a class="btn sm" href="{% url 'maintenance_create' sch.asset.id %}" data-quick-maint>Catat</a>
-                <form method="post" action="{% url 'maintenance_schedule_skip' sch.pk %}" class="skip-form" onsubmit="return confirm('Lewati jadwal {{ sch.asset.nama_asset|escapejs }} ({{ sch.scheduled_date|date:'d M Y' }})? Jadwal ini tidak dihitung terlambat lagi dan tidak bisa dicatat.')">
+                <a class="btn sm" href="{% url 'maintenance_create' sch.aset.id %}" data-quick-maint>Catat</a>
+                <form method="post" action="{% url 'maintenance_schedule_skip' sch.pk %}" class="skip-form" onsubmit="return confirm('Lewati jadwal {{ sch.aset.nama_aset|escapejs }} ({{ sch.tanggal_jadwal|date:'d M Y' }})? Jadwal ini tidak dihitung terlambat lagi dan tidak bisa dicatat.')">
                   {% csrf_token %}<input type="hidden" name="next" value="{{ request.get_full_path }}">
                   <button type="submit" class="skip">Lewati</button>
                 </form>

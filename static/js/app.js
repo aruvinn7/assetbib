@@ -55,6 +55,49 @@
 
   window.App = { toast, refresh, rememberAsset };
 
+  // ── Foto besar diperkecil di browser sebelum diunggah ──
+  // Server (Vercel) menolak permintaan > 4,5 MB, sedangkan foto ponsel sering 3–10 MB.
+  // Listener fase capture menahan event "change", mengecilkan foto (sisi terpanjang 2048 px, JPEG),
+  // lalu memicu "change" lagi dengan file kecil → skrip pratinjau/validasi di tiap halaman tetap jalan apa adanya.
+  const SHRINK_OVER = 1.5 * 1024 * 1024, MAX_SIDE = 2048;
+  async function shrink(file) {
+    if (!/^image\/(jpeg|png|webp|heic|heif)$/.test(file.type) || file.size <= SHRINK_OVER) return file;
+    try {
+      const bmp = await createImageBitmap(file, { imageOrientation: 'from-image' });
+      const scale = Math.min(1, MAX_SIDE / Math.max(bmp.width, bmp.height));
+      const canvas = document.createElement('canvas');
+      canvas.width = Math.round(bmp.width * scale);
+      canvas.height = Math.round(bmp.height * scale);
+      const ctx = canvas.getContext('2d');
+      ctx.fillStyle = '#fff';                       // PNG transparan → latar putih, bukan hitam
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.drawImage(bmp, 0, 0, canvas.width, canvas.height);
+      bmp.close?.();
+      const blob = await new Promise(r => canvas.toBlob(r, 'image/jpeg', 0.82));
+      if (!blob || blob.size >= file.size) return file;
+      const name = file.name.replace(/\.[^.]+$/, '') + '.jpg';
+      return new File([blob], name, { type: 'image/jpeg', lastModified: file.lastModified });
+    } catch (e) { return file; }                    // format tak terbaca browser → kirim aslinya
+  }
+  document.addEventListener('change', async e => {
+    const input = e.target;
+    if (!(input instanceof HTMLInputElement) || input.type !== 'file' || input.dataset.shrunk === '1') return;
+    if (![...(input.files || [])].some(f => f.type.startsWith('image/') && f.size > SHRINK_OVER)) return;
+    e.stopImmediatePropagation();
+    input.dataset.shrunk = '1';
+    input.closest('form')?.querySelector('[type=submit]')?.classList.add('is-loading');
+    try {
+      const files = await Promise.all([...input.files].map(shrink));
+      const dt = new DataTransfer();
+      files.forEach(f => dt.items.add(f));
+      input.files = dt.files;
+    } finally {
+      input.closest('form')?.querySelector('[type=submit]')?.classList.remove('is-loading');
+      input.dispatchEvent(new Event('change', { bubbles: true }));
+      delete input.dataset.shrunk;
+    }
+  }, true);
+
   // ── Tombol mata di isian password: <button data-pw-toggle> di dalam .pw-field ──
   document.addEventListener('click', e => {
     const btn = e.target.closest('[data-pw-toggle]');

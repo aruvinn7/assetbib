@@ -1,18 +1,18 @@
 {% extends "base.html" %}
 {% load rupiah %}
-{% block title %}BOM · {{ asset.asset_number }}{% endblock %}
+{% block title %}BOM · {{ asset.nomor_aset }}{% endblock %}
 {% block nav_assets %}active{% endblock %}
 
 {% block content %}
 <div class="page">
   <div class="crumbs">
     <a href="{% url 'asset_list' %}">Daftar aset</a><i class="fa-solid fa-chevron-right" aria-hidden="true" style="font-size:10px"></i>
-    <a href="{% url 'asset_detail' asset.id %}">{{ asset.asset_number }}</a><i class="fa-solid fa-chevron-right" aria-hidden="true" style="font-size:10px"></i>Komponen
+    <a href="{% url 'asset_detail' asset.id %}">{{ asset.nomor_aset }}</a><i class="fa-solid fa-chevron-right" aria-hidden="true" style="font-size:10px"></i>Komponen
   </div>
   <div class="page-head">
     <div>
       <h1>Komponen (BOM)</h1>
-      <div class="sub">{{ asset.nama_asset }} · {{ total_components }} komponen, {{ critical_count }} kritis · estimasi biaya ganti semua {{ total_estimated_cost|rupiah }}</div>
+      <div class="sub">{{ asset.nama_aset }} · {{ total_components }} komponen, {{ critical_count }} kritis · estimasi biaya ganti semua {{ total_estimated_cost|rupiah }}</div>
     </div>
     <div class="page-actions"><a href="{% url 'component_create' asset.id %}" class="btn"><i class="fa-solid fa-plus" aria-hidden="true"></i>Tambah komponen</a></div>
   </div>
@@ -27,18 +27,18 @@
           <tr>
             <td class="no"><span class="visually-hidden">Nomor </span>{{ forloop.counter }}</td>
             <td class="lead">
-              <a class="row-link" href="{% url 'component_detail' c.pk %}">{{ c.component_name }}</a>
-              {% if c.is_critical %}{% include "components/_status.html" with kind="warning" label="Kritis" %}{% endif %}
-              <div class="cell-sub">{{ c.part_number }}{% if c.description %} · {{ c.description|truncatechars:60 }}{% endif %}</div>
+              <a class="row-link" href="{% url 'component_detail' c.pk %}">{{ c.nama_komponen }}</a>
+              {% if c.komponen_kritis %}{% include "components/_status.html" with kind="warning" label="Kritis" %}{% endif %}
+              <div class="cell-sub">{{ c.nomor_part }}{% if c.deskripsi %} · {{ c.deskripsi|truncatechars:60 }}{% endif %}</div>
             </td>
-            <td data-label="Jumlah" class="num">{{ c.quantity }}</td>
-            <td data-label="Harga satuan" class="num">{% if c.estimated_price %}{{ c.estimated_price|rupiah }}{% else %}<span class="cell-sub">—</span>{% endif %}</td>
-            <td data-label="Pemasok">{{ c.supplier_name|default:"—" }}</td>
-            <td data-label="Terakhir diganti">{% if c.last_replaced %}{{ c.last_replaced|date:"d M Y" }}{% else %}<span class="cell-sub">Belum pernah</span>{% endif %}</td>
+            <td data-label="Jumlah" class="num">{{ c.jumlah }}</td>
+            <td data-label="Harga satuan" class="num">{% if c.harga_estimasi %}{{ c.harga_estimasi|rupiah }}{% else %}<span class="cell-sub">—</span>{% endif %}</td>
+            <td data-label="Pemasok">{{ c.nama_pemasok|default:"—" }}</td>
+            <td data-label="Terakhir diganti">{% if c.penggantian_terakhir %}{{ c.penggantian_terakhir|date:"d M Y" }}{% else %}<span class="cell-sub">Belum pernah</span>{% endif %}</td>
             <td class="row-actions act">
               <a href="{% url 'replacement_create' c.pk %}">Catat ganti</a>
               <a href="{% url 'component_update' c.pk %}">Edit</a>
-              <form method="post" action="{% url 'component_delete' c.pk %}" onsubmit="return confirm('Hapus komponen {{ c.component_name|escapejs }} beserta riwayat penggantiannya?')">{% csrf_token %}<button type="submit" class="del">Hapus</button></form>
+              <form method="post" action="{% url 'component_delete' c.pk %}" onsubmit="return confirm('Hapus komponen {{ c.nama_komponen|escapejs }} beserta riwayat penggantiannya?')">{% csrf_token %}<button type="submit" class="del">Hapus</button></form>
             </td>
           </tr>
         {% endfor %}

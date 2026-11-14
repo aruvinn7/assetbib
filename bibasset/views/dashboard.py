@@ -23,10 +23,10 @@ def _build_location_tree():
     all_locations = list(
         Location.objects.annotate(
             direct_total    = Count('asset'),
-            direct_active   = Count('asset', filter=Q(asset__lifecycle_status='active')),
-            direct_maint    = Count('asset', filter=Q(asset__lifecycle_status='maintenance')),
-            direct_writeoff = Count('asset', filter=Q(asset__lifecycle_status='writeoff')),
-        ).order_by('name')
+            direct_active   = Count('asset', filter=Q(asset__status_siklus_hidup='active')),
+            direct_maint    = Count('asset', filter=Q(asset__status_siklus_hidup='maintenance')),
+            direct_writeoff = Count('asset', filter=Q(asset__status_siklus_hidup='writeoff')),
+        ).order_by('nama')
     )
 
     loc_map = {loc.pk: loc for loc in all_locations}
@@ -39,9 +39,9 @@ def _build_location_tree():
 
     roots = []
     for loc in all_locations:
-        if loc.parent_id and loc.parent_id in loc_map:
-            loc_map[loc.parent_id].children_list.append(loc)
-        elif not loc.parent_id:
+        if loc.induk_id and loc.induk_id in loc_map:
+            loc_map[loc.induk_id].children_list.append(loc)
+        elif not loc.induk_id:
             roots.append(loc)
 
     def _propagate(node):
@@ -81,7 +81,7 @@ def _build_chart_data():
         MaintenanceRecord.objects
         .filter(tanggal_pelaksanaan__gte=six_months_ago)
         .annotate(month=TruncMonth('tanggal_pelaksanaan'))
-        .values('month', 'maintenance_type')
+        .values('month', 'jenis_maintenance')
         .annotate(count=Count('id'))
         .order_by('month')
     )
@@ -89,8 +89,8 @@ def _build_chart_data():
     # ── Aset baru per bulan ──
     asset_qs = (
         Asset.objects
-        .filter(created_at__gte=six_months_ago)
-        .annotate(month=TruncMonth('created_at'))
+        .filter(dibuat_pada__gte=six_months_ago)
+        .annotate(month=TruncMonth('dibuat_pada'))
         .values('month')
         .annotate(count=Count('id'))
         .order_by('month')
@@ -115,7 +115,7 @@ def _build_chart_data():
         MaintenanceRecord.objects
         .filter(tanggal_pelaksanaan__gte=six_months_ago)
         .annotate(month=TruncMonth('tanggal_pelaksanaan'))
-        .values('month', 'maintenance_type')
+        .values('month', 'jenis_maintenance')
         .annotate(total_cost=Sum('biaya'))
         .order_by('month')
     )
@@ -123,7 +123,7 @@ def _build_chart_data():
     # Aggregate maintenance (count)
     maint_map = {}  # {(month, type): count}
     for row in maint_qs:
-        key = (row['month'].replace(day=1), row['maintenance_type'])
+        key = (row['month'].replace(day=1), row['jenis_maintenance'])
         maint_map[key] = row['count']
 
     preventive = [maint_map.get((m, 'preventive'), 0) for m in months]
@@ -137,7 +137,7 @@ def _build_chart_data():
     # Aggregate biaya per tipe
     cost_map = {}  # {(month, type): total_cost float}
     for row in cost_qs:
-        key = (row['month'].replace(day=1), row['maintenance_type'])
+        key = (row['month'].replace(day=1), row['jenis_maintenance'])
         cost_map[key] = float(row['total_cost'] or 0)
 
     cost_prev = [cost_map.get((m, 'preventive'), 0) for m in months]
@@ -172,12 +172,12 @@ def dashboard(request):
     # 1 query — semua stat Asset (termasuk location stats)
     asset_stats = Asset.objects.aggregate(
         total          = Count('id'),
-        active         = Count('id', filter=Q(lifecycle_status='active')),
-        in_maintenance = Count('id', filter=Q(lifecycle_status='maintenance')),
-        writeoff       = Count('id', filter=Q(lifecycle_status='writeoff')),
+        active         = Count('id', filter=Q(status_siklus_hidup='active')),
+        in_maintenance = Count('id', filter=Q(status_siklus_hidup='maintenance')),
+        writeoff       = Count('id', filter=Q(status_siklus_hidup='writeoff')),
         unvalued       = Count('id', filter=Q(financial__isnull=True)),
-        with_location  = Count('id', filter=Q(lokasi_asset__isnull=False)),
-        no_location    = Count('id', filter=Q(lokasi_asset__isnull=True)),
+        with_location  = Count('id', filter=Q(lokasi__isnull=False)),
+        no_location    = Count('id', filter=Q(lokasi__isnull=True)),
     )
 
     # 1 query — MaintenanceSchedule stats
@@ -185,16 +185,16 @@ def dashboard(request):
         overdue       = Count('id', filter=Q(status='overdue')),
         upcoming_soon = Count('id', filter=Q(
             status='upcoming',
-            scheduled_date__range=[today, seven_days_later]
+            tanggal_jadwal__range=[today, seven_days_later]
         )),
     )
 
     # 1 query — DamageReport stats
     damage_stats = DamageReport.objects.aggregate(
-        pending  = Count('id', filter=Q(report_status='pending')),
+        pending  = Count('id', filter=Q(status_laporan='pending')),
         critical = Count('id', filter=Q(
-            severity='critical',
-            report_status__in=DamageReport.ACTIVE_STATUS
+            tingkat_keparahan='critical',
+            status_laporan__in=DamageReport.ACTIVE_STATUS
         )),
     )
 
@@ -206,21 +206,21 @@ def dashboard(request):
                 'categories',
                 queryset=AssetCategory.objects.annotate(
                     total       = Count('assets'),
-                    active      = Count('assets', filter=Q(assets__lifecycle_status='active')),
-                    maintenance = Count('assets', filter=Q(assets__lifecycle_status='maintenance')),
-                    writeoff    = Count('assets', filter=Q(assets__lifecycle_status='writeoff')),
-                ).order_by('name'),
+                    active      = Count('assets', filter=Q(assets__status_siklus_hidup='active')),
+                    maintenance = Count('assets', filter=Q(assets__status_siklus_hidup='maintenance')),
+                    writeoff    = Count('assets', filter=Q(assets__status_siklus_hidup='writeoff')),
+                ).order_by('nama'),
                 to_attr='categories_with_stats',
             )
         )
         .annotate(
             total       = Count('categories__assets'),
-            active      = Count('categories__assets', filter=Q(categories__assets__lifecycle_status='active')),
-            maintenance = Count('categories__assets', filter=Q(categories__assets__lifecycle_status='maintenance')),
-            writeoff    = Count('categories__assets', filter=Q(categories__assets__lifecycle_status='writeoff')),
+            active      = Count('categories__assets', filter=Q(categories__assets__status_siklus_hidup='active')),
+            maintenance = Count('categories__assets', filter=Q(categories__assets__status_siklus_hidup='maintenance')),
+            writeoff    = Count('categories__assets', filter=Q(categories__assets__status_siklus_hidup='writeoff')),
         )
         .filter(total__gt=0)
-        .order_by('name')
+        .order_by('nama')
     )
 
     # 1 query — location tree
@@ -267,33 +267,33 @@ def dashboard(request):
         # ── Table data (minimal columns) ──
         'critical_schedules': (
             MaintenanceSchedule.objects.active()
-            .select_related('asset', 'asset__asset_category', 'asset__lokasi_asset')
+            .select_related('aset', 'aset__kategori_aset', 'aset__lokasi')
             .only(
-                'id', 'status', 'scheduled_date',
-                'asset__id', 'asset__nama_asset', 'asset__asset_number',
-                'asset__lokasi_asset__name', 'asset__lokasi_asset__full_path',
-                'asset__asset_category__name',
+                'id', 'status', 'tanggal_jadwal',
+                'aset__id', 'aset__nama_aset', 'aset__nomor_aset',
+                'aset__lokasi__nama', 'aset__lokasi__jalur_lengkap',
+                'aset__kategori_aset__nama',
             )
-            .order_by('scheduled_date')[:10]
+            .order_by('tanggal_jadwal')[:10]
         ),
 
         # maintenance_status dihitung massal (1 query), bukan 2 query per aset
         'recent_assets': attach_maintenance_status(
             Asset.objects
-            .select_related('asset_category__group', 'lokasi_asset', 'maintenance_config')
+            .select_related('kategori_aset__grup', 'lokasi', 'maintenance_config')
             .order_by('-id')[:10]
         ),
 
         'pending_damage_reports': (
             DamageReport.objects
-            .filter(report_status__in=DamageReport.ACTIVE_STATUS)
-            .select_related('asset', 'reported_by')
+            .filter(status_laporan__in=DamageReport.ACTIVE_STATUS)
+            .select_related('aset', 'dilaporkan_oleh')
             .only(
-                'id', 'title', 'severity', 'report_status', 'reported_at',
-                'asset__id', 'asset__nama_asset', 'asset__asset_number',
-                'reported_by__nama',
+                'id', 'judul', 'tingkat_keparahan', 'status_laporan', 'dilaporkan_pada',
+                'aset__id', 'aset__nama_aset', 'aset__nomor_aset',
+                'dilaporkan_oleh__nama',
             )
-            .order_by('-reported_at')[:5]
+            .order_by('-dilaporkan_pada')[:5]
         ),
     }
     return render(request, 'dashboard.html', context)
@@ -318,7 +318,7 @@ def location_dashboard(request):
             crumb_chain = []
             while crumb_node:
                 crumb_chain.append(crumb_node)
-                crumb_node = loc_map.get(crumb_node.parent_id) if crumb_node.parent_id else None
+                crumb_node = loc_map.get(crumb_node.induk_id) if crumb_node.induk_id else None
             breadcrumb = list(reversed(crumb_chain))
 
     selected_assets = []
@@ -332,17 +332,17 @@ def location_dashboard(request):
         all_pks = _collect_pks(selected_node)
         selected_assets = list(
             Asset.objects
-            .filter(lokasi_asset_id__in=all_pks)
+            .filter(lokasi_id__in=all_pks)
             .select_related(
-                'asset_category__group',
-                'owned_by_department', 'lokasi_asset',
+                'kategori_aset__grup',
+                'departemen_pemilik', 'lokasi',
             )
-            .order_by('lifecycle_status', 'nama_asset')
+            .order_by('status_siklus_hidup', 'nama_aset')
         )
 
     loc_stats = Asset.objects.aggregate(
-        with_loc    = Count('id', filter=Q(lokasi_asset__isnull=False)),
-        without_loc = Count('id', filter=Q(lokasi_asset__isnull=True)),
+        with_loc    = Count('id', filter=Q(lokasi__isnull=False)),
+        without_loc = Count('id', filter=Q(lokasi__isnull=True)),
     )
 
     context = {

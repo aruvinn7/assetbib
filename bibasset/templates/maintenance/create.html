@@ -1,14 +1,14 @@
 {% extends "base.html" %}
-{% block title %}Catat maintenance · {{ asset.asset_number }}{% endblock %}
+{% block title %}Catat maintenance · {{ asset.nomor_aset }}{% endblock %}
 {% block nav_maintenance %}active{% endblock %}
 
 {% block content %}
 <div class="page">
   <div class="crumbs">
-    <a href="{% url 'asset_detail' asset.id %}">{{ asset.asset_number }}</a><i class="fa-solid fa-chevron-right" aria-hidden="true" style="font-size:10px"></i>Catat maintenance
+    <a href="{% url 'asset_detail' asset.id %}">{{ asset.nomor_aset }}</a><i class="fa-solid fa-chevron-right" aria-hidden="true" style="font-size:10px"></i>Catat maintenance
   </div>
   <div class="page-head">
-    <div><h1>Catat maintenance</h1><div class="sub">{{ asset.nama_asset }}</div></div>
+    <div><h1>Catat maintenance</h1><div class="sub">{{ asset.nama_aset }}</div></div>
   </div>
 
   <form method="post" class="form-layout" action="{% url 'maintenance_create' asset.id %}">
@@ -30,10 +30,10 @@
         <div class="panel-head"><h2 id="assetInfo">Aset</h2></div>
         <div class="panel-body">
           <dl class="kv">
-            <div><dt>Nomor</dt><dd>{{ asset.asset_number }}</dd></div>
-            <div><dt>Kategori</dt><dd>{{ asset.asset_category.name|default:"—" }}</dd></div>
-            <div><dt>Lokasi</dt><dd>{{ asset.lokasi_asset|default:"—" }}</dd></div>
-            <div><dt>Departemen</dt><dd>{{ asset.owned_by_department.name|default:"—" }}</dd></div>
+            <div><dt>Nomor</dt><dd>{{ asset.nomor_aset }}</dd></div>
+            <div><dt>Kategori</dt><dd>{{ asset.kategori_aset.nama|default:"—" }}</dd></div>
+            <div><dt>Lokasi</dt><dd>{{ asset.lokasi|default:"—" }}</dd></div>
+            <div><dt>Departemen</dt><dd>{{ asset.departemen_pemilik.nama|default:"—" }}</dd></div>
             <div><dt>Interval</dt><dd>{% if interval %}Setiap {{ interval }} hari <span class="dim">· {% if asset.maintenance_config %}khusus aset ini{% else %}standar kategori{% endif %}</span>{% else %}<span class="dim">Belum diatur</span>{% endif %}</dd></div>
           </dl>
           <ul class="side-links">
