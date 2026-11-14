@@ -733,3 +733,45 @@ class DatabaseMediaTest(TestCase):
             self.client.post(f'/photo/{latest.pk}/delete/')
             self.assertEqual(BerkasMedia.objects.count(), 1)               # isi file ikut terhapus
             self.assertTrue(AssetPhoto.objects.get(aset=self.aset).foto_utama)
+
+
+class SessionTimeoutTest(TestCase):
+    """Sesi login berakhir setelah lama tidak aktif; sesi lama tanpa penanda ikut diakhiri."""
+
+    def setUp(self):
+        self.user, _ = make_employee('usr', UserProfile)
+
+    def set_last_active(self, seconds_ago):
+        import time
+        from .session_timeout import KUNCI
+        s = self.client.session
+        s[KUNCI] = int(time.time()) - seconds_ago
+        s.save()
+
+    def test_idle_timeout(self):
+        from django.conf import settings
+        self.client.force_login(self.user)
+        self.assertEqual(self.client.get('/user/dashboard/').status_code, 200)   # baru login → aktif
+        self.set_last_active(settings.SESSION_IDLE_TIMEOUT - 60)
+        self.assertEqual(self.client.get('/user/dashboard/').status_code, 200)   # masih dalam batas
+        self.set_last_active(settings.SESSION_IDLE_TIMEOUT + 60)
+        r = self.client.get('/user/dashboard/')
+        self.assertEqual(r.status_code, 302)
+        self.assertIn('/login/', r['Location'])
+        self.assertNotIn('_auth_user_id', self.client.session)
+
+    def test_old_session_without_marker_is_ended(self):
+        from .session_timeout import KUNCI
+        self.client.force_login(self.user)
+        s = self.client.session
+        del s[KUNCI]
+        s.save()
+        self.assertEqual(self.client.get('/user/dashboard/').status_code, 302)
+
+    def test_activity_refreshes(self):
+        from .session_timeout import KUNCI, SEGARKAN
+        self.client.force_login(self.user)
+        self.set_last_active(SEGARKAN + 10)
+        before = self.client.session[KUNCI]
+        self.client.get('/user/dashboard/')
+        self.assertGreater(self.client.session[KUNCI], before)

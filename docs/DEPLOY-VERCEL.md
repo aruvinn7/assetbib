@@ -83,6 +83,8 @@ aplikasi lokal akan menulis ke database Neon, bukan ke `db.sqlite3`.
 Yang sudah otomatis di Vercel:
 - `DEBUG` mati dan domain `*.vercel.app` diizinkan.
 - Cookie hanya dikirim lewat HTTPS.
+- Sesi login berakhir setelah 60 menit tidak aktif dan saat browser ditutup. Untuk mengubah batasnya,
+  tambahkan env `SESSION_IDLE_MENIT` (mis. `30` atau `120`), lalu Redeploy.
 - Foto disimpan di database, dan fungsi berjalan di region Singapura (`vercel.json`).
 
 Kalau env wajib belum diisi, build berhenti dengan pesan yang menyebut env mana yang kurang.

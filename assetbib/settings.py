@@ -53,6 +53,12 @@ if ON_VERCEL:
     SESSION_COOKIE_SECURE = True
     CSRF_COOKIE_SECURE = True
 
+# Batas waktu sesi login: keluar otomatis setelah tidak aktif sekian menit (default 60),
+# dan cookie sesi hilang saat browser ditutup. Ubah lewat env SESSION_IDLE_MENIT.
+SESSION_IDLE_TIMEOUT = int(os.environ.get('SESSION_IDLE_MENIT', '60')) * 60
+SESSION_COOKIE_AGE = SESSION_IDLE_TIMEOUT
+SESSION_EXPIRE_AT_BROWSER_CLOSE = True
+
 
 # Application definition
 
@@ -78,6 +84,7 @@ MIDDLEWARE = [
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
+    'bibasset.session_timeout.SessionTimeoutMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 
