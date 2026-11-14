@@ -28,3 +28,6 @@ db.sqlite3.bak*
 
 # Template pihak ketiga untuk acuan desain (bukan kode proyek)
 references/
+
+# Graf pengetahuan hasil /graphify (dibuat ulang lokal)
+graphify-out/

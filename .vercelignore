@@ -10,8 +10,8 @@ references/
 .impeccable/
 .claude/
 docs/
-seed_master1.py
 .env
 .env.*
 !.env.example
 __pycache__/
+graphify-out/
