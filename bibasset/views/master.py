@@ -7,7 +7,7 @@ from ..decorators import role_required
 from ..forms import (
     AssetCategoryForm, AssetGroupForm, DepartmentForm, LocationForm, flash_form_errors,
 )
-from ..models import Department, Location, AssetGroup, AssetCategory, bangun_pohon_lokasi
+from ..models import Departemen, Lokasi, GrupAset, KategoriAset, bangun_pohon_lokasi
 from ..roles import is_ga
 
 
@@ -33,8 +33,8 @@ def _save_form(request, form, success_msg=None):
 @role_required(is_ga)
 def department_list(request):
     return render(request, "master/department_list.html", {
-        "departments": Department.objects.annotate(
-            emp_count=Count('employee', distinct=True), asset_count=Count('asset', distinct=True),
+        "departments": Departemen.objects.annotate(
+            emp_count=Count('karyawan', distinct=True), asset_count=Count('aset', distinct=True),
         ).order_by('nama')
     })
 
@@ -48,7 +48,7 @@ def department_create(request):
 
 @role_required(is_ga)
 def department_delete(request, pk):
-    dept = get_object_or_404(Department, pk=pk)
+    dept = get_object_or_404(Departemen, pk=pk)
     if dept.held_assets.exists():
         messages.error(request, f"Departemen '{dept.nama}' tidak bisa dihapus karena punya riwayat serah terima aset.")
         return redirect("department_list")
@@ -63,7 +63,7 @@ def department_delete(request, pk):
 @role_required(is_ga)
 def location_list(request):
     # .assets = aset langsung di lokasi ini, .total_assets = termasuk semua sub-lokasi
-    locations = list(Location.objects.annotate(assets=Count('asset')).order_by('jalur_lengkap'))
+    locations = list(Lokasi.objects.annotate(assets=Count('aset')).order_by('jalur_lengkap'))
     tree, _   = bangun_pohon_lokasi(locations, jumlah=('assets',))
 
     return render(request, "master/location_list.html", {
@@ -73,7 +73,7 @@ def location_list(request):
 
 @role_required(is_ga)
 def location_create(request):
-    parents = Location.objects.order_by('jalur_lengkap')
+    parents = Lokasi.objects.order_by('jalur_lengkap')
     preset_parent = request.GET.get('parent', '')
     if request.method == "POST" and _save_form(request, LocationForm(request.POST)):
         return redirect("location_list")
@@ -85,8 +85,8 @@ def location_create(request):
 
 @role_required(is_ga)
 def location_update(request, pk):
-    loc     = get_object_or_404(Location, pk=pk)
-    parents = Location.objects.exclude(pk=pk).order_by('jalur_lengkap')
+    loc     = get_object_or_404(Lokasi, pk=pk)
+    parents = Lokasi.objects.exclude(pk=pk).order_by('jalur_lengkap')
     if request.method == "POST":
         if _save_form(request, LocationForm(request.POST, instance=loc),
                       "Lokasi '{obj.nama}' berhasil diperbarui."):
@@ -100,7 +100,7 @@ def location_bulk_delete(request):
     if request.method == 'POST':
         ids = request.POST.getlist('selected_ids')
         if ids:
-            deleted_count, _ = Location.objects.filter(pk__in=ids).delete()
+            deleted_count, _ = Lokasi.objects.filter(pk__in=ids).delete()
             messages.success(request, f"{deleted_count} lokasi berhasil dihapus.")
         else:
             messages.warning(request, "Tidak ada lokasi yang dipilih.")
@@ -108,7 +108,7 @@ def location_bulk_delete(request):
 
 @role_required(is_ga)
 def location_delete(request, pk):
-    get_object_or_404(Location, pk=pk).delete()
+    get_object_or_404(Lokasi, pk=pk).delete()
     return redirect("location_list")
 
 
@@ -120,7 +120,7 @@ def location_delete(request, pk):
 def assetgroup_list(request):
     return render(request, "master/assetgroup_list.html", {
         # Aset terhubung ke grup lewat kategorinya
-        "groups": AssetGroup.objects.prefetch_related('categories').annotate(
+        "groups": GrupAset.objects.prefetch_related('categories').annotate(
             asset_count=Count('categories__assets', distinct=True),
         ).order_by('nama')
     })
@@ -136,11 +136,11 @@ def assetgroup_create(request):
 @role_required(is_ga)
 def assetgroup_update(request, pk):
     group = get_object_or_404(
-        AssetGroup.objects.annotate(asset_count=Count('categories__assets', distinct=True)), pk=pk,
+        GrupAset.objects.annotate(asset_count=Count('categories__assets', distinct=True)), pk=pk,
     )
     if request.method == "POST":
         if _save_form(request, AssetGroupForm(request.POST, instance=group),
-                      "Asset Group '{obj.nama}' berhasil diperbarui."):
+                      "Grup aset '{obj.nama}' berhasil diperbarui."):
             return redirect("assetgroup_list")
         group.refresh_from_db()
     return render(request, "master/assetgroup_update.html", {"group": group, "posted": _posted(request)})
@@ -148,7 +148,7 @@ def assetgroup_update(request, pk):
 
 @role_required(is_ga)
 def assetgroup_delete(request, pk):
-    get_object_or_404(AssetGroup, pk=pk).delete()
+    get_object_or_404(GrupAset, pk=pk).delete()
     return redirect("assetgroup_list")
 
 
@@ -159,18 +159,18 @@ def assetgroup_delete(request, pk):
 @role_required(is_ga)
 def assetcategory_list(request):
     grup_id = request.GET.get('group')
-    categories = AssetCategory.objects.select_related('grup').annotate(
+    categories = KategoriAset.objects.select_related('grup').annotate(
         asset_count=Count('assets')
     ).order_by('grup', 'nama')
 
     selected_group = None
     if grup_id:
         categories = categories.filter(grup_id=grup_id)
-        selected_group = get_object_or_404(AssetGroup, pk=grup_id)
+        selected_group = get_object_or_404(GrupAset, pk=grup_id)
 
     return render(request, "master/assetcategory_list.html", {
         "categories":     categories,
-        "groups":         AssetGroup.objects.all(),
+        "groups":         GrupAset.objects.all(),
         "selected_group": selected_group,
     })
 
@@ -180,28 +180,28 @@ def assetcategory_create(request):
     if request.method == "POST" and _save_form(request, AssetCategoryForm(request.POST)):
         return redirect("assetcategory_list")
     return render(request, "master/assetcategory_create.html", {
-        "groups": AssetGroup.objects.all(),
+        "groups": GrupAset.objects.all(),
         "posted": _posted(request),
     })
 
 
 @role_required(is_ga)
 def assetcategory_update(request, pk):
-    category = get_object_or_404(AssetCategory, pk=pk)
+    category = get_object_or_404(KategoriAset, pk=pk)
     if request.method == "POST":
         if _save_form(request, AssetCategoryForm(request.POST, instance=category)):
             return redirect("assetcategory_list")
         category.refresh_from_db()
     return render(request, "master/assetcategory_update.html", {
         "category": category,
-        "groups":   AssetGroup.objects.all(),
+        "groups":   GrupAset.objects.all(),
         "posted":   _posted(request),
     })
 
 
 @role_required(is_ga)
 def assetcategory_delete(request, pk):
-    category = get_object_or_404(AssetCategory, pk=pk)
+    category = get_object_or_404(KategoriAset, pk=pk)
     count = category.assets.count()
     if count > 0:
         messages.error(

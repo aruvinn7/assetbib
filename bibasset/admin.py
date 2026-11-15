@@ -1,18 +1,18 @@
 from django.contrib import admin
 
 from .models import (
-    Asset, AssetCategory, AssetFinancial, AssetGroup, Department, Employee,
-    FinanceProfile, GAProfile, Location, UserProfile,
+    Aset, KategoriAset, FinansialAset, GrupAset, Departemen, Karyawan,
+    ProfilFinance, ProfilGA, Lokasi, ProfilKaryawan,
 )
 
-admin.site.register(Employee)
-admin.site.register(Department)
-admin.site.register(GAProfile)
-admin.site.register(FinanceProfile)
-admin.site.register(Location)
-admin.site.register(AssetGroup)
-admin.site.register(Asset)
-admin.site.register(AssetFinancial)
-admin.site.register(AssetCategory)
-admin.site.register(UserProfile)
+admin.site.register(Karyawan)
+admin.site.register(Departemen)
+admin.site.register(ProfilGA)
+admin.site.register(ProfilFinance)
+admin.site.register(Lokasi)
+admin.site.register(GrupAset)
+admin.site.register(Aset)
+admin.site.register(FinansialAset)
+admin.site.register(KategoriAset)
+admin.site.register(ProfilKaryawan)
 

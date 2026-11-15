@@ -14,8 +14,8 @@ from django.utils import timezone
 
 from ..decorators import role_required
 from ..models import (
-    LIFE_NEAR_END_YEARS, LIFE_VERDICTS, RECENT_BREAKDOWN_WARNING, Asset, AssetFinancial, AssetGroup, AssetWriteOff,
-    DamageReport, MaintenanceRecord, MaintenanceSchedule, compute_health, life_review,
+    LIFE_NEAR_END_YEARS, LIFE_VERDICTS, RECENT_BREAKDOWN_WARNING, Aset, FinansialAset, GrupAset, PenghapusanAset,
+    LaporanKerusakan, CatatanMaintenance, JadwalMaintenance, compute_health, life_review,
 )
 from .utils import is_ga_or_finance
 
@@ -23,7 +23,7 @@ MONTHS_ID = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt
 
 
 def _book_value_at(fin, on):
-    """Nilai buku pada tanggal `on` — rumus sama dengan AssetFinancial.book_value()."""
+    """Nilai buku pada tanggal `on` — rumus sama dengan FinansialAset.book_value()."""
     days = (on - fin.aset.tanggal_pembelian).days
     if days <= 0:
         return fin.nilai_awal
@@ -50,7 +50,7 @@ def value_dashboard(request):
     today = timezone.localdate()
     jan1, dec31 = date(today.year, 1, 1), date(today.year, 12, 31)
 
-    fins = (AssetFinancial.objects
+    fins = (FinansialAset.objects
             .select_related('aset', 'aset__kategori_aset__grup', 'aset__departemen_pemilik')
             .exclude(aset__status_siklus_hidup='writeoff'))
 
@@ -90,7 +90,7 @@ def value_dashboard(request):
     depts = sorted(({'name': k, **v} for k, v in by_dept.items()), key=lambda x: -x['book'])
     years = sorted(by_year)
 
-    write_offs = list(AssetWriteOff.objects.select_related('aset', 'dibuat_oleh').order_by('-tanggal', '-id'))
+    write_offs = list(PenghapusanAset.objects.select_related('aset', 'dibuat_oleh').order_by('-tanggal', '-id'))
     wo_year = [w for w in write_offs if w.tanggal.year == today.year]
     context = {
         'today':          today,
@@ -105,7 +105,7 @@ def value_dashboard(request):
         'expiring':       sorted(expiring, key=lambda r: r['sisa'])[:10],
         'expiring_count': len(expiring),
         'top_book':       sorted(top_book, key=lambda r: -r['book'])[:8],
-        'unvalued_count': Asset.objects.filter(financial__isnull=True).count(),
+        'unvalued_count': Aset.objects.filter(financial__isnull=True).count(),
         'write_offs':     write_offs[:8],
         'writeoff_count': len(write_offs),
         'wo_year_count':  len(wo_year),
@@ -139,7 +139,7 @@ def life_review_dashboard(request):
     search = request.GET.get('q', '').strip()
     grup = request.GET.get('group', '')
 
-    qs = (Asset.objects.exclude(status_siklus_hidup='writeoff').filter(financial__isnull=False)
+    qs = (Aset.objects.exclude(status_siklus_hidup='writeoff').filter(financial__isnull=False)
           .select_related('financial', 'kategori_aset__grup', 'lokasi', 'departemen_pemilik')
           .with_health_annotations()
           .annotate(recent_corrective=Count('maintenance_records', filter=Q(
@@ -177,9 +177,9 @@ def life_review_dashboard(request):
         'today': today, 'rows': page_obj, 'page_obj': page_obj, 'tab': tab, 'counts': counts,
         'verdicts': [(t, LIFE_VERDICTS[t][0], counts[t]) for t in LIFE_TABS],
         'current': LIFE_VERDICTS[tab], 'grid': grid, 'total': len(rows),
-        'search': search, 'group': grup, 'groups': AssetGroup.objects.order_by('nama'),
+        'search': search, 'group': grup, 'groups': GrupAset.objects.order_by('nama'),
         'near_end_years': LIFE_NEAR_END_YEARS, 'recent_warning': RECENT_BREAKDOWN_WARNING,
-        'unvalued_count': Asset.objects.exclude(status_siklus_hidup='writeoff').filter(financial__isnull=True).count(),
+        'unvalued_count': Aset.objects.exclude(status_siklus_hidup='writeoff').filter(financial__isnull=True).count(),
     })
 
 
@@ -196,7 +196,7 @@ def performance_dashboard(request):
     start = months[0]
     prev_start = date(start.year - 1, start.month, 1)
 
-    recs = MaintenanceRecord.objects.filter(tanggal_pelaksanaan__gte=start, tanggal_pelaksanaan__lte=today)
+    recs = CatatanMaintenance.objects.filter(tanggal_pelaksanaan__gte=start, tanggal_pelaksanaan__lte=today)
 
     # ── Biaya per bulan: perbaikan vs perawatan rutin ──
     cost_map = defaultdict(Decimal)
@@ -207,17 +207,17 @@ def performance_dashboard(request):
     cost_routine = [float(cost_map[(m, 'routine')]) for m in months]
     cost_corr = [float(cost_map[(m, 'corrective')]) for m in months]
     cost_12 = sum(cost_routine) + sum(cost_corr)
-    cost_prev = MaintenanceRecord.objects.filter(
+    cost_prev = CatatanMaintenance.objects.filter(
         tanggal_pelaksanaan__gte=prev_start, tanggal_pelaksanaan__lt=start).aggregate(s=Sum('biaya'))['s'] or 0
     cost_delta = round((cost_12 - float(cost_prev)) / float(cost_prev) * 100) if cost_prev else None
 
     # ── Kepatuhan jadwal rutin (bukan dari laporan kerusakan) ──
-    done = list(MaintenanceSchedule.objects
+    done = list(JadwalMaintenance.objects
                 .filter(status='done', laporan_kerusakan__isnull=True, tanggal_jadwal__gte=start,
                         tanggal_jadwal__lte=today, catatan_maintenance__isnull=False)
                 .values_list('tanggal_jadwal', 'catatan_maintenance__tanggal_pelaksanaan'))
     on_time = sum(1 for due, did in done if did <= due + timedelta(days=ON_TIME_GRACE))
-    overdue_now = MaintenanceSchedule.objects.filter(status='overdue', laporan_kerusakan__isnull=True).count()
+    overdue_now = JadwalMaintenance.objects.filter(status='overdue', laporan_kerusakan__isnull=True).count()
     # Jadwal yang lewat tempo dan belum dikerjakan juga dihitung sebagai tidak tepat waktu
     total_due = len(done) + overdue_now
     compliance = round(on_time / total_due * 100) if total_due else None
@@ -232,12 +232,12 @@ def performance_dashboard(request):
     compliance_series = [round(per_month[m][0] / per_month[m][1] * 100) if per_month[m][1] else None for m in months]
 
     # ── Laporan kerusakan ──
-    resolved = (DamageReport.objects
+    resolved = (LaporanKerusakan.objects
                 .filter(status_laporan='resolved', diselesaikan_pada__date__gte=start)
                 .annotate(dur=ExpressionWrapper(F('diselesaikan_pada') - F('dilaporkan_pada'), output_field=DurationField())))
     avg_dur = resolved.aggregate(a=Avg('dur'))['a']
-    report_stats = DamageReport.objects.aggregate(
-        active=Count('id', filter=Q(status_laporan__in=DamageReport.ACTIVE_STATUS)),
+    report_stats = LaporanKerusakan.objects.aggregate(
+        active=Count('id', filter=Q(status_laporan__in=LaporanKerusakan.ACTIVE_STATUS)),
         pending=Count('id', filter=Q(status_laporan='pending')),
         period=Count('id', filter=Q(dilaporkan_pada__date__gte=start)),
         rejected=Count('id', filter=Q(status_laporan='rejected', dilaporkan_pada__date__gte=start)),
@@ -257,7 +257,7 @@ def performance_dashboard(request):
 
     # ── Kandidat tinjau writeoff / penggantian ──
     candidates = []
-    assets = (Asset.objects.exclude(status_siklus_hidup='writeoff')
+    assets = (Aset.objects.exclude(status_siklus_hidup='writeoff')
               .select_related('financial', 'kategori_aset', 'lokasi')
               .with_health_annotations())
     for a in assets:

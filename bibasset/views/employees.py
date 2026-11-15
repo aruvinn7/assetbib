@@ -15,7 +15,7 @@ from ..decorators import role_required
 from ..forms import (
     ACCESS_CHOICES, EmployeeForm, check_password_rules, employee_access, flash_form_errors, generate_password,
 )
-from ..models import Department, Employee
+from ..models import Departemen, Karyawan
 from ..roles import is_ga
 
 ACCESS_FILTERS = {
@@ -30,7 +30,7 @@ def _form_context(request, emp=None):
     posted = request.POST if request.method == 'POST' else None
     return {
         'emp_obj':        emp,
-        'departments':    Department.objects.order_by('nama'),
+        'departments':    Departemen.objects.order_by('nama'),
         'access_choices': ACCESS_CHOICES,
         'posted':         posted,
         'checked_access': posted.getlist('access') if posted else (employee_access(emp) if emp else ['user']),
@@ -48,7 +48,7 @@ def employee_list(request):
     search = request.GET.get('q', '').strip()
     access = request.GET.get('akses', '')
 
-    base = Employee.objects.select_related('user', 'departemen', 'ga_profile', 'finance_profile', 'user_profile')
+    base = Karyawan.objects.select_related('user', 'departemen', 'ga_profile', 'finance_profile', 'user_profile')
     employees = base.annotate(
         held=Count('held_assets', filter=Q(held_assets__status='active')),
     ).order_by('nama')
@@ -61,7 +61,7 @@ def employee_list(request):
         )
 
     # Alias diberi awalan n_ agar tidak bentrok dengan nama field (mis. "user")
-    agg = Employee.objects.aggregate(
+    agg = Karyawan.objects.aggregate(
         n_total=Count('id'), **{f'n_{key}': Count('id', filter=f) for key, f in ACCESS_FILTERS.items()},
     )
     counts = {key[2:]: value for key, value in agg.items()}
@@ -93,7 +93,7 @@ def employee_create(request):
 
 @role_required(is_ga)
 def employee_update(request, pk):
-    emp = get_object_or_404(Employee.objects.select_related('user', 'departemen'), pk=pk)
+    emp = get_object_or_404(Karyawan.objects.select_related('user', 'departemen'), pk=pk)
     if request.method == 'POST':
         form = EmployeeForm(request.POST, instance=emp, editor=request.user.employee)
         if form.is_valid():
@@ -116,7 +116,7 @@ def employee_update(request, pk):
 @require_POST
 @role_required(is_ga)
 def employee_password(request, pk):
-    emp = get_object_or_404(Employee.objects.select_related('user'), pk=pk)
+    emp = get_object_or_404(Karyawan.objects.select_related('user'), pk=pk)
     password = request.POST.get('password', '')
     if password:
         error = check_password_rules(password, emp.user.username)
@@ -137,7 +137,7 @@ def employee_password(request, pk):
 @require_POST
 @role_required(is_ga)
 def employee_toggle_active(request, pk):
-    emp = get_object_or_404(Employee.objects.select_related('user'), pk=pk)
+    emp = get_object_or_404(Karyawan.objects.select_related('user'), pk=pk)
     if emp.user_id == request.user.pk:
         messages.error(request, "Anda tidak bisa menonaktifkan akun Anda sendiri.")
         return redirect('employee_update', pk=pk)
@@ -153,7 +153,7 @@ def employee_toggle_active(request, pk):
 @require_POST
 @role_required(is_ga)
 def employee_delete(request, pk):
-    emp = get_object_or_404(Employee.objects.select_related('user'), pk=pk)
+    emp = get_object_or_404(Karyawan.objects.select_related('user'), pk=pk)
     if emp.user_id == request.user.pk:
         messages.error(request, "Anda tidak bisa menghapus akun Anda sendiri.")
         return redirect('employee_update', pk=pk)
@@ -162,6 +162,6 @@ def employee_delete(request, pk):
         messages.error(request, f"{emp.nama} punya riwayat pemegang aset, jadi tidak bisa dihapus. Nonaktifkan akunnya saja.")
         return redirect('employee_update', pk=pk)
     nama = emp.nama
-    emp.user.delete()  # Employee & profil akses ikut terhapus
+    emp.user.delete()  # Karyawan & profil akses ikut terhapus
     messages.success(request, f"Karyawan {nama} dihapus.")
     return redirect('employee_list')

@@ -13,8 +13,8 @@ from django.shortcuts import redirect, render
 
 from ..decorators import role_required
 from ..models import (
-    Asset, AssetCategory, AssetFinancial, AssetGroup, AssetWriteOff,
-    Department, Location, MaintenanceSchedule,
+    Aset, KategoriAset, FinansialAset, GrupAset, PenghapusanAset,
+    Departemen, Lokasi, JadwalMaintenance,
 )
 from ..roles import is_ga
 from .utils import is_ga_or_finance
@@ -277,17 +277,17 @@ def import_asset(request):
         return redirect('import_asset')
 
     # Cache master data
-    locations   = {loc.nama.lower(): loc   for loc in Location.objects.all()}
-    departments = {dep.nama.lower(): dep   for dep in Department.objects.all()}
-    groups      = {grp.nama.lower(): grp   for grp in AssetGroup.objects.all()}
+    locations   = {loc.nama.lower(): loc   for loc in Lokasi.objects.all()}
+    departments = {dep.nama.lower(): dep   for dep in Departemen.objects.all()}
+    groups      = {grp.nama.lower(): grp   for grp in GrupAset.objects.all()}
     # Kategori dicari di dalam grupnya dulu — nama kategori bisa sama di grup berbeda
     categories_by_group = {}
     categories_any      = {}
-    for cat in AssetCategory.objects.all():
+    for cat in KategoriAset.objects.all():
         categories_by_group.setdefault(cat.grup_id, {})[cat.nama.lower()] = cat
         categories_any.setdefault(cat.nama.lower(), cat)
 
-    existing_numbers = set(Asset.objects.values_list('nomor_aset', flat=True))
+    existing_numbers = set(Aset.objects.values_list('nomor_aset', flat=True))
     created_by = request.user.employee
 
     assets_to_create = []
@@ -372,9 +372,9 @@ def import_asset(request):
         # Grup aset tidak disimpan di aset (ikut kategori). Grup tanpa kategori → kategori 'Lainnya'
         # grup itu, supaya informasi grupnya tidak hilang.
         if category is None and group is not None:
-            category = categories_by_group.setdefault(group.pk, {}).get(AssetCategory.LAINNYA.lower())
+            category = categories_by_group.setdefault(group.pk, {}).get(KategoriAset.LAINNYA.lower())
             if category is None:
-                category = AssetCategory.lainnya(group)
+                category = KategoriAset.lainnya(group)
                 categories_by_group[group.pk][category.nama.lower()] = category
             row_warnings.append(f"Kategori tidak ditemukan → dimasukkan ke '{group.nama} → {category.nama}'")
         if category is not None:
@@ -388,7 +388,7 @@ def import_asset(request):
         row_data['warnings']        = row_warnings
 
         # ── Kumpulkan aset, disimpan sekaligus setelah loop ──
-        asset = Asset(
+        asset = Aset(
             nomor_po=nomor_po,
             nomor_aset=nomor_aset,
             nama_aset=nama_aset,
@@ -405,22 +405,22 @@ def import_asset(request):
 
     # 1 transaksi: semua aset + jadwal awal masuk, atau tidak sama sekali
     with transaction.atomic():
-        created = Asset.objects.bulk_create(assets_to_create, batch_size=200)
+        created = Aset.objects.bulk_create(assets_to_create, batch_size=200)
         # Sama dengan initialize_schedule_for_asset(): aset baru belum punya
         # custom config, jadi interval = default kategori
         schedules = []
         for asset in created:
             interval = asset.kategori_aset.default_interval_in_days() if asset.kategori_aset else None
             if interval and asset.status_siklus_hidup != 'writeoff':
-                schedules.append(MaintenanceSchedule(
+                schedules.append(JadwalMaintenance(
                     aset=asset,
                     tanggal_jadwal=asset.tanggal_pembelian + timedelta(days=int(interval)),
                     status='upcoming',
                 ))
-        MaintenanceSchedule.objects.bulk_create(schedules, batch_size=200)
+        JadwalMaintenance.objects.bulk_create(schedules, batch_size=200)
         # Aset yang diimport langsung berstatus write off tetap butuh catatan write off
-        AssetWriteOff.objects.bulk_create([
-            AssetWriteOff(aset=a, tanggal=timezone.localdate(), alasan='lainnya', dibuat_oleh=created_by,
+        PenghapusanAset.objects.bulk_create([
+            PenghapusanAset(aset=a, tanggal=timezone.localdate(), alasan='lainnya', dibuat_oleh=created_by,
                           keterangan='Diimport dari Excel dengan status write off. Lengkapi alasan bila perlu.')
             for a in created if a.status_siklus_hidup == 'writeoff'
         ])
@@ -467,14 +467,14 @@ def import_finansial(request):
         messages.error(request, f"Maksimal {MAX_ROWS} baris per upload.")
         return redirect('import_finansial')
 
-    # Cache: nomor_aset → Asset object
+    # Cache: nomor_aset → Aset object
     assets_map = {
         a.nomor_aset: a
-        for a in Asset.objects.filter(financial__isnull=True)
+        for a in Aset.objects.filter(financial__isnull=True)
         # Hanya aset yang BELUM punya finansial
     }
 
-    all_numbers   = set(Asset.objects.values_list('nomor_aset', flat=True))
+    all_numbers   = set(Aset.objects.values_list('nomor_aset', flat=True))
     created_by    = request.user.employee
     success_count = 0
     skipped_rows  = []
@@ -525,7 +525,7 @@ def import_finansial(request):
 
         # pop: nomor_aset dobel di file yang sama tidak bikin IntegrityError
         assets_map.pop(nomor_aset)
-        financials.append(AssetFinancial(
+        financials.append(FinansialAset(
             aset=aset,
             nilai_awal=nilai_awal,
             nilai_residual=nilai_resid,
@@ -537,7 +537,7 @@ def import_finansial(request):
     # Bulk create — 1 INSERT untuk semua finansial
     if financials:
         with transaction.atomic():
-            AssetFinancial.objects.bulk_create(financials, batch_size=200)
+            FinansialAset.objects.bulk_create(financials, batch_size=200)
 
     _add_import_messages(request, success_count, skipped_rows, 'data finansial')
 

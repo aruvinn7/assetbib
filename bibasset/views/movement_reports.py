@@ -14,7 +14,7 @@ from django.views.decorators.http import require_POST
 
 from ..decorators import role_required
 from ..models import (
-    Asset, AssetAssignment, Department, Employee, Location, MovementReport,
+    Aset, SerahTerimaAset, Departemen, Karyawan, Lokasi, LaporanPerpindahan,
     apply_movement_report, movement_crucial_reasons,
 )
 from ..roles import is_ga, is_user_role
@@ -25,16 +25,16 @@ def _reportable_assets(employee):
     allowed = Q(assignments__diserahkan_kepada=employee, assignments__status='active')
     if employee.departemen_id:
         allowed |= Q(departemen_pemilik_id=employee.departemen_id)
-    return Asset.objects.exclude(status_siklus_hidup='writeoff').filter(allowed).distinct()
+    return Aset.objects.exclude(status_siklus_hidup='writeoff').filter(allowed).distinct()
 
 
 def _holders(asset_ids):
-    return dict(AssetAssignment.objects.filter(aset_id__in=asset_ids, status='active')
+    return dict(SerahTerimaAset.objects.filter(aset_id__in=asset_ids, status='active')
                 .values_list('aset_id', 'diserahkan_kepada_id'))
 
 
 def _block_reason(asset):
-    pending = MovementReport.objects.filter(aset=asset, status='pending').only('id').first()
+    pending = LaporanPerpindahan.objects.filter(aset=asset, status='pending').only('id').first()
     if pending:
         return f"Sudah ada laporan pindah (#{pending.pk}) yang menunggu persetujuan GA."
     return None
@@ -70,10 +70,10 @@ def movement_report_create(request, aset_id=None):
             return redirect('movement_report_list')
         else:
             # Masuk tempat titip GA = pengembalian; itu lewat GA, bukan laporan pindah
-            lokasi_tujuan   = Location.objects.filter(pk=posted.get('lokasi_tujuan') or 0, tempat_penyimpanan=False).first()
-            departemen_tujuan = Department.objects.filter(pk=posted.get('departemen_tujuan') or 0).first()
+            lokasi_tujuan   = Lokasi.objects.filter(pk=posted.get('lokasi_tujuan') or 0, tempat_penyimpanan=False).first()
+            departemen_tujuan = Departemen.objects.filter(pk=posted.get('departemen_tujuan') or 0).first()
             holder_id     = posted.get('pemegang_tujuan') or ''
-            pemegang_tujuan     = Employee.objects.filter(pk=holder_id, user_profile__isnull=False).first() if holder_id else None
+            pemegang_tujuan     = Karyawan.objects.filter(pk=holder_id, user_profile__isnull=False).first() if holder_id else None
             current_holder = _holders([selected.pk]).get(selected.pk)
             catatan = posted.get('catatan', '').strip()
 
@@ -89,7 +89,7 @@ def movement_report_create(request, aset_id=None):
                 reasons = movement_crucial_reasons(selected, departemen_tujuan, lokasi_tujuan)
                 try:
                     with transaction.atomic():
-                        report = MovementReport.objects.create(
+                        report = LaporanPerpindahan.objects.create(
                             aset=selected, dilaporkan_oleh=employee,
                             lokasi_asal=selected.lokasi, departemen_asal=selected.departemen_pemilik,
                             pemegang_asal_id=current_holder,
@@ -111,7 +111,7 @@ def movement_report_create(request, aset_id=None):
     if selected is not None:
         selected.holder_id = _holders([selected.pk]).get(selected.pk)
     holders = _holders([a.pk for a in held_assets])
-    pending = dict(MovementReport.objects.filter(aset__in=held_assets, status='pending').values_list('aset_id', 'id'))
+    pending = dict(LaporanPerpindahan.objects.filter(aset__in=held_assets, status='pending').values_list('aset_id', 'id'))
     for a in held_assets:
         a.holder_id = holders.get(a.pk)
         a.pending_report = pending.get(a.pk)
@@ -119,9 +119,9 @@ def movement_report_create(request, aset_id=None):
     return render(request, 'user/movement_report_form.html', {
         'held_assets': held_assets,
         'selected':    selected,
-        'locations':   Location.objects.filter(tempat_penyimpanan=False).order_by('jalur_lengkap'),
-        'departments': Department.objects.order_by('nama'),
-        'recipients':  Employee.objects.filter(user_profile__isnull=False, user__is_active=True)
+        'locations':   Lokasi.objects.filter(tempat_penyimpanan=False).order_by('jalur_lengkap'),
+        'departments': Departemen.objects.order_by('nama'),
+        'recipients':  Karyawan.objects.filter(user_profile__isnull=False, user__is_active=True)
                        .select_related('departemen').order_by('nama'),
         'posted':      posted,
     })
@@ -139,7 +139,7 @@ def movement_report_asset_search(request):
         qs = qs.filter(Q(nama_aset__icontains=term) | Q(nomor_aset__icontains=term) |
                        Q(lokasi__jalur_lengkap__icontains=term) | Q(kategori_aset__nama__icontains=term))
     assets = list(qs.select_related('lokasi', 'departemen_pemilik', 'kategori_aset').order_by('nama_aset', 'id')[:10])
-    pending = dict(MovementReport.objects.filter(aset__in=assets, status='pending').values_list('aset_id', 'id'))
+    pending = dict(LaporanPerpindahan.objects.filter(aset__in=assets, status='pending').values_list('aset_id', 'id'))
     holders = _holders([a.pk for a in assets])
     return JsonResponse({'results': [{
         'id':       a.pk,
@@ -160,7 +160,7 @@ def movement_report_asset_search(request):
 
 @role_required(is_user_role)
 def movement_report_list(request):
-    reports = (MovementReport.objects.filter(dilaporkan_oleh=request.user.employee)
+    reports = (LaporanPerpindahan.objects.filter(dilaporkan_oleh=request.user.employee)
                .select_related('aset', 'lokasi_asal', 'lokasi_tujuan', 'departemen_asal', 'departemen_tujuan',
                                'pemegang_asal', 'pemegang_tujuan', 'ditinjau_oleh'))
     page_obj = Paginator(reports, 25).get_page(request.GET.get('page'))
@@ -183,8 +183,8 @@ def ga_movement_report_list(request):
     tab = request.GET.get('tab', 'pending')
     if tab not in GA_TABS:
         tab = 'pending'
-    counts = MovementReport.objects.aggregate(**{key: Count('id', filter=f) for key, f in GA_TABS.items()})
-    reports = (MovementReport.objects.filter(GA_TABS[tab])
+    counts = LaporanPerpindahan.objects.aggregate(**{key: Count('id', filter=f) for key, f in GA_TABS.items()})
+    reports = (LaporanPerpindahan.objects.filter(GA_TABS[tab])
                .select_related('aset', 'dilaporkan_oleh__departemen', 'lokasi_asal', 'lokasi_tujuan',
                                'departemen_asal', 'departemen_tujuan', 'pemegang_asal', 'pemegang_tujuan', 'ditinjau_oleh'))
     if tab == 'pending':
@@ -196,7 +196,7 @@ def ga_movement_report_list(request):
 
 
 def _review(request, pk):
-    return get_object_or_404(MovementReport.objects.select_related('aset', 'dilaporkan_oleh'), pk=pk)
+    return get_object_or_404(LaporanPerpindahan.objects.select_related('aset', 'dilaporkan_oleh'), pk=pk)
 
 
 @require_POST

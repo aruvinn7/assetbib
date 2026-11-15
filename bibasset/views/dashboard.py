@@ -9,9 +9,9 @@ from django.utils import timezone
 from ..decorators import redirect_home, role_required
 from ..roles import is_ga
 from ..models import (
-    Asset, AssetFinancial, MaintenanceRecord,
-    MaintenanceSchedule, DamageReport,
-    AssetGroup, AssetCategory, Location,
+    Aset, FinansialAset, CatatanMaintenance,
+    JadwalMaintenance, LaporanKerusakan,
+    GrupAset, KategoriAset, Lokasi,
     attach_maintenance_status, bangun_pohon_lokasi, refresh_overdue_schedules_daily,
 )
 
@@ -21,11 +21,11 @@ from ..models import (
 # ─────────────────────────────────────────────────────────────────────────────
 def _build_location_tree():
     # Hasil: .total_assets / .total_active / .total_maint / .total_writeoff (termasuk sub-lokasi)
-    locations = Location.objects.annotate(
-        assets   = Count('asset'),
-        active   = Count('asset', filter=Q(asset__status_siklus_hidup='active')),
-        maint    = Count('asset', filter=Q(asset__status_siklus_hidup='maintenance')),
-        writeoff = Count('asset', filter=Q(asset__status_siklus_hidup='writeoff')),
+    locations = Lokasi.objects.annotate(
+        assets   = Count('aset'),
+        active   = Count('aset', filter=Q(aset__status_siklus_hidup='active')),
+        maint    = Count('aset', filter=Q(aset__status_siklus_hidup='maintenance')),
+        writeoff = Count('aset', filter=Q(aset__status_siklus_hidup='writeoff')),
     ).order_by('nama')
     return bangun_pohon_lokasi(locations, jumlah=('assets', 'active', 'maint', 'writeoff'))
 
@@ -50,7 +50,7 @@ def _build_chart_data():
 
     # ── Maintenance records per bulan ──
     maint_qs = (
-        MaintenanceRecord.objects
+        CatatanMaintenance.objects
         .filter(tanggal_pelaksanaan__gte=six_months_ago)
         .annotate(month=TruncMonth('tanggal_pelaksanaan'))
         .values('month', 'jenis_maintenance')
@@ -60,7 +60,7 @@ def _build_chart_data():
 
     # ── Aset baru per bulan ──
     asset_qs = (
-        Asset.objects
+        Aset.objects
         .filter(dibuat_pada__gte=six_months_ago)
         .annotate(month=TruncMonth('dibuat_pada'))
         .values('month')
@@ -84,7 +84,7 @@ def _build_chart_data():
 
     # ── Biaya maintenance per bulan per tipe ──
     cost_qs = (
-        MaintenanceRecord.objects
+        CatatanMaintenance.objects
         .filter(tanggal_pelaksanaan__gte=six_months_ago)
         .annotate(month=TruncMonth('tanggal_pelaksanaan'))
         .values('month', 'jenis_maintenance')
@@ -141,8 +141,8 @@ def dashboard(request):
     today            = timezone.localdate()
     seven_days_later = today + timedelta(days=7)
 
-    # 1 query — semua stat Asset (termasuk location stats)
-    asset_stats = Asset.objects.aggregate(
+    # 1 query — semua stat Aset (termasuk location stats)
+    asset_stats = Aset.objects.aggregate(
         total          = Count('id'),
         active         = Count('id', filter=Q(status_siklus_hidup='active')),
         in_maintenance = Count('id', filter=Q(status_siklus_hidup='maintenance')),
@@ -152,8 +152,8 @@ def dashboard(request):
         no_location    = Count('id', filter=Q(lokasi__isnull=True)),
     )
 
-    # 1 query — MaintenanceSchedule stats
-    schedule_stats = MaintenanceSchedule.objects.aggregate(
+    # 1 query — JadwalMaintenance stats
+    schedule_stats = JadwalMaintenance.objects.aggregate(
         overdue       = Count('id', filter=Q(status='overdue')),
         upcoming_soon = Count('id', filter=Q(
             status='upcoming',
@@ -161,22 +161,22 @@ def dashboard(request):
         )),
     )
 
-    # 1 query — DamageReport stats
-    damage_stats = DamageReport.objects.aggregate(
+    # 1 query — LaporanKerusakan stats
+    damage_stats = LaporanKerusakan.objects.aggregate(
         pending  = Count('id', filter=Q(status_laporan='pending')),
         critical = Count('id', filter=Q(
             tingkat_keparahan='critical',
-            status_laporan__in=DamageReport.ACTIVE_STATUS
+            status_laporan__in=LaporanKerusakan.ACTIVE_STATUS
         )),
     )
 
     # 2 queries — asset group breakdown
     asset_groups = (
-        AssetGroup.objects
+        GrupAset.objects
         .prefetch_related(
             Prefetch(
                 'categories',
-                queryset=AssetCategory.objects.annotate(
+                queryset=KategoriAset.objects.annotate(
                     total       = Count('assets'),
                     active      = Count('assets', filter=Q(assets__status_siklus_hidup='active')),
                     maintenance = Count('assets', filter=Q(assets__status_siklus_hidup='maintenance')),
@@ -202,16 +202,16 @@ def dashboard(request):
     chart = _build_chart_data()
 
     context = {
-        # ── Asset stats ──
+        # ── Aset stats ──
         'total_asset':               asset_stats['total'],
-        'total_financial':           AssetFinancial.objects.count(),
+        'total_financial':           FinansialAset.objects.count(),
         'active_count':              asset_stats['active'],
         'maintenance_status_count':  asset_stats['in_maintenance'],
         'writeoff_count':            asset_stats['writeoff'],
         'unvalued_count':            asset_stats['unvalued'],
         # Untuk donut komposisi status: aktif, maintenance, write off
         'status_counts':             [asset_stats['active'], asset_stats['in_maintenance'], asset_stats['writeoff']],
-        'critical_health_count':     Asset.objects.with_health_annotations().critical_health().count(),
+        'critical_health_count':     Aset.objects.with_health_annotations().critical_health().count(),
 
         # ── Maintenance stats ──
         'overdue_count':             schedule_stats['overdue'],
@@ -224,7 +224,7 @@ def dashboard(request):
         # ── Groups ──
         'asset_groups':              asset_groups,
 
-        # ── Location widget ──
+        # ── Lokasi widget ──
         'roots':                     roots,
         'total_with_location':       asset_stats['with_location'],
         'total_without_location':    asset_stats['no_location'],
@@ -238,7 +238,7 @@ def dashboard(request):
 
         # ── Table data (minimal columns) ──
         'critical_schedules': (
-            MaintenanceSchedule.objects.active()
+            JadwalMaintenance.objects.active()
             .select_related('aset', 'aset__kategori_aset', 'aset__lokasi')
             .only(
                 'id', 'status', 'tanggal_jadwal',
@@ -251,14 +251,14 @@ def dashboard(request):
 
         # maintenance_status dihitung massal (1 query), bukan 2 query per aset
         'recent_assets': attach_maintenance_status(
-            Asset.objects
+            Aset.objects
             .select_related('kategori_aset__grup', 'lokasi', 'maintenance_config')
             .order_by('-id')[:10]
         ),
 
         'pending_damage_reports': (
-            DamageReport.objects
-            .filter(status_laporan__in=DamageReport.ACTIVE_STATUS)
+            LaporanKerusakan.objects
+            .filter(status_laporan__in=LaporanKerusakan.ACTIVE_STATUS)
             .select_related('aset', 'dilaporkan_oleh')
             .only(
                 'id', 'judul', 'tingkat_keparahan', 'status_laporan', 'dilaporkan_pada',
@@ -303,7 +303,7 @@ def location_dashboard(request):
 
         all_pks = _collect_pks(selected_node)
         selected_assets = list(
-            Asset.objects
+            Aset.objects
             .filter(lokasi_id__in=all_pks)
             .select_related(
                 'kategori_aset__grup',
@@ -312,7 +312,7 @@ def location_dashboard(request):
             .order_by('status_siklus_hidup', 'nama_aset')
         )
 
-    loc_stats = Asset.objects.aggregate(
+    loc_stats = Aset.objects.aggregate(
         with_loc    = Count('id', filter=Q(lokasi__isnull=False)),
         without_loc = Count('id', filter=Q(lokasi__isnull=True)),
     )

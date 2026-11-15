@@ -6,13 +6,13 @@ from django.utils import timezone
 
 from ..decorators import role_required
 from ..forms import AssetFinancialForm, flash_form_errors
-from ..models import Asset, AssetFinancial
+from ..models import Aset, FinansialAset
 from ..roles import is_finance
 
 
 def _get_asset(aset_id):
     return get_object_or_404(
-        Asset.objects.select_related('financial', 'lokasi', 'kategori_aset__grup', 'write_off'),
+        Aset.objects.select_related('financial', 'lokasi', 'kategori_aset__grup', 'write_off'),
         id=aset_id,
     )
 
@@ -24,7 +24,7 @@ def financial_create(request, aset_id):
         return redirect("financial_detail", asset.id)
 
     if request.method == "POST":
-        form = AssetFinancialForm(request.POST, instance=AssetFinancial(aset=asset))
+        form = AssetFinancialForm(request.POST, instance=FinansialAset(aset=asset))
         if form.is_valid():
             financial = form.save(commit=False)
             financial.dibuat_oleh = request.user.employee

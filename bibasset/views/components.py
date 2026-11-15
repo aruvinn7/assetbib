@@ -6,7 +6,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 
 from ..decorators import role_required
 from ..forms import AssetComponentForm, ComponentReplacementForm, flash_form_errors
-from ..models import Asset, AssetComponent
+from ..models import Aset, KomponenAset
 from ..roles import is_ga
 
 
@@ -16,7 +16,7 @@ def _posted(request):
 
 @role_required(is_ga)
 def component_list(request, aset_id):
-    asset      = get_object_or_404(Asset, id=aset_id)
+    asset      = get_object_or_404(Aset, id=aset_id)
     components = asset.components.all()
     # 1 query untuk semua angka ringkasan
     totals = components.aggregate(
@@ -35,9 +35,9 @@ def component_list(request, aset_id):
 
 @role_required(is_ga)
 def component_create(request, aset_id):
-    asset = get_object_or_404(Asset, id=aset_id)
+    asset = get_object_or_404(Aset, id=aset_id)
     if request.method == "POST":
-        form = AssetComponentForm(request.POST, instance=AssetComponent(aset=asset))
+        form = AssetComponentForm(request.POST, instance=KomponenAset(aset=asset))
         if form.is_valid():
             component = form.save(commit=False)
             component.dibuat_oleh = request.user.employee
@@ -49,7 +49,7 @@ def component_create(request, aset_id):
 
 @role_required(is_ga)
 def component_update(request, pk):
-    komponen = get_object_or_404(AssetComponent.objects.select_related('aset'), pk=pk)
+    komponen = get_object_or_404(KomponenAset.objects.select_related('aset'), pk=pk)
     asset    = komponen.aset
     if request.method == "POST":
         form = AssetComponentForm(request.POST, instance=komponen)
@@ -65,7 +65,7 @@ def component_update(request, pk):
 
 @role_required(is_ga)
 def component_delete(request, pk):
-    component = get_object_or_404(AssetComponent, pk=pk)
+    component = get_object_or_404(KomponenAset, pk=pk)
     aset_id  = component.aset_id
     component.delete()
     return redirect('component_list', aset_id=aset_id)
@@ -73,7 +73,7 @@ def component_delete(request, pk):
 
 @role_required(is_ga)
 def component_detail(request, pk):
-    komponen     = get_object_or_404(AssetComponent.objects.select_related('aset'), pk=pk)
+    komponen     = get_object_or_404(KomponenAset.objects.select_related('aset'), pk=pk)
     replacements = komponen.replacements.select_related('dilaksanakan_oleh')
     totals       = replacements.aggregate(count=Count('id'), biaya=Sum('biaya'))
     return render(request, 'components/detail.html', {
@@ -87,7 +87,7 @@ def component_detail(request, pk):
 
 @role_required(is_ga)
 def replacement_create(request, komponen_id):
-    komponen = get_object_or_404(AssetComponent.objects.select_related('aset'), id=komponen_id)
+    komponen = get_object_or_404(KomponenAset.objects.select_related('aset'), id=komponen_id)
     if request.method == "POST":
         form = ComponentReplacementForm(request.POST)
         if form.is_valid():

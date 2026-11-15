@@ -13,7 +13,7 @@ from django.utils import timezone
 from ..decorators import role_required
 from ..forms import MaintenanceConfigForm, MaintenanceRecordForm, flash_form_errors
 from ..models import (
-    Asset, MaintenanceRecord, MaintenanceSchedule,
+    Aset, CatatanMaintenance, JadwalMaintenance,
     initialize_schedule_for_asset, refresh_overdue_schedules_daily,
 )
 from ..roles import is_ga
@@ -22,7 +22,7 @@ from ..roles import is_ga
 @role_required(is_ga)
 def maintenance_create(request, aset_id):
     asset = get_object_or_404(
-        Asset.objects.select_related("kategori_aset", "maintenance_config"),
+        Aset.objects.select_related("kategori_aset", "maintenance_config"),
         id=aset_id
     )
     if asset.status_siklus_hidup == 'writeoff':
@@ -42,8 +42,8 @@ def maintenance_create(request, aset_id):
                 # Hanya jadwal milik aset ini yang boleh ditandai selesai. Ditandai SEBELUM record
                 # disimpan: record.save() menghapus jadwal 'upcoming' lama saat membuat jadwal baru,
                 # sehingga jadwal yang dikerjakan dulu ikut terhapus dan riwayatnya hilang.
-                done_qs = MaintenanceSchedule.objects.filter(pk=schedule_id, aset=asset) \
-                    if schedule_id and schedule_id.isdigit() else MaintenanceSchedule.objects.none()
+                done_qs = JadwalMaintenance.objects.filter(pk=schedule_id, aset=asset) \
+                    if schedule_id and schedule_id.isdigit() else JadwalMaintenance.objects.none()
                 done_qs.update(status='done')
                 record = form.save(commit=False)
                 record.aset        = asset
@@ -98,7 +98,7 @@ def maintenance_list(request):
 
     # ── Base queryset — tambahkan maintenance_config ke select_related ──
     schedules_qs = (
-        MaintenanceSchedule.objects
+        JadwalMaintenance.objects
         .select_related(
             'aset',
             'aset__kategori_aset',
@@ -130,7 +130,7 @@ def maintenance_list(request):
         )
 
     # ── Stats: 1 query aggregate ──
-    schedule_stats = MaintenanceSchedule.objects.aggregate(
+    schedule_stats = JadwalMaintenance.objects.aggregate(
         overdue=Count('id', filter=Q(status='overdue')),
         upcoming=Count('id', filter=Q(status='upcoming')),
         done=Count('id', filter=Q(status='done')),
@@ -161,9 +161,9 @@ def maintenance_list(request):
 @role_required(is_ga)
 @require_POST
 def maintenance_schedule_skip(request, pk):
-    sch = MaintenanceSchedule.objects.active().select_related('aset').filter(pk=pk).first()
+    sch = JadwalMaintenance.objects.active().select_related('aset').filter(pk=pk).first()
     if sch:
-        MaintenanceSchedule.objects.filter(pk=pk).update(status='skipped')
+        JadwalMaintenance.objects.filter(pk=pk).update(status='skipped')
         messages.success(request, f"Jadwal {sch.aset.nama_aset} ({sch.tanggal_jadwal:%d %b %Y}) dilewati.")
     next_url = request.POST.get('next', '')
     return redirect(next_url if next_url.startswith('/maintenance/') else 'maintenance_list')
@@ -172,7 +172,7 @@ def maintenance_schedule_skip(request, pk):
 @role_required(is_ga)
 def maintenance_config_create(request, aset_id):
     asset = get_object_or_404(
-        Asset.objects.select_related("kategori_aset", "maintenance_config"),
+        Aset.objects.select_related("kategori_aset", "maintenance_config"),
         id=aset_id
     )
     if hasattr(asset, 'maintenance_config'):
@@ -206,7 +206,7 @@ def maintenance_config_create(request, aset_id):
 
 @role_required(is_ga)
 def maintenance_config_update(request, aset_id):
-    aset  = get_object_or_404(Asset.objects.select_related("kategori_aset", "maintenance_config"), id=aset_id)
+    aset  = get_object_or_404(Aset.objects.select_related("kategori_aset", "maintenance_config"), id=aset_id)
     if not hasattr(aset, 'maintenance_config'):
         return redirect("maintenance_config_create", aset_id=aset.id)
     config = aset.maintenance_config
@@ -233,7 +233,7 @@ def maintenance_config_update(request, aset_id):
 @role_required(is_ga)
 def maintenance_generate_schedule(request, aset_id):
     asset = get_object_or_404(
-        Asset.objects.select_related("kategori_aset", "maintenance_config"),
+        Aset.objects.select_related("kategori_aset", "maintenance_config"),
         id=aset_id
     )
     if not asset.get_effective_interval_days():

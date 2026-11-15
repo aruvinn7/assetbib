@@ -10,7 +10,7 @@ from django.views.decorators.http import require_POST
 
 from ..decorators import role_required
 from ..forms import MovementForm, flash_form_errors
-from ..models import Asset, AssetMovement, Department, Employee, Location
+from ..models import Aset, PerpindahanAset, Departemen, Karyawan, Lokasi
 from ..models import record_movement, sync_holder
 from ..roles import is_ga
 
@@ -39,8 +39,8 @@ def movement_dashboard(request):
     status    = request.GET.get('status', '')
     mv_filter = request.GET.get('mv', '')
 
-    has_movement = Exists(AssetMovement.objects.filter(aset=OuterRef('pk')))
-    assets_qs = Asset.objects.select_related(
+    has_movement = Exists(PerpindahanAset.objects.filter(aset=OuterRef('pk')))
+    assets_qs = Aset.objects.select_related(
         'lokasi', 'kategori_aset__grup',
     ).annotate(
         has_movement=has_movement,
@@ -76,7 +76,7 @@ def movement_dashboard(request):
     page_assets = list(page_obj.object_list)
     prefetch_related_objects(page_assets, Prefetch(
         'movements',
-        queryset=AssetMovement.objects.select_related(
+        queryset=PerpindahanAset.objects.select_related(
             'dipegang_oleh', 'departemen', 'lokasi', 'dicatat_oleh'
         ).order_by('-tanggal_masuk'),
     ))
@@ -93,9 +93,9 @@ def movement_dashboard(request):
         'search':          search,
         'status_filter':   status,
         'movement_filter': mv_filter or 'all',
-        'locations':   Location.objects.only('id', 'nama', 'jalur_lengkap').order_by('jalur_lengkap'),
-        'departments': Department.objects.order_by('nama'),
-        'employees':   Employee.objects.select_related('departemen').order_by('nama'),
+        'locations':   Lokasi.objects.only('id', 'nama', 'jalur_lengkap').order_by('jalur_lengkap'),
+        'departments': Departemen.objects.order_by('nama'),
+        'employees':   Karyawan.objects.select_related('departemen').order_by('nama'),
     })
 
 
@@ -104,7 +104,7 @@ def movement_dashboard(request):
 @role_required(is_ga)
 @require_POST
 def movement_create(request, aset_id):
-    asset = get_object_or_404(Asset, pk=aset_id)
+    asset = get_object_or_404(Aset, pk=aset_id)
 
     if asset.status_siklus_hidup == 'writeoff':
         messages.error(request, f"Aset '{asset.nama_aset}' sudah di-write off; perpindahan tidak bisa dicatat.")
@@ -130,7 +130,7 @@ def movement_create(request, aset_id):
 @role_required(is_ga)
 @require_POST
 def movement_update(request, pk):
-    mv = get_object_or_404(AssetMovement.objects.select_related('aset'), pk=pk)
+    mv = get_object_or_404(PerpindahanAset.objects.select_related('aset'), pk=pk)
 
     if mv.aset.status_siklus_hidup == 'writeoff':
         messages.error(request, "Catatan perpindahan aset write off tidak bisa diubah.")
@@ -150,7 +150,7 @@ def movement_update(request, pk):
         # Record aktif = posisi aset sekarang → sinkronkan lokasi & pemegang aset
         if mv.posisi_saat_ini:
             if mv.lokasi_id:
-                Asset.objects.filter(pk=mv.aset_id).update(lokasi_id=mv.lokasi_id)
+                Aset.objects.filter(pk=mv.aset_id).update(lokasi_id=mv.lokasi_id)
             sync_holder(mv.aset, mv.dipegang_oleh, oleh=request.user.employee, catatan=mv.catatan,
                         departemen=mv.departemen, lokasi=mv.lokasi)
     messages.success(request, "Catatan perpindahan diperbarui.")
@@ -160,7 +160,7 @@ def movement_update(request, pk):
 @role_required(is_ga)
 @require_POST
 def movement_delete(request, pk):
-    mv = get_object_or_404(AssetMovement.objects.select_related('aset'), pk=pk)
+    mv = get_object_or_404(PerpindahanAset.objects.select_related('aset'), pk=pk)
 
     if mv.aset.status_siklus_hidup == 'writeoff':
         messages.error(request, "Catatan perpindahan aset write off tidak bisa dihapus.")

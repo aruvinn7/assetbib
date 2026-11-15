@@ -11,7 +11,7 @@ def can_report_damage(user):
 
 
 def is_user_role(user):
-    """Cek apakah user adalah karyawan biasa (UserProfile)"""
+    """Cek apakah user adalah karyawan biasa (ProfilKaryawan)"""
     return (
         user.is_authenticated
         and hasattr(user, 'employee')

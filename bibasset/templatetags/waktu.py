@@ -6,7 +6,7 @@ register = template.Library()
 
 @register.filter
 def umur(detail):
-    """Asset.umur_asset_detail → "5 tahun 4 bulan", "4 bulan", atau "kurang dari 1 bulan"."""
+    """Aset.umur_asset_detail → "5 tahun 4 bulan", "4 bulan", atau "kurang dari 1 bulan"."""
     years, months = detail.get('years', 0), detail.get('months', 0)
     parts = ([f'{years} tahun'] if years else []) + ([f'{months} bulan'] if months else [])
     return ' '.join(parts) or 'kurang dari 1 bulan'

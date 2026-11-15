@@ -12,9 +12,9 @@ from django.utils import timezone
 from django.utils.crypto import get_random_string
 
 from .models import (
-    Asset, AssetAssignment, AssetCategory, AssetComponent, AssetFinancial, AssetGroup,
-    AssetMaintenanceConfig, AssetWriteOff, ComponentReplacement, DamageReport, Department,
-    Employee, FinanceProfile, GAProfile, Location, MaintenanceRecord, UserProfile,
+    Aset, SerahTerimaAset, KategoriAset, KomponenAset, FinansialAset, GrupAset,
+    KonfigurasiMaintenance, PenghapusanAset, PenggantianKomponen, LaporanKerusakan, Departemen,
+    Karyawan, ProfilFinance, ProfilGA, Lokasi, CatatanMaintenance, ProfilKaryawan,
 )
 
 MAX_UPLOAD_SIZE = 5 * 1024 * 1024
@@ -49,13 +49,13 @@ class AliasModelForm(forms.ModelForm):
         super().__init__(data, *args, **kwargs)
 
 
-# ── Asset ────────────────────────────────────────────────────────
+# ── Aset ────────────────────────────────────────────────────────
 
 class AssetForm(AliasModelForm):
     aliases = {'department': 'departemen_pemilik'}
 
     class Meta:
-        model = Asset
+        model = Aset
         fields = [
             'nomor_po', 'nomor_aset', 'nama_aset', 'tanggal_pembelian',
             'lokasi', 'departemen_pemilik', 'kategori_aset',
@@ -83,7 +83,7 @@ class WriteOffForm(forms.ModelForm):
         required=True, error_messages={'required': 'Centang konfirmasi untuk melanjutkan.'})
 
     class Meta:
-        model = AssetWriteOff
+        model = PenghapusanAset
         fields = ['tanggal', 'alasan', 'keterangan', 'nilai_jual']
         labels = {'tanggal': 'Tanggal write off', 'alasan': 'Alasan', 'keterangan': 'Keterangan',
                   'nilai_jual': 'Hasil penjualan'}
@@ -123,7 +123,7 @@ class AssetFinancialForm(AliasModelForm):
     aliases = {'nilai_awal': 'nilai_awal'}
 
     class Meta:
-        model = AssetFinancial
+        model = FinansialAset
         fields = ['nilai_awal', 'nilai_residual', 'umur_ekonomis']
         labels = {
             'nilai_awal': 'Nilai awal', 'nilai_residual': 'Nilai residual',
@@ -148,7 +148,7 @@ class AssetFinancialForm(AliasModelForm):
 
 class AssetComponentForm(forms.ModelForm):
     class Meta:
-        model = AssetComponent
+        model = KomponenAset
         fields = [
             'nomor_part', 'nama_komponen', 'deskripsi', 'jumlah', 'komponen_kritis',
             'nama_pemasok', 'harga_estimasi', 'penggantian_terakhir', 'catatan',
@@ -158,7 +158,7 @@ class AssetComponentForm(forms.ModelForm):
     def clean_nomor_part(self):
         # unique_together (aset, nomor_part) tidak divalidasi otomatis karena aset bukan field form
         pn = self.cleaned_data['nomor_part']
-        dup = AssetComponent.objects.filter(aset_id=self.instance.aset_id, nomor_part=pn) \
+        dup = KomponenAset.objects.filter(aset_id=self.instance.aset_id, nomor_part=pn) \
                                     .exclude(pk=self.instance.pk)
         if dup.exists():
             raise forms.ValidationError(f"Part number '{pn}' sudah ada di aset ini.")
@@ -167,7 +167,7 @@ class AssetComponentForm(forms.ModelForm):
 
 class ComponentReplacementForm(forms.ModelForm):
     class Meta:
-        model = ComponentReplacement
+        model = PenggantianKomponen
         fields = ['tanggal_penggantian', 'alasan', 'biaya', 'nomor_part_lama']
         labels = {'tanggal_penggantian': 'Tanggal ganti', 'alasan': 'Alasan', 'biaya': 'Biaya'}
 
@@ -176,7 +176,7 @@ class ComponentReplacementForm(forms.ModelForm):
 
 class MaintenanceRecordForm(forms.ModelForm):
     class Meta:
-        model = MaintenanceRecord
+        model = CatatanMaintenance
         fields = [
             'jenis_maintenance', 'tanggal_pelaksanaan', 'deskripsi_pekerjaan',
             'hasil', 'biaya', 'catatan',
@@ -205,7 +205,7 @@ class ResolveDamageForm(MaintenanceRecordForm):
 
 class MaintenanceConfigForm(forms.ModelForm):
     class Meta:
-        model = AssetMaintenanceConfig
+        model = KonfigurasiMaintenance
         fields = ['interval_khusus_hari', 'alasan']
         labels = {'interval_khusus_hari': 'Interval (hari)', 'alasan': 'Alasan'}
 
@@ -220,21 +220,21 @@ class MaintenanceConfigForm(forms.ModelForm):
 
 class DepartmentForm(forms.ModelForm):
     class Meta:
-        model = Department
+        model = Departemen
         fields = ['nama']
         labels = {'nama': 'Nama departemen'}
 
 
 class AssetGroupForm(forms.ModelForm):
     class Meta:
-        model = AssetGroup
+        model = GrupAset
         fields = ['nama']
         labels = {'nama': 'Nama grup'}
 
 
 class AssetCategoryForm(forms.ModelForm):
     class Meta:
-        model = AssetCategory
+        model = KategoriAset
         fields = ['grup', 'nama', 'pemakaian_pribadi', 'interval_default', 'satuan_interval_default',
                   'deskripsi_maintenance']
         labels = {'grup': 'Grup', 'nama': 'Nama kategori', 'interval_default': 'Interval',
@@ -250,7 +250,7 @@ class AssetCategoryForm(forms.ModelForm):
 
 class LocationForm(forms.ModelForm):
     class Meta:
-        model = Location
+        model = Lokasi
         fields = ['nama', 'induk', 'tempat_penyimpanan']
         labels = {'nama': 'Nama lokasi', 'induk': 'Induk lokasi', 'tempat_penyimpanan': 'Tempat titip GA'}
 
@@ -272,13 +272,13 @@ class AssignmentForm(forms.Form):
     """Serah terima: ke karyawan (kategori pemakaian pribadi saja) atau atas nama departemen."""
     MODE = [('personal', 'Pribadi'), ('department', 'Departemen')]
 
-    aset_id      = forms.ModelChoiceField(Asset.objects.filter(status_siklus_hidup='active')
+    aset_id      = forms.ModelChoiceField(Aset.objects.filter(status_siklus_hidup='active')
                                            .select_related('kategori_aset'), label='Aset')
     mode          = forms.ChoiceField(choices=MODE, label='Diserahkan ke')
-    diserahkan_kepada   = forms.ModelChoiceField(Employee.objects.filter(user_profile__isnull=False, user__is_active=True),
+    diserahkan_kepada   = forms.ModelChoiceField(Karyawan.objects.filter(user_profile__isnull=False, user__is_active=True),
                                            required=False, label='Karyawan')
-    departemen    = forms.ModelChoiceField(Department.objects.all(), required=False, label='Departemen')
-    lokasi      = forms.ModelChoiceField(Location.objects.filter(tempat_penyimpanan=False), label='Lokasi pemakaian')
+    departemen    = forms.ModelChoiceField(Departemen.objects.all(), required=False, label='Departemen')
+    lokasi      = forms.ModelChoiceField(Lokasi.objects.filter(tempat_penyimpanan=False), label='Lokasi pemakaian')
     tanggal_serah = forms.DateField(required=False, label='Tanggal serah terima')
     catatan       = forms.CharField(required=False)
 
@@ -298,8 +298,8 @@ class AssignmentForm(forms.Form):
 
 
 class AssignmentReturnForm(forms.Form):
-    lokasi      = forms.ModelChoiceField(Location.objects.all(), label='Disimpan di')
-    kondisi       = forms.ChoiceField(choices=AssetAssignment.CONDITION, label='Kondisi saat diterima')
+    lokasi      = forms.ModelChoiceField(Lokasi.objects.all(), label='Disimpan di')
+    kondisi       = forms.ChoiceField(choices=SerahTerimaAset.CONDITION, label='Kondisi saat diterima')
     tanggal_kembali = forms.DateField(required=False, label='Tanggal kembali')
     catatan       = forms.CharField(required=False, label='Catatan')
 
@@ -312,9 +312,9 @@ class AssignmentReturnForm(forms.Form):
 
 
 class MovementForm(forms.Form):
-    dipegang_oleh    = forms.ModelChoiceField(Employee.objects.all(), required=False, label='Pemegang')
-    departemen = forms.ModelChoiceField(Department.objects.all(), required=False, label='Departemen')
-    lokasi   = forms.ModelChoiceField(Location.objects.all(), required=False, label='Lokasi')
+    dipegang_oleh    = forms.ModelChoiceField(Karyawan.objects.all(), required=False, label='Pemegang')
+    departemen = forms.ModelChoiceField(Departemen.objects.all(), required=False, label='Departemen')
+    lokasi   = forms.ModelChoiceField(Lokasi.objects.all(), required=False, label='Lokasi')
     catatan    = forms.CharField(required=False)
 
     def clean_catatan(self):
@@ -323,7 +323,7 @@ class MovementForm(forms.Form):
 
 class DamageReportForm(forms.ModelForm):
     class Meta:
-        model = DamageReport
+        model = LaporanKerusakan
         fields = ['judul', 'deskripsi', 'tingkat_keparahan', 'foto_bukti']
         labels = {'judul': 'Judul', 'deskripsi': 'Deskripsi', 'tingkat_keparahan': 'Tingkat kerusakan',
                   'foto_bukti': 'Foto bukti'}
@@ -337,7 +337,7 @@ class DamageReportForm(forms.ModelForm):
 
 # ── Karyawan & akun login (khusus GA) ─────────────────────────────
 # Akses tidak eksklusif: GA/Finance bisa sekaligus "Karyawan" agar bisa memegang aset & melapor kerusakan.
-ACCESS_PROFILES = {'ga': GAProfile, 'finance': FinanceProfile, 'user': UserProfile}
+ACCESS_PROFILES = {'ga': ProfilGA, 'finance': ProfilFinance, 'user': ProfilKaryawan}
 ACCESS_CHOICES = [('ga', 'GA'), ('finance', 'Finance'), ('user', 'Karyawan')]
 # Tanpa karakter yang mudah tertukar (l/1, O/0)
 PASSWORD_CHARS = 'abcdefghjkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789'
@@ -368,13 +368,13 @@ class EmployeeForm(forms.ModelForm):
     password = forms.CharField(label='Password', required=False, strip=False)
 
     class Meta:
-        model = Employee
+        model = Karyawan
         fields = ['nama', 'nomor_karyawan', 'departemen', 'jabatan']
         labels = {'nama': 'Nama lengkap', 'nomor_karyawan': 'ID karyawan', 'departemen': 'Departemen', 'jabatan': 'Jabatan'}
 
     def __init__(self, *args, editor=None, **kwargs):
         super().__init__(*args, **kwargs)
-        self.editor = editor  # Employee GA yang sedang mengisi form
+        self.editor = editor  # Karyawan GA yang sedang mengisi form
         self.generated_password = None
         if self.instance.pk:
             del self.fields['password']  # password diatur lewat form tersendiri

@@ -43,25 +43,25 @@ urlpatterns = [
     # MASTER DATA
     # ===========================
 
-    # Department
+    # Departemen
     path('master/department/', views.department_list, name='department_list'),
     path('master/department/create/', views.department_create, name='department_create'),
     path('master/department/<int:pk>/delete/', views.department_delete, name='department_delete'),
 
-    # Location
+    # Lokasi
     path('master/location/', views.location_list, name='location_list'),
     path('master/location/create/', views.location_create, name='location_create'),
     path("master/location/<int:pk>/edit/", views.location_update, name="location_update"),
     path('master/location/<int:pk>/delete/', views.location_delete, name='location_delete'),
     path('master/location/bulk-delete/', views.location_bulk_delete, name='location_bulk_delete'),
 
-    # Asset Group
+    # Aset Group
     path('master/assetgroup/', views.assetgroup_list, name='assetgroup_list'),
     path('master/assetgroup/create/', views.assetgroup_create, name='assetgroup_create'),
     path("master/assetgroup/<int:pk>/edit/", views.assetgroup_update, name="assetgroup_update"),
     path('master/assetgroup/<int:pk>/delete/', views.assetgroup_delete, name='assetgroup_delete'),
 
-    # Asset Category (NEW — Level 2 di bawah Asset Group)
+    # Aset Category (NEW — Level 2 di bawah Aset Group)
     path('master/assetcategory/', views.assetcategory_list, name='assetcategory_list'),
     path('master/assetcategory/create/', views.assetcategory_create, name='assetcategory_create'),
     path('master/assetcategory/<int:pk>/update/', views.assetcategory_update, name='assetcategory_update'),

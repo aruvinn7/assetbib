@@ -8,7 +8,7 @@ from .roles import get_user_role, home_url_name
 
 def user_roles(request):
     """
-    Satu sumber role untuk template: profile Employee (sama dengan roles.py
+    Satu sumber role untuk template: profil Karyawan (sama dengan roles.py
     yang dipakai decorator), bukan auth Group. Lazy — query hanya jalan
     kalau template benar-benar memakai variabel ini.
     """
@@ -28,8 +28,8 @@ def user_roles(request):
 def _pending_movement_reports(role):
     if role != 'ga':
         return 0
-    from .models import MovementReport
-    return MovementReport.objects.filter(status='pending').count()
+    from .models import LaporanPerpindahan
+    return LaporanPerpindahan.objects.filter(status='pending').count()
 
 
 def _build_notifications(role):
@@ -41,20 +41,20 @@ def _build_notifications(role):
 
     from django.db.models import Min
 
-    from .models import Asset, BeritaAcara, BeritaAcaraItem, DamageReport, MaintenanceSchedule
+    from .models import Aset, BeritaAcara, ButirBeritaAcara, LaporanKerusakan, JadwalMaintenance
 
     items = []
     if role == 'ga':
         today = timezone.localdate()
-        sched = MaintenanceSchedule.objects.aggregate(
+        sched = JadwalMaintenance.objects.aggregate(
             overdue=Count('id', filter=Q(status='overdue')),
             soon=Count('id', filter=Q(status='upcoming', tanggal_jadwal__range=[today, today + timedelta(days=7)])),
         )
-        damage = DamageReport.objects.aggregate(
+        damage = LaporanKerusakan.objects.aggregate(
             pending=Count('id', filter=Q(status_laporan='pending')),
-            critical=Count('id', filter=Q(tingkat_keparahan='critical', status_laporan__in=DamageReport.ACTIVE_STATUS)),
+            critical=Count('id', filter=Q(tingkat_keparahan='critical', status_laporan__in=LaporanKerusakan.ACTIVE_STATUS)),
         )
-        no_location = Asset.objects.filter(lokasi__isnull=True).count()
+        no_location = Aset.objects.filter(lokasi__isnull=True).count()
         moves = _pending_movement_reports(role)
         if moves:
             items.append({'kind': 'mandatory', 'text': f"{moves} laporan pindah aset menunggu persetujuan",
@@ -74,7 +74,7 @@ def _build_notifications(role):
             items.append({'kind': 'none', 'text': f'{no_location} aset belum punya lokasi',
                           'sub': 'Tempatkan agar mudah dilacak', 'url': reverse('asset_list') + '?lokasi=none'})
         # Berita acara: temuan yang menumpuk ≥ 7 hari di draf, dan BA terbit yang belum ditandatangani
-        draf = BeritaAcaraItem.objects.filter(ba__status='draft', ba__jenis='kerusakan').aggregate(n=Count('id'), awal=Min('dibuat_pada'))
+        draf = ButirBeritaAcara.objects.filter(ba__status='draft', ba__jenis='kerusakan').aggregate(n=Count('id'), awal=Min('dibuat_pada'))
         if draf['n'] and (timezone.localdate() - draf['awal'].date()).days >= 7:
             items.append({'kind': 'report', 'text': f"{draf['n']} temuan kerusakan belum dibuatkan berita acara",
                           'sub': 'Tinjau draf lalu terbitkan', 'url': reverse('ba_list')})
@@ -83,7 +83,7 @@ def _build_notifications(role):
             items.append({'kind': 'mandatory', 'text': f'{ttd} berita acara menunggu tanda tangan',
                           'sub': 'Cetak lalu tandai sudah ditandatangani', 'url': reverse('ba_list') + '?tab=kerusakan'})
     elif role == 'finance':
-        unvalued = Asset.objects.filter(financial__isnull=True).count()
+        unvalued = Aset.objects.filter(financial__isnull=True).count()
         if unvalued:
             items.append({'kind': 'none', 'text': f'{unvalued} aset belum dinilai',
                           'sub': 'Isi data finansial', 'url': reverse('asset_list') + '?financial=no'})

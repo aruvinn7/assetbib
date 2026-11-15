@@ -98,7 +98,7 @@ class Command(BaseCommand):
 
         # Migrasi sendiri mengisi beberapa tabel (mis. penanda tangan BA bawaan) → itu boleh ditimpa.
         # Yang dijaga: aset & akun user, tanda server sudah dipakai sungguhan.
-        used = [label for label in ('bibasset.Asset', 'auth.User')
+        used = [label for label in ('bibasset.Aset', 'auth.User')
                 if apps.get_model(label).objects.using('default').exists()]
         if used and not wipe:
             raise CommandError('Database server sudah berisi data (' + ', '.join(used) +

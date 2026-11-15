@@ -83,7 +83,7 @@ LIFE_VERDICTS = {
 def life_review(fin, total_biaya, breakdown, recent_breakdown):
     """
     Gabungkan umur ekonomis dengan kondisi aset → rekomendasi + alasan per faktor.
-    `fin` = AssetFinancial; `breakdown` = jumlah kerusakan sepanjang umur;
+    `fin` = FinansialAset; `breakdown` = jumlah kerusakan sepanjang umur;
     `recent_breakdown` = jumlah kerusakan 12 bulan terakhir.
     Return dict: verdict, label, advice, stage, used, sisa, used_pct, ratio, problem, factors [(teks, nada)].
     """
@@ -152,21 +152,27 @@ def selisih_tahun_bulan(awal, akhir):
 # MASTER EMPLOYEE
 # ================================================================
 
-class Department(models.Model):
+class Departemen(models.Model):
     nama = models.CharField(max_length=100, unique=True)
+
+    class Meta:
+        db_table = 'departemen'
 
     def __str__(self):
         return self.nama
 
 
-class Employee(models.Model):
+class Karyawan(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name="employee")
     nomor_karyawan = models.CharField(max_length=20, unique=True)
     nama = models.CharField(max_length=150)
     departemen = models.ForeignKey(
-        Department, on_delete=models.SET_NULL, null=True, blank=True
+        Departemen, on_delete=models.SET_NULL, null=True, blank=True
     )
     jabatan = models.CharField(max_length=100)
+
+    class Meta:
+        db_table = 'karyawan'
 
     def __str__(self):
         return f"{self.nomor_karyawan} - {self.nama}"
@@ -176,22 +182,31 @@ class Employee(models.Model):
 # ROLE PROFILE
 # ================================================================
 
-class GAProfile(models.Model):
-    employee = models.OneToOneField(Employee, on_delete=models.CASCADE, related_name="ga_profile")
+class ProfilGA(models.Model):
+    employee = models.OneToOneField(Karyawan, on_delete=models.CASCADE, related_name="ga_profile")
+
+    class Meta:
+        db_table = 'profil_ga'
 
     def __str__(self):
         return f"GA - {self.employee.nama}"
 
 
-class FinanceProfile(models.Model):
-    employee = models.OneToOneField(Employee, on_delete=models.CASCADE, related_name="finance_profile")
+class ProfilFinance(models.Model):
+    employee = models.OneToOneField(Karyawan, on_delete=models.CASCADE, related_name="finance_profile")
+
+    class Meta:
+        db_table = 'profil_finance'
 
     def __str__(self):
         return f"Finance - {self.employee.nama}"
 
 
-class UserProfile(models.Model):
-    employee = models.OneToOneField(Employee, on_delete=models.CASCADE, related_name="user_profile")
+class ProfilKaryawan(models.Model):
+    employee = models.OneToOneField(Karyawan, on_delete=models.CASCADE, related_name="user_profile")
+
+    class Meta:
+        db_table = 'profil_karyawan'
 
     def __str__(self):
         return f"User - {self.employee.nama}"
@@ -201,7 +216,7 @@ class UserProfile(models.Model):
 # MASTER LOKASI & GRUP
 # ================================================================
 
-class Location(models.Model):
+class Lokasi(models.Model):
     nama = models.CharField(max_length=100)
     induk = models.ForeignKey(
         'self', null=True, blank=True, on_delete=models.CASCADE, related_name="children"
@@ -212,6 +227,7 @@ class Location(models.Model):
     tempat_penyimpanan = models.BooleanField(default=False)
 
     class Meta:
+        db_table = 'lokasi'
         unique_together = ('nama', 'induk')
 
     def __str__(self):
@@ -220,7 +236,7 @@ class Location(models.Model):
     def build_full_path(self):
         if not self.induk_id:
             return self.nama
-        induk = Location.objects.only('jalur_lengkap', 'nama').get(pk=self.induk_id)
+        induk = Lokasi.objects.only('jalur_lengkap', 'nama').get(pk=self.induk_id)
         return f"{induk.jalur_lengkap or induk.nama} > {self.nama}"
 
     @property
@@ -279,14 +295,17 @@ def bangun_pohon_lokasi(locations, jumlah=()):
     return roots, loc_map
 
 
-class AssetGroup(models.Model):
+class GrupAset(models.Model):
     nama = models.CharField(max_length=100, unique=True)
+
+    class Meta:
+        db_table = 'grup_aset'
 
     def __str__(self):
         return self.nama
 
 
-class AssetCategory(models.Model):
+class KategoriAset(models.Model):
     INTERVAL_UNIT = [
         ('days',   'Hari'),
         ('months', 'Bulan'),
@@ -295,7 +314,7 @@ class AssetCategory(models.Model):
     LAINNYA = 'Lainnya'
 
     # Tanpa index sendiri: sudah tercakup unique (group, name)
-    grup = models.ForeignKey(AssetGroup, on_delete=models.CASCADE, related_name='categories', db_index=False)
+    grup = models.ForeignKey(GrupAset, on_delete=models.CASCADE, related_name='categories', db_index=False)
     nama = models.CharField(max_length=100)
     interval_default = models.PositiveIntegerField(null=True, blank=True)
     satuan_interval_default = models.CharField(max_length=10, choices=INTERVAL_UNIT, default='months')
@@ -304,9 +323,10 @@ class AssetCategory(models.Model):
     pemakaian_pribadi = models.BooleanField(default=False)
 
     class Meta:
+        db_table = 'kategori_aset'
         unique_together = ('grup', 'nama')
-        verbose_name = 'Asset Category'
-        verbose_name_plural = 'Asset Categories'
+        verbose_name = 'Kategori aset'
+        verbose_name_plural = 'Kategori aset'
 
     def default_interval_in_days(self):
         if not self.interval_default:
@@ -327,10 +347,10 @@ class AssetCategory(models.Model):
 # ASSET QUERYSET & MANAGER
 # ================================================================
 
-class AssetQuerySet(models.QuerySet):
+class AsetQuerySet(models.QuerySet):
     """
     Query logic yang tadinya berulang di views, dipindah ke sini.
-    Contoh: Asset.objects.with_health_annotations().critical_health()
+    Contoh: Aset.objects.with_health_annotations().critical_health()
     """
 
     def with_health_annotations(self):
@@ -384,39 +404,40 @@ class AssetQuerySet(models.QuerySet):
         )
 
 
-# Semua method AssetQuerySet otomatis tersedia di Asset.objects
-AssetManager = models.Manager.from_queryset(AssetQuerySet)
+# Semua method AsetQuerySet otomatis tersedia di Aset.objects
+AssetManager = models.Manager.from_queryset(AsetQuerySet)
 
 
 # ================================================================
 # ASSET
 # ================================================================
 
-class Asset(models.Model):
+class Aset(models.Model):
 
     STATUS = [
-        ('active',      'Active'),
+        ('active',      'Aktif'),
         ('maintenance', 'Maintenance'),
-        ('writeoff',    'Writeoff'),
+        ('writeoff',    'Write off'),
     ]
 
     nomor_po = models.CharField(max_length=50)
     nomor_aset = models.CharField(max_length=50, unique=True)
     nama_aset = models.CharField(max_length=200)
     tanggal_pembelian = models.DateField()
-    lokasi = models.ForeignKey(Location,    on_delete=models.SET_NULL, null=True, blank=True)
-    departemen_pemilik = models.ForeignKey(Department, on_delete=models.SET_NULL, null=True, blank=True)
+    lokasi = models.ForeignKey(Lokasi,    on_delete=models.SET_NULL, null=True, blank=True)
+    departemen_pemilik = models.ForeignKey(Departemen, on_delete=models.SET_NULL, null=True, blank=True)
     # Grup aset = asset_category.grup (tidak disimpan terpisah supaya tidak bisa berbeda)
     kategori_aset = models.ForeignKey(
-        AssetCategory, on_delete=models.SET_NULL, null=True, blank=True, related_name='assets'
+        KategoriAset, on_delete=models.SET_NULL, null=True, blank=True, related_name='assets'
     )
     status_siklus_hidup = models.CharField(max_length=20, choices=STATUS, default='active')
-    dibuat_oleh = models.ForeignKey(Employee, on_delete=models.SET_NULL, null=True, blank=True)
+    dibuat_oleh = models.ForeignKey(Karyawan, on_delete=models.SET_NULL, null=True, blank=True)
     dibuat_pada = models.DateTimeField(auto_now_add=True)
 
     objects = AssetManager()  # Custom manager
 
     class Meta:
+        db_table = 'aset'
         # Kolom paling sering dipakai sebagai filter di views; filter lifecycle_status saja
         # sudah terlayani index pertama (kolom terdepan)
         indexes = [
@@ -449,7 +470,7 @@ class Asset(models.Model):
         return self.schedules.filter(status='upcoming').order_by('tanggal_jadwal').first()
 
     def get_pending_damage_report(self):
-        return self.damage_reports.filter(status_laporan__in=DamageReport.ACTIVE_STATUS).first()
+        return self.damage_reports.filter(status_laporan__in=LaporanKerusakan.ACTIVE_STATUS).first()
 
     def maintenance_status(self):
         # Sudah dihitung massal oleh attach_maintenance_status() → 0 query
@@ -507,7 +528,7 @@ class Asset(models.Model):
 # ASSET PHOTO
 # ================================================================
 
-class AssetPhoto(models.Model):
+class FotoAset(models.Model):
     PHOTO_TYPE = [
         ('unit',     'Foto Unit — Tampilan fisik aset'),
         ('lokasi', 'Foto Lokasi — Posisi penempatan aset'),
@@ -516,17 +537,18 @@ class AssetPhoto(models.Model):
     ]
 
     # Tanpa index sendiri: sudah tercakup Index (asset, is_primary)
-    aset = models.ForeignKey(Asset, on_delete=models.CASCADE, related_name='photos', db_index=False)
+    aset = models.ForeignKey(Aset, on_delete=models.CASCADE, related_name='photos', db_index=False)
     foto = models.ImageField(upload_to='asset_photos/%Y/%m/')
     jenis_foto = models.CharField(max_length=20, choices=PHOTO_TYPE, default='unit')
     keterangan = models.CharField(max_length=200, blank=True)
     foto_utama = models.BooleanField(default=False)
     diunggah_oleh = models.ForeignKey(
-        Employee, on_delete=models.SET_NULL, null=True, blank=True, related_name='uploaded_photos'
+        Karyawan, on_delete=models.SET_NULL, null=True, blank=True, related_name='uploaded_photos'
     )
     diunggah_pada = models.DateTimeField(auto_now_add=True)
 
     class Meta:
+        db_table = 'foto_aset'
         ordering = ['-foto_utama', '-diunggah_pada']
         # [INDEX 5] — filter is_primary sering dipakai
         indexes = [
@@ -539,7 +561,7 @@ class AssetPhoto(models.Model):
     def save(self, *args, **kwargs):
         if self.foto_utama:
             # Reset primary lain sebelum save — update() tanpa fetch loop
-            AssetPhoto.objects.filter(
+            FotoAset.objects.filter(
                 aset =self.aset, foto_utama =True
             ).exclude(pk=self.pk).update(foto_utama =False)
         super().save(*args, **kwargs)
@@ -549,13 +571,16 @@ class AssetPhoto(models.Model):
 # FINANCIAL
 # ================================================================
 
-class AssetFinancial(models.Model):
-    aset = models.OneToOneField(Asset, on_delete=models.CASCADE, related_name="financial")
+class FinansialAset(models.Model):
+    aset = models.OneToOneField(Aset, on_delete=models.CASCADE, related_name="financial")
     nilai_awal = models.DecimalField(max_digits=15, decimal_places=2)
     nilai_residual  = models.DecimalField(max_digits=15, decimal_places=2)
     umur_ekonomis   = models.PositiveIntegerField(default=5)
-    dibuat_oleh = models.ForeignKey(Employee, on_delete=models.SET_NULL, null=True, blank=True)
+    dibuat_oleh = models.ForeignKey(Karyawan, on_delete=models.SET_NULL, null=True, blank=True)
     dibuat_pada = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'finansial_aset'
 
     def depresiasi_tahunan(self):
         if self.umur_ekonomis == 0:
@@ -591,7 +616,7 @@ class AssetFinancial(models.Model):
         return f"Financial - {self.aset.nomor_aset}"
 
 
-class AssetWriteOff(models.Model):
+class PenghapusanAset(models.Model):
     """
     Catatan resmi penghapusan aset. Dibuat lewat write_off_asset(), bukan dengan
     mengubah status langsung, supaya tanggal, alasan, dan nilai buku saat itu tersimpan.
@@ -605,7 +630,7 @@ class AssetWriteOff(models.Model):
         ('lainnya',    'Lainnya'),
     ]
 
-    aset = models.OneToOneField(Asset, on_delete=models.CASCADE, related_name='write_off')
+    aset = models.OneToOneField(Aset, on_delete=models.CASCADE, related_name='write_off')
     tanggal         = models.DateField()
     alasan          = models.CharField(max_length=20, choices=REASON)
     keterangan      = models.TextField()
@@ -613,10 +638,11 @@ class AssetWriteOff(models.Model):
     nilai_perolehan = models.DecimalField(max_digits=15, decimal_places=2, null=True, blank=True)
     nilai_buku      = models.DecimalField(max_digits=15, decimal_places=2, null=True, blank=True)
     nilai_jual      = models.DecimalField(max_digits=15, decimal_places=2, null=True, blank=True)
-    dibuat_oleh = models.ForeignKey(Employee, on_delete=models.SET_NULL, null=True, blank=True)
+    dibuat_oleh = models.ForeignKey(Karyawan, on_delete=models.SET_NULL, null=True, blank=True)
     dibuat_pada = models.DateTimeField(auto_now_add=True)
 
     class Meta:
+        db_table = 'penghapusan_aset'
         ordering = ['-tanggal', '-id']
 
     def __str__(self):
@@ -633,9 +659,9 @@ class AssetWriteOff(models.Model):
 # ASSET COMPONENT (BOM)
 # ================================================================
 
-class AssetComponent(models.Model):
+class KomponenAset(models.Model):
     # Tanpa index sendiri: sudah tercakup unique (asset, part_number)
-    aset = models.ForeignKey(Asset, on_delete=models.CASCADE, related_name='components', db_index=False)
+    aset = models.ForeignKey(Aset, on_delete=models.CASCADE, related_name='components', db_index=False)
     nomor_part = models.CharField(max_length=100)
     nama_komponen = models.CharField(max_length=200)
     deskripsi = models.TextField(blank=True)
@@ -646,12 +672,13 @@ class AssetComponent(models.Model):
     penggantian_terakhir = models.DateField(null=True, blank=True)
     catatan = models.TextField(blank=True)
     dibuat_oleh = models.ForeignKey(
-        Employee, on_delete=models.SET_NULL, null=True, blank=True, related_name='created_components'
+        Karyawan, on_delete=models.SET_NULL, null=True, blank=True, related_name='created_components'
     )
     dibuat_pada = models.DateTimeField(auto_now_add=True)
     diperbarui_pada = models.DateTimeField(auto_now=True)
 
     class Meta:
+        db_table = 'komponen_aset'
         ordering      = ['-komponen_kritis', 'nama_komponen']
         unique_together = ('aset', 'nomor_part')
 
@@ -662,16 +689,17 @@ class AssetComponent(models.Model):
         return self.harga_estimasi * self.jumlah if self.harga_estimasi else Decimal('0')
 
 
-class ComponentReplacement(models.Model):
-    komponen = models.ForeignKey(AssetComponent, on_delete=models.CASCADE, related_name='replacements')
+class PenggantianKomponen(models.Model):
+    komponen = models.ForeignKey(KomponenAset, on_delete=models.CASCADE, related_name='replacements')
     tanggal_penggantian = models.DateField()
     alasan = models.TextField()
     biaya = models.DecimalField(max_digits=12, decimal_places=2)
     nomor_part_lama = models.CharField(max_length=100, blank=True)
-    dilaksanakan_oleh = models.ForeignKey(Employee, on_delete=models.SET_NULL, null=True, blank=True)
+    dilaksanakan_oleh = models.ForeignKey(Karyawan, on_delete=models.SET_NULL, null=True, blank=True)
     dibuat_pada = models.DateTimeField(auto_now_add=True)
 
     class Meta:
+        db_table = 'penggantian_komponen'
         ordering = ['-tanggal_penggantian']
 
     def __str__(self):
@@ -682,18 +710,21 @@ class ComponentReplacement(models.Model):
 # MAINTENANCE ENGINE
 # ================================================================
 
-class AssetMaintenanceConfig(models.Model):
-    aset = models.OneToOneField(Asset, on_delete=models.CASCADE, related_name='maintenance_config')
+class KonfigurasiMaintenance(models.Model):
+    aset = models.OneToOneField(Aset, on_delete=models.CASCADE, related_name='maintenance_config')
     interval_khusus_hari = models.PositiveIntegerField()
     alasan = models.TextField()
-    ditetapkan_oleh = models.ForeignKey(Employee, on_delete=models.SET_NULL, null=True, blank=True)
+    ditetapkan_oleh = models.ForeignKey(Karyawan, on_delete=models.SET_NULL, null=True, blank=True)
     dibuat_pada = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'konfigurasi_maintenance'
 
     def __str__(self):
         return f"Custom config — {self.aset.nomor_aset} ({self.interval_khusus_hari} hari)"
 
 
-class MaintenanceRecord(models.Model):
+class CatatanMaintenance(models.Model):
     TYPE = [
         ('preventive', 'Preventive — Terjadwal rutin'),
         ('corrective', 'Corrective — Perbaikan setelah rusak/laporan'),
@@ -710,7 +741,7 @@ class MaintenanceRecord(models.Model):
     RESOLVED_RESULTS = {'ok', 'minor_issue', 'replaced_component'}
 
     # Tanpa index sendiri: sudah tercakup Index (asset, …) di Meta
-    aset = models.ForeignKey(Asset, on_delete=models.CASCADE, related_name='maintenance_records',
+    aset = models.ForeignKey(Aset, on_delete=models.CASCADE, related_name='maintenance_records',
                                              db_index=False)
     jenis_maintenance = models.CharField(max_length=20, choices=TYPE)
     tanggal_pelaksanaan  = models.DateField()
@@ -719,11 +750,12 @@ class MaintenanceRecord(models.Model):
     biaya                = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     catatan = models.TextField(blank=True)
     dilaksanakan_oleh = models.ForeignKey(
-        Employee, on_delete=models.SET_NULL, null=True, blank=True, related_name='performed_maintenances'
+        Karyawan, on_delete=models.SET_NULL, null=True, blank=True, related_name='performed_maintenances'
     )
     dibuat_pada = models.DateTimeField(auto_now_add=True)
 
     class Meta:
+        db_table = 'catatan_maintenance'
         ordering = ['-tanggal_pelaksanaan']
         # [INDEX 6, 7] — filter type & tanggal sangat sering dipakai
         indexes = [
@@ -751,12 +783,12 @@ class MaintenanceRecord(models.Model):
                                    catatan_maintenance =self, by=self.dilaksanakan_oleh)
 
 
-class MaintenanceScheduleQuerySet(models.QuerySet):
+class JadwalMaintenanceQuerySet(models.QuerySet):
     def active(self):
-        return self.filter(status__in=MaintenanceSchedule.ACTIVE_STATUS)
+        return self.filter(status__in=JadwalMaintenance.ACTIVE_STATUS)
 
 
-class MaintenanceSchedule(models.Model):
+class JadwalMaintenance(models.Model):
     STATUS = [
         ('upcoming', 'Akan Datang'),
         ('overdue',  'Terlambat'),
@@ -767,23 +799,24 @@ class MaintenanceSchedule(models.Model):
     ACTIVE_STATUS = ('upcoming', 'overdue')
 
     # Tanpa index sendiri: sudah tercakup Index (asset, status)
-    aset = models.ForeignKey(Asset, on_delete=models.CASCADE, related_name='schedules', db_index=False)
+    aset = models.ForeignKey(Aset, on_delete=models.CASCADE, related_name='schedules', db_index=False)
     tanggal_jadwal = models.DateField()
     status             = models.CharField(max_length=10, choices=STATUS, default='upcoming')
     catatan_maintenance = models.OneToOneField(
-        MaintenanceRecord, on_delete=models.SET_NULL, null=True, blank=True, related_name='schedule'
+        CatatanMaintenance, on_delete=models.SET_NULL, null=True, blank=True, related_name='schedule'
     )
     # Jadwal corrective yang lahir dari laporan kerusakan (null = jadwal preventive)
     laporan_kerusakan = models.ForeignKey(
-        'DamageReport', on_delete=models.SET_NULL, null=True, blank=True,
+        'LaporanKerusakan', on_delete=models.SET_NULL, null=True, blank=True,
         related_name='corrective_schedules',
     )
     catatan = models.TextField(blank=True)
     dibuat_pada = models.DateTimeField(auto_now_add=True)
 
-    objects = MaintenanceScheduleQuerySet.as_manager()
+    objects = JadwalMaintenanceQuerySet.as_manager()
 
     class Meta:
+        db_table = 'jadwal_maintenance'
         ordering = ['tanggal_jadwal']
         # [INDEX 8, 9] — paling sering di-filter di maintenance_list & dashboard
         indexes = [
@@ -802,11 +835,11 @@ class MaintenanceSchedule(models.Model):
 # ASSET ASSIGNMENT
 # ================================================================
 
-class AssetAssignment(models.Model):
+class SerahTerimaAset(models.Model):
     """
     Serah terima aset: ke karyawan (pemakaian pribadi, assigned_to) atau atas nama departemen
     (pemakaian bersama, department). Jangan dibuat/diubah langsung: pakai record_movement(),
-    satu-satunya jalur yang menyamakan assignment aktif dengan AssetMovement terkini.
+    satu-satunya jalur yang menyamakan assignment aktif dengan PerpindahanAset terkini.
     """
     STATUS = [
         ('active',      'Aktif — Sedang digunakan'),
@@ -820,14 +853,14 @@ class AssetAssignment(models.Model):
     ]
 
     # Tanpa index sendiri: sudah tercakup Index (asset, status) & (assigned_to, status)
-    aset = models.ForeignKey(Asset, on_delete=models.CASCADE, related_name='assignments', db_index=False)
-    diserahkan_kepada = models.ForeignKey(Employee, on_delete=models.CASCADE, null=True, blank=True,
+    aset = models.ForeignKey(Aset, on_delete=models.CASCADE, related_name='assignments', db_index=False)
+    diserahkan_kepada = models.ForeignKey(Karyawan, on_delete=models.CASCADE, null=True, blank=True,
                                       related_name='held_assets', db_index=False)
     # PROTECT: riwayat serah terima departemen tidak boleh ikut hilang saat departemen dihapus
-    departemen = models.ForeignKey(Department, on_delete=models.PROTECT, null=True, blank=True,
+    departemen = models.ForeignKey(Departemen, on_delete=models.PROTECT, null=True, blank=True,
                                       related_name='held_assets')
     diserahkan_oleh = models.ForeignKey(
-        Employee, on_delete=models.SET_NULL, null=True, blank=True, related_name='assigned_assets'
+        Karyawan, on_delete=models.SET_NULL, null=True, blank=True, related_name='assigned_assets'
     )
     tanggal_serah = models.DateField(default=date.today)
     tanggal_kembali = models.DateField(null=True, blank=True)
@@ -837,6 +870,7 @@ class AssetAssignment(models.Model):
     dibuat_pada = models.DateTimeField(auto_now_add=True)
 
     class Meta:
+        db_table = 'serah_terima_aset'
         ordering = ['-tanggal_serah']
         # [INDEX 10] — filter asset + status aktif sangat sering
         indexes = [
@@ -870,7 +904,7 @@ class AssetAssignment(models.Model):
 # DAMAGE REPORT
 # ================================================================
 
-class DamageReport(models.Model):
+class LaporanKerusakan(models.Model):
     SEVERITY = [
         ('low',      'Ringan — Masih bisa digunakan'),
         ('medium',   'Sedang — Fungsi terganggu sebagian'),
@@ -888,9 +922,9 @@ class DamageReport(models.Model):
     ACTIVE_STATUS = ('pending', 'acknowledged', 'in_progress')
 
     # Tanpa index sendiri: sudah tercakup Index (asset, report_status)
-    aset = models.ForeignKey(Asset, on_delete=models.CASCADE, related_name='damage_reports', db_index=False)
+    aset = models.ForeignKey(Aset, on_delete=models.CASCADE, related_name='damage_reports', db_index=False)
     dilaporkan_oleh = models.ForeignKey(
-        Employee, on_delete=models.SET_NULL, null=True, related_name='submitted_damage_reports'
+        Karyawan, on_delete=models.SET_NULL, null=True, related_name='submitted_damage_reports'
     )
     judul = models.CharField(max_length=200)
     deskripsi = models.TextField()
@@ -899,11 +933,11 @@ class DamageReport(models.Model):
 
     status_laporan = models.CharField(max_length=20, choices=STATUS, default='pending')
     ditangani_oleh = models.ForeignKey(
-        Employee, on_delete=models.SET_NULL, null=True, blank=True, related_name='handled_damage_reports'
+        Karyawan, on_delete=models.SET_NULL, null=True, blank=True, related_name='handled_damage_reports'
     )
     catatan_ga = models.TextField(blank=True)
     maintenance_penyelesai = models.OneToOneField(
-        MaintenanceRecord, on_delete=models.SET_NULL, null=True, blank=True,
+        CatatanMaintenance, on_delete=models.SET_NULL, null=True, blank=True,
         related_name='damage_report_source'
     )
 
@@ -912,6 +946,7 @@ class DamageReport(models.Model):
     diselesaikan_pada = models.DateTimeField(null=True, blank=True)
 
     class Meta:
+        db_table = 'laporan_kerusakan'
         ordering = ['-dilaporkan_pada']
         # [INDEX 11, 12]
         indexes = [
@@ -938,13 +973,13 @@ class DamageReport(models.Model):
         dan logic-nya lebih terbaca.
         """
         # 1. Aset → status maintenance
-        Asset.objects.filter(pk=self.aset_id).update(status_siklus_hidup ='maintenance')
+        Aset.objects.filter(pk=self.aset_id).update(status_siklus_hidup ='maintenance')
 
         # 2. Skip jadwal preventive yang ada
         self.aset.schedules.filter(status='upcoming').update(status='skipped')
 
         # 3. Buat jadwal corrective urgent
-        MaintenanceSchedule.objects.create(
+        JadwalMaintenance.objects.create(
             aset =self.aset,
             tanggal_jadwal =timezone.localdate(),
             status='overdue',
@@ -969,9 +1004,9 @@ def pulihkan_status_aktif(aset_id):
     Aset 'maintenance' kembali 'active' hanya bila tidak ada lagi laporan kerusakan yang berjalan;
     aset write off tidak disentuh. Return True bila tidak ada laporan aktif tersisa.
     """
-    if DamageReport.objects.filter(aset_id=aset_id, status_laporan__in=DamageReport.ACTIVE_STATUS).exists():
+    if LaporanKerusakan.objects.filter(aset_id=aset_id, status_laporan__in=LaporanKerusakan.ACTIVE_STATUS).exists():
         return False
-    Asset.objects.filter(pk=aset_id, status_siklus_hidup ='maintenance').update(status_siklus_hidup ='active')
+    Aset.objects.filter(pk=aset_id, status_siklus_hidup ='maintenance').update(status_siklus_hidup ='active')
     return True
 
 
@@ -991,7 +1026,7 @@ def _generate_next_schedule(asset, base_date=None):
     # Hapus hanya upcoming preventive (bukan yang dari damage report)
     asset.schedules.filter(status='upcoming', laporan_kerusakan__isnull=True).delete()
 
-    return MaintenanceSchedule.objects.create(
+    return JadwalMaintenance.objects.create(
         aset =asset,
         tanggal_jadwal =next_date,
         status='upcoming',
@@ -1015,7 +1050,7 @@ def schedule_status(sch, today=None):
 def nearest_active_schedules(assets):
     """{aset_id: jadwal aktif terdekat} untuk banyak aset sekaligus (1 query)."""
     nearest = {}
-    for sch in (MaintenanceSchedule.objects.active().filter(aset__in=assets)
+    for sch in (JadwalMaintenance.objects.active().filter(aset__in=assets)
                 .order_by('tanggal_jadwal').only('aset_id', 'status', 'tanggal_jadwal')):
         nearest.setdefault(sch.aset_id, sch)
     return nearest
@@ -1043,7 +1078,7 @@ def initialize_schedule_for_asset(asset):
 
 def refresh_overdue_schedules():
     """Bulk update: upcoming → overdue untuk yang sudah lewat tanggal."""
-    return MaintenanceSchedule.objects.filter(
+    return JadwalMaintenance.objects.filter(
         status='upcoming',
         tanggal_jadwal__lt=timezone.localdate(),
     ).update(status='overdue')
@@ -1064,7 +1099,7 @@ def refresh_overdue_schedules_daily():
 # ASSET MOVEMENT
 # ================================================================
 
-class AssetMovement(models.Model):
+class PerpindahanAset(models.Model):
     """
     Histori perpindahan aset: siapa memegang, di departemen mana,
     di lokasi mana, dan kapan.
@@ -1075,20 +1110,20 @@ class AssetMovement(models.Model):
 
     # Tanpa index sendiri: sudah tercakup Index (asset, …) di Meta
     aset = models.ForeignKey(
-        'Asset', on_delete=models.CASCADE, related_name='movements', db_index=False
+        'Aset', on_delete=models.CASCADE, related_name='movements', db_index=False
     )
     # Pemegang
     dipegang_oleh = models.ForeignKey(
-        'Employee', on_delete=models.SET_NULL,
+        'Karyawan', on_delete=models.SET_NULL,
         null=True, blank=True, related_name='asset_movements'
     )
     departemen = models.ForeignKey(
-        'Department', on_delete=models.SET_NULL,
+        'Departemen', on_delete=models.SET_NULL,
         null=True, blank=True, related_name='asset_movements'
     )
     # Lokasi fisik saat dipindah ke sini
     lokasi = models.ForeignKey(
-        'Location', on_delete=models.SET_NULL,
+        'Lokasi', on_delete=models.SET_NULL,
         null=True, blank=True, related_name='asset_movements'
     )
 
@@ -1104,12 +1139,13 @@ class AssetMovement(models.Model):
 
     # Siapa yang mencatat movement ini (GA yang input)
     dicatat_oleh = models.ForeignKey(
-        'Employee', on_delete=models.SET_NULL,
+        'Karyawan', on_delete=models.SET_NULL,
         null=True, blank=True, related_name='recorded_movements'
     )
     dibuat_pada = models.DateTimeField(auto_now_add=True)
 
     class Meta:
+        db_table = 'perpindahan_aset'
         ordering = ['-tanggal_masuk']
         indexes  = [
             models.Index(fields=['aset', 'posisi_saat_ini']),
@@ -1141,7 +1177,7 @@ class AssetMovement(models.Model):
 def sync_holder(asset, dipegang_oleh, oleh=None, tanggal=None, catatan='', departemen=None, lokasi=None,
                 shared=False, release=False):
     """
-    Satu-satunya tempat AssetAssignment berubah: samakan serah terima aktif aset dengan posisi terkini.
+    Satu-satunya tempat SerahTerimaAset berubah: samakan serah terima aktif aset dengan posisi terkini.
     - dipegang_oleh diisi -> dipegang karyawan itu (pemakaian pribadi).
     - shared=True -> diserahkan atas nama `departemen` (pemakaian bersama).
     - tanpa pemegang: aset bersama tetap atas nama departemennya (ikut bila departemennya berubah),
@@ -1150,7 +1186,7 @@ def sync_holder(asset, dipegang_oleh, oleh=None, tanggal=None, catatan='', depar
     'returned' bila tidak) dan yang baru dibuka.
     """
     tanggal = tanggal or timezone.localdate()
-    current = AssetAssignment.objects.filter(aset=asset, status='active').first()
+    current = SerahTerimaAset.objects.filter(aset=asset, status='active').first()
     to_storage = lokasi is not None and lokasi.tempat_penyimpanan
 
     if dipegang_oleh is not None:
@@ -1172,7 +1208,7 @@ def sync_holder(asset, dipegang_oleh, oleh=None, tanggal=None, catatan='', depar
         current.save(update_fields=['status', 'tanggal_kembali', 'catatan'])
     if target is None:
         return None
-    return AssetAssignment.objects.create(
+    return SerahTerimaAset.objects.create(
         aset=asset, diserahkan_kepada_id=target[0], departemen_id=target[1],
         diserahkan_oleh=oleh, tanggal_serah=tanggal, catatan=catatan,
     )
@@ -1190,17 +1226,17 @@ def record_movement(asset, dipegang_oleh, departemen, lokasi, dicatat_oleh=None,
     now = timezone.now()
 
     # Tutup semua record posisi saat ini yang ada
-    AssetMovement.objects.filter(aset=asset, posisi_saat_ini=True).update(
+    PerpindahanAset.objects.filter(aset=asset, posisi_saat_ini=True).update(
         posisi_saat_ini=False,
         tanggal_keluar=now,
     )
 
     # Lokasi di master aset ikut posisi terbaru supaya list aset & perpindahan konsisten
     if lokasi is not None:
-        Asset.objects.filter(pk=asset.pk).update(lokasi=lokasi)
+        Aset.objects.filter(pk=asset.pk).update(lokasi=lokasi)
 
     # Buat record baru
-    perpindahan = AssetMovement.objects.create(
+    perpindahan = PerpindahanAset.objects.create(
         aset=asset,
         dipegang_oleh=dipegang_oleh,
         departemen=departemen,
@@ -1220,7 +1256,7 @@ def record_movement(asset, dipegang_oleh, departemen, lokasi, dicatat_oleh=None,
 # LAPORAN PERPINDAHAN DARI KARYAWAN
 # ================================================================
 
-class MovementReport(models.Model):
+class LaporanPerpindahan(models.Model):
     """
     Perpindahan aset yang dilaporkan sendiri oleh karyawan (pemegang / departemen pemilik).
     Perpindahan biasa langsung tercatat; yang krusial (pindah departemen pemilik atau pindah
@@ -1233,30 +1269,31 @@ class MovementReport(models.Model):
         ('rejected', 'Ditolak GA'),
     ]
 
-    aset = models.ForeignKey('Asset', on_delete=models.CASCADE, related_name='movement_reports')
-    dilaporkan_oleh = models.ForeignKey('Employee', on_delete=models.SET_NULL, null=True, related_name='movement_reports')
+    aset = models.ForeignKey('Aset', on_delete=models.CASCADE, related_name='movement_reports')
+    dilaporkan_oleh = models.ForeignKey('Karyawan', on_delete=models.SET_NULL, null=True, related_name='movement_reports')
 
     # Posisi saat dilaporkan (disimpan agar riwayat tetap terbaca walau aset pindah lagi)
-    lokasi_asal = models.ForeignKey('Location', on_delete=models.SET_NULL, null=True, blank=True, related_name='+')
-    departemen_asal = models.ForeignKey('Department', on_delete=models.SET_NULL, null=True, blank=True, related_name='+')
-    pemegang_asal = models.ForeignKey('Employee', on_delete=models.SET_NULL, null=True, blank=True, related_name='+')
+    lokasi_asal = models.ForeignKey('Lokasi', on_delete=models.SET_NULL, null=True, blank=True, related_name='+')
+    departemen_asal = models.ForeignKey('Departemen', on_delete=models.SET_NULL, null=True, blank=True, related_name='+')
+    pemegang_asal = models.ForeignKey('Karyawan', on_delete=models.SET_NULL, null=True, blank=True, related_name='+')
 
     # Tujuan
-    lokasi_tujuan = models.ForeignKey('Location', on_delete=models.SET_NULL, null=True, related_name='+')
-    departemen_tujuan = models.ForeignKey('Department', on_delete=models.SET_NULL, null=True, blank=True, related_name='+')
-    pemegang_tujuan = models.ForeignKey('Employee', on_delete=models.SET_NULL, null=True, blank=True, related_name='+')
+    lokasi_tujuan = models.ForeignKey('Lokasi', on_delete=models.SET_NULL, null=True, related_name='+')
+    departemen_tujuan = models.ForeignKey('Departemen', on_delete=models.SET_NULL, null=True, blank=True, related_name='+')
+    pemegang_tujuan = models.ForeignKey('Karyawan', on_delete=models.SET_NULL, null=True, blank=True, related_name='+')
 
     catatan = models.TextField(blank=True)
     alasan = models.CharField(max_length=200, blank=True, help_text='Alasan butuh persetujuan, mis. "Pindah departemen · Pindah site"')
     status  = models.CharField(max_length=10, choices=STATUS, default='recorded', db_index=True)
 
-    ditinjau_oleh = models.ForeignKey('Employee', on_delete=models.SET_NULL, null=True, blank=True, related_name='+')
+    ditinjau_oleh = models.ForeignKey('Karyawan', on_delete=models.SET_NULL, null=True, blank=True, related_name='+')
     ditinjau_pada = models.DateTimeField(null=True, blank=True)
     catatan_tinjauan = models.TextField(blank=True)
-    perpindahan = models.OneToOneField('AssetMovement', on_delete=models.SET_NULL, null=True, blank=True, related_name='report')
+    perpindahan = models.OneToOneField('PerpindahanAset', on_delete=models.SET_NULL, null=True, blank=True, related_name='report')
     dibuat_pada = models.DateTimeField(auto_now_add=True)
 
     class Meta:
+        db_table = 'laporan_perpindahan'
         ordering = ['-dibuat_pada']
         constraints = [
             # Satu aset hanya boleh punya satu laporan yang menunggu persetujuan
@@ -1299,7 +1336,7 @@ def apply_movement_report(report, by):
         dicatat_oleh=by, catatan=note,
     )
     if departemen is not None and departemen.pk != aset.departemen_pemilik_id:
-        Asset.objects.filter(pk=aset.pk).update(departemen_pemilik=departemen)
+        Aset.objects.filter(pk=aset.pk).update(departemen_pemilik=departemen)
     report.save(update_fields=['perpindahan'])
     return report.perpindahan
 
@@ -1311,19 +1348,19 @@ def write_off_asset(asset, tanggal, alasan, keterangan, by=None, nilai_jual=None
     masih berjalan (jadwal, pemegang, laporan kerusakan) dan catat di histori movement.
     """
     fin = asset.financial if hasattr(asset, 'financial') else None
-    wo = AssetWriteOff.objects.create(
+    wo = PenghapusanAset.objects.create(
         aset =asset, tanggal=tanggal, alasan=alasan, keterangan=keterangan, nilai_jual=nilai_jual,
         nilai_perolehan=fin.nilai_awal if fin else None,
         nilai_buku=fin.book_value(tanggal) if fin else None,
         dibuat_oleh =by,
     )
-    Asset.objects.filter(pk=asset.pk).update(status_siklus_hidup ='writeoff')
+    Aset.objects.filter(pk=asset.pk).update(status_siklus_hidup ='writeoff')
     asset.status_siklus_hidup = 'writeoff'
 
     active = asset.schedules.active()
     active.filter(catatan ='').update(catatan =f'Dihentikan: aset di-write off {tanggal:%d %b %Y}')
     active.update(status='skipped')
-    DamageReport.objects.filter(aset =asset, status_laporan__in=DamageReport.ACTIVE_STATUS).update(
+    LaporanKerusakan.objects.filter(aset =asset, status_laporan__in=LaporanKerusakan.ACTIVE_STATUS).update(
         status_laporan ='resolved', diselesaikan_pada =timezone.now(), ditangani_oleh =by,
         catatan_ga ='Ditutup karena aset di-write off.',
     )
@@ -1337,8 +1374,8 @@ def write_off_asset(asset, tanggal, alasan, keterangan, by=None, nilai_jual=None
 @transaction.atomic
 def cancel_write_off(asset, by=None):
     """Batalkan write off yang keliru: aset aktif lagi dan jadwal maintenance dibuat ulang."""
-    AssetWriteOff.objects.filter(aset =asset).delete()
-    Asset.objects.filter(pk=asset.pk).update(status_siklus_hidup ='active')
+    PenghapusanAset.objects.filter(aset =asset).delete()
+    Aset.objects.filter(pk=asset.pk).update(status_siklus_hidup ='active')
     asset.status_siklus_hidup = 'active'
     _generate_next_schedule(asset)
     record_movement(asset, dipegang_oleh =None, departemen =asset.departemen_pemilik, lokasi =asset.lokasi,
@@ -1381,6 +1418,7 @@ class PenandaTanganBA(models.Model):
     jabatan = models.CharField(max_length=100)
 
     class Meta:
+        db_table = 'penanda_tangan_ba'
         ordering = ['urutan', 'id']
 
     def __str__(self):
@@ -1400,7 +1438,7 @@ class BeritaAcara(models.Model):
 
     jenis      = models.CharField(max_length=12, choices=JENIS)
     status     = models.CharField(max_length=15, choices=STATUS, default='draft')
-    departemen = models.ForeignKey(Department, on_delete=models.SET_NULL, null=True, blank=True,
+    departemen = models.ForeignKey(Departemen, on_delete=models.SET_NULL, null=True, blank=True,
                                    related_name='berita_acara')
     nomor      = models.CharField(max_length=60, unique=True, null=True, blank=True)
     urutan     = models.PositiveIntegerField(null=True, blank=True)
@@ -1411,14 +1449,15 @@ class BeritaAcara(models.Model):
     penanda_tangan = models.JSONField(default=list, blank=True) # salinan saat terbit
     scan_ttd   = models.FileField(upload_to='berita_acara/%Y/', null=True, blank=True)
     catatan    = models.TextField(blank=True)                   # catatan internal (mis. write off dibatalkan)
-    dibuat_oleh      = models.ForeignKey(Employee, on_delete=models.SET_NULL, null=True, blank=True, related_name='+')
-    diterbitkan_oleh = models.ForeignKey(Employee, on_delete=models.SET_NULL, null=True, blank=True, related_name='+')
+    dibuat_oleh      = models.ForeignKey(Karyawan, on_delete=models.SET_NULL, null=True, blank=True, related_name='+')
+    diterbitkan_oleh = models.ForeignKey(Karyawan, on_delete=models.SET_NULL, null=True, blank=True, related_name='+')
     diterbitkan_pada = models.DateTimeField(null=True, blank=True)
     ditandatangani_pada = models.DateTimeField(null=True, blank=True)
     dibuat_pada = models.DateTimeField(auto_now_add=True)
     diperbarui_pada = models.DateTimeField(auto_now=True)
 
     class Meta:
+        db_table = 'berita_acara'
         ordering = ['-tanggal', '-id']
         indexes = [models.Index(fields=['jenis', 'status'])]
 
@@ -1495,7 +1534,7 @@ class BeritaAcara(models.Model):
         return out
 
 
-class BeritaAcaraItem(models.Model):
+class ButirBeritaAcara(models.Model):
     SUMBER = [
         ('laporan',  'Laporan karyawan'),
         ('inspeksi', 'Temuan inspeksi / maintenance'),
@@ -1508,15 +1547,16 @@ class BeritaAcaraItem(models.Model):
 
     # Tanpa index sendiri: sudah tercakup unique (ba, asset)
     ba     = models.ForeignKey(BeritaAcara, on_delete=models.CASCADE, related_name='items', db_index=False)
-    aset = models.ForeignKey(Asset, on_delete=models.CASCADE, related_name='ba_items')
+    aset = models.ForeignKey(Aset, on_delete=models.CASCADE, related_name='ba_items')
     sumber = models.CharField(max_length=10, choices=SUMBER, default='manual')
-    laporan_kerusakan = models.ForeignKey(DamageReport, on_delete=models.SET_NULL, null=True, blank=True, related_name='ba_items')
-    catatan_maintenance = models.ForeignKey(MaintenanceRecord, on_delete=models.SET_NULL, null=True, blank=True, related_name='ba_items')
+    laporan_kerusakan = models.ForeignKey(LaporanKerusakan, on_delete=models.SET_NULL, null=True, blank=True, related_name='ba_items')
+    catatan_maintenance = models.ForeignKey(CatatanMaintenance, on_delete=models.SET_NULL, null=True, blank=True, related_name='ba_items')
     kerusakan   = models.TextField(blank=True)
     rekomendasi = models.CharField(max_length=10, choices=REKOMENDASI, default='perbaiki')
     dibuat_pada = models.DateTimeField(auto_now_add=True)
 
     class Meta:
+        db_table = 'butir_berita_acara'
         ordering = ['id']
         constraints = [models.UniqueConstraint(fields=['ba', 'aset'], name='uniq_ba_asset')]
 
@@ -1524,11 +1564,14 @@ class BeritaAcaraItem(models.Model):
         return f'{self.ba} — {self.aset.nomor_aset}'
 
 
-class BeritaAcaraFoto(models.Model):
-    butir = models.ForeignKey(BeritaAcaraItem, on_delete=models.CASCADE, related_name='foto')
+class FotoBeritaAcara(models.Model):
+    butir = models.ForeignKey(ButirBeritaAcara, on_delete=models.CASCADE, related_name='foto')
     foto    = models.ImageField(upload_to='berita_acara/foto/%Y/%m/')
     keterangan = models.CharField(max_length=200, blank=True)
     dibuat_pada = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'foto_berita_acara'
 
 
 def ringkas_laporan(judul, deskripsi):
@@ -1562,7 +1605,7 @@ def catat_temuan_kerusakan(asset, sumber, kerusakan, laporan_kerusakan =None, ca
         butir.catatan_maintenance = butir.catatan_maintenance or catatan_maintenance
         butir.save()
         return butir
-    return BeritaAcaraItem.objects.create(ba=ba, aset=asset, sumber=sumber, kerusakan=kerusakan,
+    return ButirBeritaAcara.objects.create(ba=ba, aset=asset, sumber=sumber, kerusakan=kerusakan,
                                           laporan_kerusakan=laporan_kerusakan, catatan_maintenance=catatan_maintenance)
 
 
@@ -1605,7 +1648,7 @@ def hapuskan_aset(assets, tanggal, alasan, keterangan, by=None, rujukan=None, ni
     asal = {it.aset_id: it for it in rujukan.items.all()} if rujukan else {}
     for a in assets:
         src = asal.get(a.pk)
-        BeritaAcaraItem.objects.create(ba=ba, aset =a, sumber='manual', rekomendasi='hapus',
+        ButirBeritaAcara.objects.create(ba=ba, aset =a, sumber='manual', rekomendasi='hapus',
                                        kerusakan=(src.kerusakan if src else keterangan),
                                        laporan_kerusakan =src.laporan_kerusakan if src else None)
     return terbitkan_ba(ba, tanggal, by=by)
@@ -1629,6 +1672,7 @@ class BerkasMedia(models.Model):
     dibuat_pada = models.DateTimeField(auto_now_add=True)
 
     class Meta:
+        db_table = 'berkas_media'
         verbose_name = 'Berkas media'
         verbose_name_plural = 'Berkas media'
 

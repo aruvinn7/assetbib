@@ -44,7 +44,7 @@ Menggantikan pencatatan terpisah (spreadsheet, catatan manual) dengan satu alur 
 
 - **Stack:** Django 5.1, SQLite, template server-side, JavaScript vanilla. Chart memakai Chart.js; tidak ada framework CSS (semua gaya dari `static/css/base.css` + CSS per halaman).
 - **Bahasa:** antarmuka berbahasa Indonesia. Sebagian istilah teknis tetap dalam bahasa Inggris: Active, Maintenance, Write Off, preventive, corrective, inspection, writeoff.
-- **Role** ditentukan dari profile Employee: GAProfile, FinanceProfile, UserProfile.
+- **Role** ditentukan dari profil Karyawan: ProfilGA, ProfilFinance, ProfilKaryawan.
 - **Status aset:** active, maintenance, writeoff.
 - **Status kesehatan:** normal, warning, waspada, critical, no_data. Ambang persen biaya perbaikan bertingkat menurut nilai awal aset: < 2 jt, < 10 jt, < 50 jt, dan di atasnya.
 - **Status laporan kerusakan:** pending, acknowledged, in_progress, resolved, rejected. Severity: low, medium, high, critical.

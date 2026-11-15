@@ -14,7 +14,7 @@ from django.utils import timezone
 from ..decorators import role_required
 from ..forms import AssignmentForm, AssignmentReturnForm, flash_form_errors
 from ..models import (
-    Asset, AssetAssignment, DamageReport, Department, Employee, Location, record_movement,
+    Aset, SerahTerimaAset, LaporanKerusakan, Departemen, Karyawan, Lokasi, record_movement,
 )
 from ..roles import is_ga
 
@@ -27,7 +27,7 @@ def _to_list(tab):
 
 
 def _unassigned_assets():
-    return (Asset.objects.exclude(status_siklus_hidup='writeoff').exclude(assignments__status='active')
+    return (Aset.objects.exclude(status_siklus_hidup='writeoff').exclude(assignments__status='active')
             .select_related('lokasi', 'departemen_pemilik', 'kategori_aset'))
 
 
@@ -38,7 +38,7 @@ def assignment_list(request):
         tab = 'pribadi'
     search = request.GET.get('q', '').strip()
 
-    active = AssetAssignment.objects.filter(status='active')
+    active = SerahTerimaAset.objects.filter(status='active')
     free = _unassigned_assets()
     counts = active.aggregate(pribadi=Count('id', filter=Q(diserahkan_kepada__isnull=False)),
                               departemen=Count('id', filter=Q(departemen__isnull=False)))
@@ -74,7 +74,7 @@ def assignment_list(request):
 
 @role_required(is_ga)
 def assignment_create(request, aset_id=None):
-    selected_asset = get_object_or_404(Asset, id=aset_id) if aset_id else None
+    selected_asset = get_object_or_404(Aset, id=aset_id) if aset_id else None
     form = AssignmentForm(request.POST or None)
 
     if request.method == 'POST':
@@ -100,7 +100,7 @@ def assignment_create(request, aset_id=None):
                 )
                 # Departemen penerima = departemen yang meminta/mengadakan → jadi pemilik aset
                 if asset.departemen_pemilik_id != dept.pk:
-                    Asset.objects.filter(pk=asset.pk).update(departemen_pemilik=dept)
+                    Aset.objects.filter(pk=asset.pk).update(departemen_pemilik=dept)
                 recipient = f"departemen {dept.nama}"
             messages.success(request, f"Aset '{asset.nama_aset}' diserahkan ke {recipient}.")
             return _to_list('pribadi' if d['mode'] == 'personal' else 'departemen')
@@ -109,16 +109,16 @@ def assignment_create(request, aset_id=None):
     return render(request, 'ga/assignment_create.html', {
         # lokasi & kategori di-join — dulu 950+ query karena lazy load per aset
         # Penerima saat ini ikut dimuat supaya form bisa memberi tahu bila aset akan dipindahtangankan
-        'assets': Asset.objects.filter(status_siklus_hidup='active').select_related(
+        'assets': Aset.objects.filter(status_siklus_hidup='active').select_related(
             'kategori_aset', 'lokasi',
         ).annotate(holder_name=Subquery(
-            AssetAssignment.objects.filter(aset=OuterRef('pk'), status='active')
+            SerahTerimaAset.objects.filter(aset=OuterRef('pk'), status='active')
             .annotate(nama=Coalesce('diserahkan_kepada__nama', 'departemen__nama')).values('nama')[:1]
         )).order_by('nama_aset'),
-        'employees':      Employee.objects.filter(user_profile__isnull=False, user__is_active=True)
+        'employees':      Karyawan.objects.filter(user_profile__isnull=False, user__is_active=True)
                           .select_related('departemen').order_by('nama'),
-        'departments':    Department.objects.order_by('nama'),
-        'locations':      Location.objects.filter(tempat_penyimpanan=False).order_by('jalur_lengkap'),
+        'departments':    Departemen.objects.order_by('nama'),
+        'locations':      Lokasi.objects.filter(tempat_penyimpanan=False).order_by('jalur_lengkap'),
         'selected_asset': selected_asset,
         'posted':         request.POST.dict() if request.method == 'POST' else None,
     })
@@ -126,9 +126,9 @@ def assignment_create(request, aset_id=None):
 
 def _record_return_damage(asset, condition, notes, by):
     """Kondisi rusak saat dikembalikan → laporan kerusakan (sudah diterima GA). None bila sudah ada laporan aktif."""
-    if DamageReport.objects.filter(aset=asset, status_laporan__in=DamageReport.ACTIVE_STATUS).exists():
+    if LaporanKerusakan.objects.filter(aset=asset, status_laporan__in=LaporanKerusakan.ACTIVE_STATUS).exists():
         return None
-    return DamageReport.objects.create(
+    return LaporanKerusakan.objects.create(
         aset=asset, dilaporkan_oleh=by, ditangani_oleh=by, status_laporan='acknowledged',
         judul='Rusak saat dikembalikan', deskripsi=notes,
         tingkat_keparahan='low' if condition == 'rusak_ringan' else 'high',
@@ -138,12 +138,12 @@ def _record_return_damage(asset, condition, notes, by):
 @role_required(is_ga)
 def assignment_return(request, pk):
     assignment = get_object_or_404(
-        AssetAssignment.objects.select_related('aset__lokasi', 'aset__kategori_aset',
+        SerahTerimaAset.objects.select_related('aset__lokasi', 'aset__kategori_aset',
                                                'diserahkan_kepada__departemen', 'departemen'),
         pk=pk, status='active',
     )
     asset = assignment.aset
-    storage = Location.storage_for(asset.lokasi)
+    storage = Lokasi.storage_for(asset.lokasi)
     form = AssignmentReturnForm(request.POST or None)
 
     if request.method == 'POST':
@@ -156,7 +156,7 @@ def assignment_return(request, pk):
                 dicatat_oleh=by, catatan=f"Dikembalikan oleh {assignment.recipient_name}",
                 tanggal=d['tanggal_kembali'] or timezone.localdate(), catatan_pemegang=d['catatan'], release=True,
             )
-            AssetAssignment.objects.filter(pk=assignment.pk).update(kondisi_kembali=d['kondisi'])
+            SerahTerimaAset.objects.filter(pk=assignment.pk).update(kondisi_kembali=d['kondisi'])
 
             msg = f"'{asset.nama_aset}' sudah dikembalikan oleh {assignment.recipient_name} dan disimpan di {d['lokasi'].nama}."
             if d['kondisi'] != 'baik':
@@ -170,7 +170,7 @@ def assignment_return(request, pk):
         'assignment': assignment,
         'asset':      asset,
         'storage':    storage,
-        'locations':  Location.objects.order_by('-tempat_penyimpanan', 'jalur_lengkap'),
-        'conditions': AssetAssignment.CONDITION,
+        'locations':  Lokasi.objects.order_by('-tempat_penyimpanan', 'jalur_lengkap'),
+        'conditions': SerahTerimaAset.CONDITION,
         'posted':     request.POST.dict() if request.method == 'POST' else None,
     })
