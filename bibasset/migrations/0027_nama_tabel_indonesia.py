@@ -3,6 +3,74 @@
 from django.db import migrations, models
 
 
+# (model, nama index lama, nama index baru)
+GANTI_INDEX = [
+    ('aset', 'bibasset_as_status__5c1fa5_idx', 'aset_status__bfa266_idx'),
+    ('beritaacara', 'bibasset_be_jenis_b42c8b_idx', 'berita_acar_jenis_5e6177_idx'),
+    ('catatanmaintenance', 'bibasset_ma_aset_id_74be4e_idx', 'catatan_mai_aset_id_bca171_idx'),
+    ('catatanmaintenance', 'bibasset_ma_aset_id_1ea194_idx', 'catatan_mai_aset_id_7a3484_idx'),
+    ('fotoaset', 'bibasset_as_aset_id_92183e_idx', 'foto_aset_aset_id_a1455d_idx'),
+    ('jadwalmaintenance', 'bibasset_ma_status_f7dbea_idx', 'jadwal_main_status_5bddab_idx'),
+    ('jadwalmaintenance', 'bibasset_ma_aset_id_8c6a2a_idx', 'jadwal_main_aset_id_01c05c_idx'),
+    ('laporankerusakan', 'bibasset_da_status__19aba9_idx', 'laporan_ker_status__899283_idx'),
+    ('laporankerusakan', 'bibasset_da_aset_id_87bb61_idx', 'laporan_ker_aset_id_8eb420_idx'),
+    ('perpindahanaset', 'bibasset_as_aset_id_1256ff_idx', 'perpindahan_aset_id_67ac8d_idx'),
+    ('perpindahanaset', 'bibasset_as_aset_id_887883_idx', 'perpindahan_aset_id_2bbf56_idx'),
+    ('serahterimaaset', 'bibasset_as_aset_id_46f291_idx', 'serah_terim_aset_id_d1a92f_idx'),
+    ('serahterimaaset', 'bibasset_as_diserah_6ee040_idx', 'serah_terim_diserah_8844d8_idx'),
+]
+
+
+def _cari_index(model, *nama):
+    # State historis bisa memakai nama lama atau baru, tergantung arah migrasi
+    for idx in model._meta.indexes:
+        if idx.name in nama:
+            return idx
+    raise LookupError(f'{model.__name__} tidak punya index {nama}')
+
+
+def _ganti_index(apps, schema_editor, mundur=False):
+    """Ganti nama index sesuai kondisi DB yang sebenarnya.
+
+    Nama index di DB bisa beda dari catatan migrasi (mis. DB produksi
+    disusun lewat jalur lain), jadi jangan anggap nama lama pasti ada:
+    - nama baru sudah ada  -> lewati
+    - nama lama ada        -> rename
+    - ada index lain dengan kolom sama -> rename yang itu
+    - tidak ada sama sekali -> buat index baru
+    """
+    conn = schema_editor.connection
+    for model_name, lama, baru in GANTI_INDEX:
+        if mundur:
+            lama, baru = baru, lama
+        model = apps.get_model('bibasset', model_name)
+        idx_lama = _cari_index(model, lama, baru)
+        idx_lama = models.Index(fields=list(idx_lama.fields), name=lama)
+        kolom = [model._meta.get_field(f).column for f in idx_lama.fields]
+        with conn.cursor() as cur:
+            ada = conn.introspection.get_constraints(cur, model._meta.db_table)
+        idx_baru = models.Index(fields=list(idx_lama.fields), name=baru)
+        if baru in ada:
+            continue
+        if lama not in ada:
+            sama = [n for n, c in ada.items()
+                    if c.get('index') and not c.get('unique') and not c.get('primary_key')
+                    and c.get('columns') == kolom]
+            if not sama:
+                schema_editor.add_index(model, idx_baru)
+                continue
+            idx_lama = models.Index(fields=list(idx_lama.fields), name=sama[0])
+        schema_editor.rename_index(model, idx_lama, idx_baru)
+
+
+def maju(apps, schema_editor):
+    _ganti_index(apps, schema_editor)
+
+
+def mundur(apps, schema_editor):
+    _ganti_index(apps, schema_editor, mundur=True)
+
+
 class Migration(migrations.Migration):
 
     dependencies = [
@@ -14,70 +82,12 @@ class Migration(migrations.Migration):
             name='kategoriaset',
             options={'verbose_name': 'Kategori aset', 'verbose_name_plural': 'Kategori aset'},
         ),
-        migrations.RenameIndex(
-            model_name='aset',
-            new_name='aset_status__bfa266_idx',
-            old_name='bibasset_as_status__5c1fa5_idx',
-        ),
-        migrations.RenameIndex(
-            model_name='beritaacara',
-            new_name='berita_acar_jenis_5e6177_idx',
-            old_name='bibasset_be_jenis_b42c8b_idx',
-        ),
-        migrations.RenameIndex(
-            model_name='catatanmaintenance',
-            new_name='catatan_mai_aset_id_bca171_idx',
-            old_name='bibasset_ma_aset_id_74be4e_idx',
-        ),
-        migrations.RenameIndex(
-            model_name='catatanmaintenance',
-            new_name='catatan_mai_aset_id_7a3484_idx',
-            old_name='bibasset_ma_aset_id_1ea194_idx',
-        ),
-        migrations.RenameIndex(
-            model_name='fotoaset',
-            new_name='foto_aset_aset_id_a1455d_idx',
-            old_name='bibasset_as_aset_id_92183e_idx',
-        ),
-        migrations.RenameIndex(
-            model_name='jadwalmaintenance',
-            new_name='jadwal_main_status_5bddab_idx',
-            old_name='bibasset_ma_status_f7dbea_idx',
-        ),
-        migrations.RenameIndex(
-            model_name='jadwalmaintenance',
-            new_name='jadwal_main_aset_id_01c05c_idx',
-            old_name='bibasset_ma_aset_id_8c6a2a_idx',
-        ),
-        migrations.RenameIndex(
-            model_name='laporankerusakan',
-            new_name='laporan_ker_status__899283_idx',
-            old_name='bibasset_da_status__19aba9_idx',
-        ),
-        migrations.RenameIndex(
-            model_name='laporankerusakan',
-            new_name='laporan_ker_aset_id_8eb420_idx',
-            old_name='bibasset_da_aset_id_87bb61_idx',
-        ),
-        migrations.RenameIndex(
-            model_name='perpindahanaset',
-            new_name='perpindahan_aset_id_67ac8d_idx',
-            old_name='bibasset_as_aset_id_1256ff_idx',
-        ),
-        migrations.RenameIndex(
-            model_name='perpindahanaset',
-            new_name='perpindahan_aset_id_2bbf56_idx',
-            old_name='bibasset_as_aset_id_887883_idx',
-        ),
-        migrations.RenameIndex(
-            model_name='serahterimaaset',
-            new_name='serah_terim_aset_id_d1a92f_idx',
-            old_name='bibasset_as_aset_id_46f291_idx',
-        ),
-        migrations.RenameIndex(
-            model_name='serahterimaaset',
-            new_name='serah_terim_diserah_8844d8_idx',
-            old_name='bibasset_as_diserah_6ee040_idx',
+        migrations.SeparateDatabaseAndState(
+            state_operations=[
+                migrations.RenameIndex(model_name=m, old_name=lama, new_name=baru)
+                for m, lama, baru in GANTI_INDEX
+            ],
+            database_operations=[migrations.RunPython(maju, mundur)],
         ),
         migrations.AlterField(
             model_name='aset',
